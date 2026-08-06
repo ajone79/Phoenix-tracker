@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Phoenix Alliance — Ops Viewer</title>
+<title>Phoenix EU168 Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -34,16 +34,20 @@
   .section-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;flex-wrap:wrap;}
   .section-head h1{font-family:'Antonio',sans-serif;font-weight:700;font-size:26px;margin:0;letter-spacing:.03em;}
   .section-head .accent{color:var(--signal);}
-  .section-desc{color:var(--text-dim);font-size:12px;max-width:560px;}
+  .section-desc{color:var(--text-dim);font-size:12px;max-width:620px;}
   .panel{background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:18px 20px;margin-bottom:18px;}
   .panel-title{font-family:'Antonio',sans-serif;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:0 0 12px;}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
   select,button.btn{font-family:'Space Mono',monospace;font-size:13px;background:var(--panel-2);color:var(--text);border:1px solid var(--hair);border-radius:6px;padding:8px 10px;outline:none;}
   button.btn{cursor:pointer;font-family:'Antonio',sans-serif;text-transform:uppercase;letter-spacing:.04em;font-weight:600;font-size:12px;border:none;transition:filter .12s ease;}
   button.btn:hover{filter:brightness(1.15);}
-  .btn-signal{background:var(--signal);color:var(--void);} .btn-peri{background:var(--periwinkle);color:var(--void);}
-  .btn-ghost{background:transparent;border:1px solid var(--hair);color:var(--text-dim);}
-  .btn-ghost:hover{color:var(--text);border-color:var(--text-dim);}
+  /* NOTE: modifier selectors below use button.btn-x (element+class) to reliably out-specificity the base "select,button.btn" rule above */
+  button.btn-signal{background:var(--signal);color:var(--void);border-color:var(--signal);}
+  button.btn-peri{background:var(--periwinkle);color:var(--void);border-color:var(--periwinkle);}
+  button.btn-mint{background:var(--mint);color:var(--void);border-color:var(--mint);}
+  button.btn-ghost{background:transparent;border:1px solid var(--hair);color:var(--text-dim);}
+  button.btn-ghost:hover{color:var(--text);border-color:var(--text-dim);}
+  button.btn-danger{background:transparent;border:1px solid var(--alert);color:var(--alert);}
   .btn-sm{padding:5px 9px;font-size:11px;}
   table{width:100%;border-collapse:collapse;font-size:12.5px;}
   th{text-align:left;font-family:'Antonio',sans-serif;letter-spacing:.05em;text-transform:uppercase;font-size:11px;color:var(--text-dim);padding:8px 10px;border-bottom:1px solid var(--hair);}
@@ -55,6 +59,8 @@
   .pill-g6{background:#5a3a1e;color:var(--signal);}
   .pill-g7{background:#5a2f2f;color:#ff8a8f;}
   .pill-g8{background:#4a2f5a;color:#d19bff;}
+  .pill-arc{background:#1e3a3a;color:var(--mint);}
+  .pill-arc-archived{background:#2a2a30;color:var(--text-faint);}
   .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
   .dot-green{background:var(--mint);} .dot-amber{background:var(--gold);} .dot-red{background:var(--alert);} .dot-grey{background:var(--text-faint);}
   .status-inactive{opacity:.4;}
@@ -76,6 +82,11 @@
   .viewonly-badge{background:var(--panel-2);border:1px solid var(--hair);color:var(--text-dim);font-size:10px;padding:3px 9px;border-radius:20px;letter-spacing:.05em;text-transform:uppercase;}
   .toast{position:fixed;bottom:20px;right:20px;background:var(--panel);border:1px solid var(--signal);color:var(--text);padding:10px 16px;border-radius:8px;font-size:12px;box-shadow:0 4px 20px rgba(0,0,0,.4);z-index:50;opacity:0;transform:translateY(8px);transition:all .2s ease;pointer-events:none;max-width:320px;}
   .toast.show{opacity:1;transform:translateY(0);}
+  .arc-banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  th.sortable{cursor:pointer;user-select:none;}
+  th.sortable:hover{color:var(--text);}
+  th.sortable .arrow{color:var(--signal);margin-left:3px;}
+  .updated-line{font-size:10.5px;color:var(--text-faint);margin-bottom:10px;display:flex;align-items:center;gap:5px;}
 </style>
 </head>
 <body>
@@ -89,6 +100,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 let roster = [];
 let events = [];
+let arcs = [];
 let view = 'roster';
 let lbEventId = null;
 let lbGradeFilters = new Set();
@@ -97,6 +109,12 @@ let dbStatus = 'connecting';
 let dbError = '';
 let compGradeFilters = new Set();
 let compIncludeTest = false;
+let arcFilterId = null; // 'ALL' or an arc id; initialized after load
+let lastLoadedAt = null;
+let dataUpdatedAt = null;
+let rosterSort = {key:'status', dir:'asc'};
+let lbSort = {key:'rank', dir:'asc'};
+let compSort = {key:'pct', dir:'desc'};
 
 const app = document.getElementById('app');
 const toastEl = document.getElementById('toast');
@@ -128,19 +146,31 @@ function updateDbBadge(){
 async function loadAll(){
   setDbStatus('connecting');
   try{
-    const [rosterRows, eventRows, scoreRows, arcRows] = await Promise.all([
+    const [rosterRows, eventRows, scoreRows, arcRows, latestScore, latestEvent] = await Promise.all([
       sb('roster?select=*&order=name.asc'),
       sb('events?select=*&order=date.desc'),
       sb('scores?select=*'),
-      sb('arcs?select=*')
+      sb('arcs?select=*&order=end_date.desc'),
+      sb('scores?select=updated_at&order=updated_at.desc&limit=1'),
+      sb('events?select=updated_at&order=updated_at.desc&limit=1')
     ]);
     roster = rosterRows || [];
-    const arcById = {}; (arcRows||[]).forEach(a=>{ arcById[a.id]=a; });
+    arcs = arcRows || [];
+    const arcById = {}; arcs.forEach(a=>{ arcById[a.id]=a; });
     events = (eventRows||[]).map(e=>({...e, entries:{}, arc: arcById[e.arc_id]||null}));
     (scoreRows||[]).forEach(s=>{
       const ev = events.find(e=>e.id===s.event_id);
       if(ev) ev.entries[s.player_id] = s.score;
     });
+    if(arcFilterId === null){
+      const activeArc = arcs.find(a=>a.status==='active');
+      arcFilterId = activeArc ? activeArc.id : 'ALL';
+    }
+    const candidates = [];
+    if(latestScore && latestScore[0]) candidates.push(new Date(latestScore[0].updated_at));
+    if(latestEvent && latestEvent[0]) candidates.push(new Date(latestEvent[0].updated_at));
+    dataUpdatedAt = candidates.length ? new Date(Math.max(...candidates.map(d=>d.getTime()))) : null;
+    lastLoadedAt = new Date();
     setDbStatus('connected');
   }catch(e){
     console.error(e);
@@ -157,6 +187,46 @@ function statusFor(score, threshold){
   if(s>=threshold) return {label:'Complete',dot:'dot-green',color:'var(--mint)'};
   return {label:'In progress',dot:'dot-amber',color:'var(--gold)'};
 }
+function isEligible(ev, p){
+  if(!ev.eligible_grades || ev.eligible_grades.length===0) return true;
+  return ev.eligible_grades.includes(gradeForLevel(p.level));
+}
+function sortedArcs(){
+  const active = arcs.filter(a=>a.status==='active').sort((a,b)=>b.end_date.localeCompare(a.end_date));
+  const archived = arcs.filter(a=>a.status!=='active').sort((a,b)=>b.end_date.localeCompare(a.end_date));
+  return [...active, ...archived];
+}
+function arcSelectorHtml(idPrefix){
+  const list = sortedArcs();
+  const opts = [`<option value="ALL" ${arcFilterId==='ALL'?'selected':''}>All arcs (combined)</option>`]
+    .concat(list.map(a=>`<option value="${a.id}" ${arcFilterId===a.id?'selected':''}>${escapeHtml(a.name)}${a.status!=='active'?' (archived)':''} · ${a.start_date}→${a.end_date}</option>`));
+  return `<select id="${idPrefix}ArcSelect">${opts.join('')}</select>`;
+}
+function eventsInSelectedArc(){
+  if(arcFilterId==='ALL') return events;
+  return events.filter(e=>e.arc_id===arcFilterId);
+}
+function updatedLine(){
+  if(!dataUpdatedAt) return '';
+  return `<div class="updated-line"><span class="status-dot dot-green"></span>Data last uploaded to Supabase: ${dataUpdatedAt.toLocaleString()}</div>`;
+}
+function sortArrow(state,key){ return state.key===key ? `<span class="arrow">${state.dir==='asc'?'▲':'▼'}</span>` : ''; }
+function bindSort(main, state, selector){
+  main.querySelectorAll(selector).forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const k = th.dataset.sort;
+      if(state.key===k) state.dir = state.dir==='asc'?'desc':'asc';
+      else { state.key = k; state.dir = 'asc'; }
+      render();
+    });
+  });
+}
+function cmp(a,b,dir){
+  let c;
+  if(typeof a==='number' && typeof b==='number') c = a-b;
+  else c = String(a).localeCompare(String(b));
+  return dir==='desc' ? -c : c;
+}
 
 function render(){
   app.innerHTML = `
@@ -164,7 +234,7 @@ function render(){
       <div class="elbow"><span>PHX</span></div>
       <div class="topbar-bar">
         <div>
-          <div class="topbar-title"><b>PHOENIX</b> ALLIANCE — OPS VIEWER <span class="viewonly-badge">View Only</span></div>
+          <div class="topbar-title"><b>PHOENIX</b> EU168 EVENTS <span class="viewonly-badge">View Only</span></div>
           <div class="topbar-sub">${roster.filter(p=>p.status==='active').length} active members</div>
         </div>
         <div class="stardate">LIVE DATA<div class="db-badge" id="dbBadge"></div></div>
@@ -176,7 +246,7 @@ function render(){
         <button class="navbtn nav-2 ${view==='leaderboard'?'active':''}" data-nav="leaderboard"><span class="label">Leaderboard</span></button>
         <button class="navbtn nav-3 ${view==='history'?'active':''}" data-nav="history"><span class="label">History</span></button>
         <button class="navbtn nav-1 ${view==='completion'?'active':''}" data-nav="completion" style="background:var(--mint);"><span class="label">Completion</span></button>
-        <div class="sidebar-foot">Read-only view of the live alliance database. To log scores or edit the roster, use the interactive tracker in Claude.</div>
+        <div class="sidebar-foot">Read-only view of the live alliance database. To log scores, edit the roster, or manage arcs, use the interactive tracker in Claude.</div>
       </div>
       <main id="main"></main>
     </div>
@@ -195,15 +265,18 @@ function render(){
   else if(view==='completion') renderCompletion(main);
 }
 
+/* ---------------- COMPLETION ---------------- */
 function renderCompletion(main){
   const grades = allGrades();
-  const relevantEvents = events.filter(e => compIncludeTest || !e.is_test).slice().sort((a,b)=> a.date.localeCompare(b.date));
+  const arcEvents = eventsInSelectedArc();
+  const relevantEvents = arcEvents.filter(e => compIncludeTest || !e.is_test).slice().sort((a,b)=> a.date.localeCompare(b.date));
 
   main.innerHTML = `
     <div class="section-head"><h1>Completion <span class="accent">Tracker</span></h1></div>
-    <div class="section-desc" style="margin-bottom:16px;">Every active member against every logged event. Green check = hit that event's threshold. Overall % is completed ÷ total events shown.</div>
+    <div class="section-desc" style="margin-bottom:16px;">Every active member against every event in the selected arc. Green check/number = hit that event's threshold. N/A = not eligible for that event (excluded from their rate). Overall % is completed ÷ eligible events shown.</div>
     <div class="panel">
       <div class="row">
+        <div class="row">${arcSelectorHtml('comp')}</div>
         <div class="row" id="compGradePills">
           ${grades.map(g=>`<button class="btn btn-sm ${compGradeFilters.has(g)?'btn-signal':'btn-ghost'}" data-grade="${g}">${g}</button>`).join('')}
           <button class="btn btn-sm ${compGradeFilters.size===0?'btn-peri':'btn-ghost'}" id="compGradeClear">All grades</button>
@@ -216,6 +289,7 @@ function renderCompletion(main){
     <div id="compTableWrap"></div>
   `;
 
+  main.querySelector('#compArcSelect').addEventListener('change', e=>{ arcFilterId=e.target.value; render(); });
   main.querySelectorAll('#compGradePills [data-grade]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const g = btn.dataset.grade;
@@ -227,54 +301,99 @@ function renderCompletion(main){
   main.querySelector('#compIncTest').addEventListener('change', e=>{ compIncludeTest=e.target.checked; render(); });
 
   const wrap = main.querySelector('#compTableWrap');
-  if(relevantEvents.length===0){ wrap.innerHTML = `<div class="empty">No events logged yet.</div>`; return; }
+  if(relevantEvents.length===0){ wrap.innerHTML = `<div class="empty">No events in this arc yet.</div>`; return; }
 
   let members = roster.filter(p=>p.status==='active');
   if(compGradeFilters.size>0) members = members.filter(p=>compGradeFilters.has(gradeForLevel(p.level)));
 
   const rowsData = members.map(p=>{
     const cells = relevantEvents.map(ev=>{
+      if(!isEligible(ev,p)) return {type:'bye', ev};
       const score = ev.entries[p.id];
       const complete = score!==undefined && score >= ev.threshold;
-      return {complete, hasScore: score!==undefined && score > 0};
+      return {type:'normal', ev, score, complete, hasScore: score!==undefined && score>0};
     });
-    const completedCount = cells.filter(c=>c.complete).length;
-    const pct = relevantEvents.length ? Math.round(100*completedCount/relevantEvents.length) : 0;
-    return {name:p.name, grade:gradeForLevel(p.level), cells, completedCount, pct};
-  }).sort((a,b)=> b.pct-a.pct || b.completedCount-a.completedCount || a.name.localeCompare(b.name));
+    const eligibleCells = cells.filter(c=>c.type!=='bye');
+    const completedCount = eligibleCells.filter(c=>c.complete).length;
+    const pct = eligibleCells.length ? Math.round(100*completedCount/eligibleCells.length) : 0;
+    return {name:p.name, grade:gradeForLevel(p.level), cells, completedCount, totalEligible: eligibleCells.length, pct};
+  }).sort((a,b)=>{
+    let av,bv;
+    if(compSort.key==='name'){ av=a.name.toLowerCase(); bv=b.name.toLowerCase(); }
+    else if(compSort.key==='grade'){ av=parseInt(a.grade.slice(1)); bv=parseInt(b.grade.slice(1)); }
+    else if(compSort.key==='completed'){ av=a.completedCount; bv=b.completedCount; }
+    else { av=a.pct; bv=b.pct; }
+    const c = cmp(av,bv,compSort.dir);
+    return c!==0 ? c : a.name.localeCompare(b.name);
+  });
 
   const headerCells = relevantEvents.map(ev=>`<th title="${escapeHtml(ev.name)} · ${ev.date}">${escapeHtml(ev.name.length>14?ev.name.slice(0,13)+'…':ev.name)}</th>`).join('');
 
+  function taskColor(score){
+    if(score>=12) return 'var(--mint)';
+    if(score>=9) return 'var(--gold)';
+    return 'var(--alert)';
+  }
+
   wrap.innerHTML = `
+    ${updatedLine()}
     <div class="panel" style="padding:0;overflow-x:auto;">
       <table>
-        <thead><tr><th>Name</th><th>Grade</th>${headerCells}<th>Completed</th><th>Rate</th></tr></thead>
+        <thead><tr>
+          <th class="sortable" data-sort="name">Name${sortArrow(compSort,'name')}</th>
+          <th class="sortable" data-sort="grade">Grade${sortArrow(compSort,'grade')}</th>
+          ${headerCells}
+          <th class="sortable" data-sort="completed">Completed${sortArrow(compSort,'completed')}</th>
+          <th class="sortable" data-sort="pct">Rate${sortArrow(compSort,'pct')}</th>
+        </tr></thead>
         <tbody>
         ${rowsData.map(r=>{
           const cellHtml = r.cells.map(c=>{
+            if(c.type==='bye') return `<td style="text-align:center;color:var(--text-faint);" title="Not eligible for this event">N/A</td>`;
+            if(c.ev.scoring_type==='tasks'){
+              if(c.score===undefined) return `<td style="text-align:center;color:var(--text-faint);">—</td>`;
+              const max = c.ev.max_tasks || c.ev.threshold || 15;
+              return `<td style="text-align:center;color:${taskColor(c.score)};font-weight:bold;">${c.score}/${max}</td>`;
+            }
             if(!c.hasScore) return `<td style="text-align:center;color:var(--text-faint);">—</td>`;
             return c.complete
               ? `<td style="text-align:center;color:var(--mint);">✔</td>`
               : `<td style="text-align:center;color:var(--gold);">●</td>`;
           }).join('');
           const rateColor = r.pct>=75?'var(--mint)':r.pct>=40?'var(--gold)':'var(--alert)';
-          return `<tr><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td>${cellHtml}<td>${r.completedCount}/${relevantEvents.length}</td><td style="color:${rateColor};font-weight:bold;">${r.pct}%</td></tr>`;
+          return `<tr><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td>${cellHtml}<td>${r.completedCount}/${r.totalEligible}</td><td style="color:${rateColor};font-weight:bold;">${r.pct}%</td></tr>`;
         }).join('')}
         </tbody>
       </table>
     </div>
-    <div class="small" style="margin-top:6px;">✔ = completed that event's threshold &nbsp;·&nbsp; ● = scored but under threshold &nbsp;·&nbsp; — = no score logged</div>
+    <div class="small" style="margin-top:6px;">✔ = complete &nbsp;·&nbsp; ● = scored but under threshold &nbsp;·&nbsp; — = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament cells: green ≥12, amber 9–11, red ≤8</div>
   `;
+  bindSort(main, compSort, 'th[data-sort]');
 }
 
+/* ---------------- ROSTER ---------------- */
 function renderRoster(main){
-  const sorted = roster.slice().sort((a,b)=> a.status===b.status ? a.name.localeCompare(b.name) : (a.status==='active'?-1:1));
+  const sorted = roster.slice().sort((a,b)=>{
+    let av,bv;
+    if(rosterSort.key==='name'){ av=a.name.toLowerCase(); bv=b.name.toLowerCase(); }
+    else if(rosterSort.key==='level'){ av=a.level; bv=b.level; }
+    else if(rosterSort.key==='grade'){ av=parseInt(gradeForLevel(a.level).slice(1)); bv=parseInt(gradeForLevel(b.level).slice(1)); }
+    else { av=a.status; bv=b.status; }
+    const c = cmp(av,bv,rosterSort.dir);
+    return c!==0 ? c : a.name.localeCompare(b.name);
+  });
   main.innerHTML = `
     <div class="section-head"><h1>Alliance <span class="accent">Roster</span></h1></div>
-    <div class="section-desc" style="margin-bottom:16px;">Grade is calculated from level (G1 spans 1–20; every band after that is 10 levels wide).</div>
+    <div class="section-desc" style="margin-bottom:16px;">Grade is calculated from level (G1 spans 1–20; every band after that is 10 levels wide). Click a column header to sort.</div>
+    ${updatedLine()}
     <div class="panel" style="padding:0;overflow-x:auto;">
       <table>
-        <thead><tr><th>Name</th><th>Level</th><th>Grade</th><th>Status</th></tr></thead>
+        <thead><tr>
+          <th class="sortable" data-sort="name">Name${sortArrow(rosterSort,'name')}</th>
+          <th class="sortable" data-sort="level">Level${sortArrow(rosterSort,'level')}</th>
+          <th class="sortable" data-sort="grade">Grade${sortArrow(rosterSort,'grade')}</th>
+          <th class="sortable" data-sort="status">Status${sortArrow(rosterSort,'status')}</th>
+        </tr></thead>
         <tbody>
         ${sorted.map(p=>{
           const g=gradeForLevel(p.level); const inactive=p.status!=='active';
@@ -284,49 +403,87 @@ function renderRoster(main){
       </table>
     </div>
   `;
+  bindSort(main, rosterSort, 'th[data-sort]');
 }
 
+/* ---------------- LEADERBOARD ---------------- */
 function renderLeaderboard(main){
-  if(events.length && !lbEventId) lbEventId = events[0].id;
+  const arcEvents = eventsInSelectedArc();
+  if(arcEvents.length && (!lbEventId || !arcEvents.find(e=>e.id===lbEventId))) lbEventId = arcEvents[0].id;
   const grades = allGrades();
   main.innerHTML = `
     <div class="section-head"><h1><span class="accent">Leaderboard</span></h1></div>
-    <div class="section-desc" style="margin-bottom:16px;">Filter by event and grade, then copy a clean list for Discord.</div>
+    <div class="section-desc" style="margin-bottom:16px;">Filter by arc, event, and grade, then copy a clean list for Discord.</div>
     <div class="panel">
       <div class="row">
+        ${arcSelectorHtml('lb')}
         <select id="lbEvent" style="width:320px;">
-          ${events.length===0?'<option>No events yet</option>':events.map(ev=>`<option value="${ev.id}" ${ev.id===lbEventId?'selected':''}>${ev.arc?'['+escapeHtml(ev.arc.name)+'] ':''}${escapeHtml(ev.name)} · ${ev.date}</option>`).join('')}
+          ${arcEvents.length===0?'<option>No events in this arc</option>':arcEvents.map(ev=>`<option value="${ev.id}" ${ev.id===lbEventId?'selected':''}>${escapeHtml(ev.name)} · ${ev.date}</option>`).join('')}
         </select>
-        <select id="lbGrade">
-          <option value="ALL" ${lbGradeFilter==='ALL'?'selected':''}>All grades</option>
-          ${grades.map(g=>`<option value="${g}" ${lbGradeFilter===g?'selected':''}>${g} only</option>`).join('')}
-        </select>
+        <div class="row" id="lbGradePills">
+          ${grades.map(g=>`<button class="btn btn-sm ${lbGradeFilters.has(g)?'btn-signal':'btn-ghost'}" data-grade="${g}">${g}</button>`).join('')}
+          <button class="btn btn-sm ${lbGradeFilters.size===0?'btn-peri':'btn-ghost'}" id="lbGradeClear">All grades</button>
+        </div>
       </div>
     </div>
     <div id="lbTableWrap"></div>
   `;
+  main.querySelector('#lbArcSelect').addEventListener('change', e=>{ arcFilterId=e.target.value; lbEventId=null; render(); });
   main.querySelector('#lbEvent').addEventListener('change',e=>{lbEventId=e.target.value;render();});
-  main.querySelector('#lbGrade').addEventListener('change',e=>{lbGradeFilter=e.target.value;render();});
+  main.querySelectorAll('#lbGradePills [data-grade]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const g = btn.dataset.grade;
+      if(lbGradeFilters.has(g)) lbGradeFilters.delete(g); else lbGradeFilters.add(g);
+      render();
+    });
+  });
+  main.querySelector('#lbGradeClear').addEventListener('click', ()=>{ lbGradeFilters.clear(); render(); });
 
-  const ev = events.find(e=>e.id===lbEventId);
+  const ev = arcEvents.find(e=>e.id===lbEventId);
   const wrap = main.querySelector('#lbTableWrap');
-  if(!ev){ wrap.innerHTML = `<div class="empty">No events logged yet.</div>`; return; }
+  if(!ev){ wrap.innerHTML = `<div class="empty">No events logged in this arc yet.</div>`; return; }
 
   let members = roster.filter(p=>p.status==='active');
-  if(lbGradeFilter!=='ALL') members = members.filter(p=>gradeForLevel(p.level)===lbGradeFilter);
+  if(lbGradeFilters.size>0) members = members.filter(p=>lbGradeFilters.has(gradeForLevel(p.level)));
+  if(ev.eligible_grades && ev.eligible_grades.length>0) members = members.filter(p=>ev.eligible_grades.includes(gradeForLevel(p.level)));
   const isTasks = ev.scoring_type === 'tasks';
-  const rowsData = members.map(p=>({name:p.name, grade:gradeForLevel(p.level), score: ev.entries[p.id]!==undefined?ev.entries[p.id]:0})).sort((a,b)=>b.score-a.score);
+  const statusRank = {'Complete':3,'In progress':2,'0 pts':1,'No score':0};
+  let rowsData = members.map(p=>{
+    const score = ev.entries[p.id]!==undefined?ev.entries[p.id]:0;
+    return {name:p.name, grade:gradeForLevel(p.level), score, st: statusFor(ev.entries[p.id], ev.threshold)};
+  }).sort((a,b)=>b.score-a.score);
+  rowsData.forEach((r,i)=>{ r.rank = i+1; });
+  rowsData = rowsData.slice().sort((a,b)=>{
+    let av,bv;
+    if(lbSort.key==='rank'||lbSort.key==='score'){ av=a.score; bv=b.score; }
+    else if(lbSort.key==='name'){ av=a.name.toLowerCase(); bv=b.name.toLowerCase(); }
+    else if(lbSort.key==='grade'){ av=parseInt(a.grade.slice(1)); bv=parseInt(b.grade.slice(1)); }
+    else { av=statusRank[a.st.label]??0; bv=statusRank[b.st.label]??0; }
+    const c = cmp(av,bv,lbSort.dir);
+    return c!==0 ? c : a.rank-b.rank;
+  });
   const scoreColLabel = isTasks ? 'Tasks' : 'Score';
-  function fmtScore(s){ return isTasks ? `${s}/${ev.threshold}` : s.toLocaleString(); }
+  function fmtScore(s){ return isTasks ? `${s}/${ev.max_tasks||ev.threshold}` : s.toLocaleString(); }
 
   wrap.innerHTML = `
-    ${ev.arc ? `<div class="small" style="margin-bottom:10px;">Arc: <b style="color:var(--periwinkle);">${escapeHtml(ev.arc.name)}</b> (${ev.arc.start_date} → ${ev.arc.end_date})${ev.start_date && ev.end_date ? ` · Event ran ${ev.start_date} → ${ev.end_date}` : ''}</div>` : ''}
+    <div class="arc-banner">
+      ${ev.arc ? `<span class="pill ${ev.arc.status==='active'?'pill-arc':'pill-arc-archived'}">${escapeHtml(ev.arc.name)}${ev.arc.status!=='active'?' · archived':''}</span>` : ''}
+      ${ev.eligible_grades && ev.eligible_grades.length ? `<span class="small">Eligible: ${ev.eligible_grades.join(', ')}</span>` : ''}
+      ${ev.start_date && ev.end_date ? `<span class="small">Ran ${ev.start_date} → ${ev.end_date}</span>` : ''}
+    </div>
+    ${updatedLine()}
     <div class="panel" style="padding:0;overflow-x:auto;">
       <table>
-        <thead><tr><th>#</th><th>Name</th><th>Grade</th><th>${scoreColLabel}</th><th>Status</th></tr></thead>
+        <thead><tr>
+          <th class="sortable" data-sort="rank">#${sortArrow(lbSort,'rank')}</th>
+          <th class="sortable" data-sort="name">Name${sortArrow(lbSort,'name')}</th>
+          <th class="sortable" data-sort="grade">Grade${sortArrow(lbSort,'grade')}</th>
+          <th class="sortable" data-sort="score">${scoreColLabel}${sortArrow(lbSort,'score')}</th>
+          <th class="sortable" data-sort="status">Status${sortArrow(lbSort,'status')}</th>
+        </tr></thead>
         <tbody>
-        ${rowsData.map((r,i)=>{ const st=statusFor(r.score,ev.threshold);
-          return `<tr><td>${i+1}</td><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td><td>${fmtScore(r.score)}</td><td><span class="status-dot ${st.dot}"></span><span style="color:${st.color}">${st.label}</span></td></tr>`;
+        ${rowsData.map((r)=>{
+          return `<tr><td>${r.rank}</td><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td><td>${fmtScore(r.score)}</td><td><span class="status-dot ${r.st.dot}"></span><span style="color:${r.st.color}">${r.st.label}</span></td></tr>`;
         }).join('') || `<tr><td colspan="5" class="empty">No matching members.</td></tr>`}
         </tbody>
       </table>
@@ -340,37 +497,44 @@ function renderLeaderboard(main){
       <textarea class="copybox" id="copyBox" readonly></textarea>
     </div>
   `;
+  bindSort(main, lbSort, 'th[data-sort]');
   function buildText(rows){ const w=Math.max(4,...rows.map(r=>r.name.length))+2; let out='```text\n'; rows.forEach(r=>{out+=r.name.padEnd(w,' ')+String(r.score).padStart(9,' ')+'\n';}); return out+'```'; }
   const copyBox = wrap.querySelector('#copyBox'); copyBox.value = buildText(rowsData);
   wrap.querySelector('#copyAllBtn').addEventListener('click',()=>{copyBox.value=buildText(rowsData); copyBox.select(); document.execCommand('copy'); toast('Full list copied');});
   wrap.querySelector('#copyIncBtn').addEventListener('click',()=>{const inc=rowsData.filter(r=>r.score<ev.threshold); copyBox.value=buildText(inc); copyBox.select(); document.execCommand('copy'); toast('Incomplete list copied');});
 }
 
+/* ---------------- HISTORY ---------------- */
 function renderHistory(main){
+  const arcEvents = eventsInSelectedArc();
   main.innerHTML = `
     <div class="section-head"><h1>Event <span class="accent">History</span></h1></div>
-    <div class="section-desc" style="margin-bottom:16px;">Click an event to see grade-by-grade completion.</div>
+    <div class="section-desc" style="margin-bottom:16px;">Filter by arc, click an event to see grade-by-grade completion.</div>
+    <div class="panel"><div class="row">${arcSelectorHtml('hist')}</div></div>
     <div class="grid2"><div id="evList"></div><div id="evDetail"></div></div>
   `;
+  main.querySelector('#histArcSelect').addEventListener('change', e=>{ arcFilterId=e.target.value; selectedEventId=null; render(); });
+
   const list = main.querySelector('#evList');
-  if(events.length===0){ list.innerHTML=`<div class="empty">No events logged yet.</div>`; }
+  if(arcEvents.length===0){ list.innerHTML=`<div class="empty">No events in this arc yet.</div>`; }
   else{
-    list.innerHTML = events.map(ev=>{ const n=Object.keys(ev.entries).length;
-      return `<div class="event-card ${ev.id===selectedEventId?'selected':''}" data-id="${ev.id}"><div class="ev-name">${ev.arc?'['+escapeHtml(ev.arc.name)+'] ':''}${escapeHtml(ev.name)}</div><div class="ev-meta">${ev.date} · ${n} score${n===1?'':'s'} · threshold ${Number(ev.threshold).toLocaleString()}${ev.scoring_type==='tasks'?' (tasks)':''}</div></div>`;
+    list.innerHTML = arcEvents.map(ev=>{ const n=Object.keys(ev.entries).length;
+      return `<div class="event-card ${ev.id===selectedEventId?'selected':''}" data-id="${ev.id}"><div class="ev-name">${escapeHtml(ev.name)}</div><div class="ev-meta">${ev.date} · ${n} score${n===1?'':'s'} · threshold ${Number(ev.threshold).toLocaleString()}${ev.scoring_type==='tasks'?' (tasks)':''}${ev.eligible_grades&&ev.eligible_grades.length?' · '+ev.eligible_grades.join('/')+' only':''}</div></div>`;
     }).join('');
     list.querySelectorAll('.event-card').forEach(c=>c.addEventListener('click',()=>{selectedEventId=c.dataset.id;render();}));
   }
   const detail = main.querySelector('#evDetail');
-  const ev = events.find(e=>e.id===selectedEventId);
+  const ev = arcEvents.find(e=>e.id===selectedEventId);
   if(!ev){ detail.innerHTML=`<div class="empty">Select an event to view breakdown.</div>`; return; }
   const grades = allGrades(); let rows='';
   grades.forEach(g=>{
+    if(ev.eligible_grades && ev.eligible_grades.length && !ev.eligible_grades.includes(g)) return;
     const members = roster.filter(p=>gradeForLevel(p.level)===g);
     const scored = members.filter(p=>ev.entries[p.id]!==undefined);
     const complete = scored.filter(p=>ev.entries[p.id]>=ev.threshold).length;
     rows += `<tr><td><span class="pill ${gradeClass(g)}">${g}</span></td><td>${members.length}</td><td>${scored.length}</td><td style="color:var(--mint)">${complete}</td></tr>`;
   });
-  detail.innerHTML = `<div class="panel"><div class="panel-title">${escapeHtml(ev.name)}</div><div class="small" style="margin-bottom:12px;">${ev.date} · Threshold ${Number(ev.threshold).toLocaleString()}</div><table><thead><tr><th>Grade</th><th>Members</th><th>Scored</th><th>Complete</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  detail.innerHTML = `<div class="panel">${updatedLine()}<div class="panel-title">${escapeHtml(ev.name)}</div><div class="small" style="margin-bottom:12px;">${ev.date} · Threshold ${Number(ev.threshold).toLocaleString()}${ev.eligible_grades&&ev.eligible_grades.length?' · Eligible: '+ev.eligible_grades.join(', '):''}</div><table><thead><tr><th>Grade</th><th>Members</th><th>Scored</th><th>Complete</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 loadAll();
