@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix Alliance — Ops Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#050507; --panel:#111116; --panel-2:#17171e; --hair:#2a2a34;
+    --signal:#ff9142; --periwinkle:#8fa3ff; --mint:#5fd068; --gold:#ffc857; --alert:#ff5a5f;
+    --text:#e8e6e1; --text-dim:#8a8a94; --text-faint:#55555f;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;-webkit-font-smoothing:antialiased;}
+  #app{display:flex;min-height:100vh;flex-direction:column;}
+  .topbar{display:flex;align-items:stretch;height:64px;flex-shrink:0;}
+  .elbow{width:120px;background:var(--signal);border-bottom-left-radius:34px;display:flex;align-items:center;justify-content:flex-end;padding-right:14px;}
+  .elbow span{font-family:'Antonio',sans-serif;font-weight:700;color:var(--void);font-size:13px;letter-spacing:.08em;}
+  .topbar-bar{flex:1;background:var(--panel);display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:2px solid var(--hair);}
+  .topbar-title{font-family:'Antonio',sans-serif;font-weight:700;font-size:22px;letter-spacing:.06em;}
+  .topbar-title b{color:var(--signal);}
+  .topbar-sub{font-size:11px;color:var(--text-dim);}
+  .stardate{font-size:11px;color:var(--periwinkle);text-align:right;}
+  .body-row{display:flex;flex:1;min-height:0;}
+  .sidebar{width:190px;flex-shrink:0;background:var(--panel);padding:22px 0;display:flex;flex-direction:column;gap:6px;border-right:2px solid var(--hair);}
+  .navbtn{margin:0 14px;padding:12px 16px;border-radius:0 20px 20px 0;font-family:'Antonio',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:14px;cursor:pointer;border:none;text-align:left;color:var(--void);transition:transform .12s ease,filter .12s ease;}
+  .navbtn:hover{filter:brightness(1.12);transform:translateX(3px);}
+  .navbtn.active{filter:brightness(1.2);box-shadow:0 0 0 2px rgba(255,255,255,.25) inset;}
+  .nav-1{background:var(--signal);} .nav-2{background:var(--periwinkle);} .nav-3{background:var(--mint);}
+  .sidebar-foot{margin-top:auto;padding:0 20px;font-size:10px;color:var(--text-faint);line-height:1.6;}
+  main{flex:1;padding:26px 30px 40px;overflow-y:auto;}
+  .section-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;flex-wrap:wrap;}
+  .section-head h1{font-family:'Antonio',sans-serif;font-weight:700;font-size:26px;margin:0;letter-spacing:.03em;}
+  .section-head .accent{color:var(--signal);}
+  .section-desc{color:var(--text-dim);font-size:12px;max-width:560px;}
+  .panel{background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:18px 20px;margin-bottom:18px;}
+  .panel-title{font-family:'Antonio',sans-serif;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:0 0 12px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  select,button.btn{font-family:'Space Mono',monospace;font-size:13px;background:var(--panel-2);color:var(--text);border:1px solid var(--hair);border-radius:6px;padding:8px 10px;outline:none;}
+  button.btn{cursor:pointer;font-family:'Antonio',sans-serif;text-transform:uppercase;letter-spacing:.04em;font-weight:600;font-size:12px;border:none;transition:filter .12s ease;}
+  button.btn:hover{filter:brightness(1.15);}
+  .btn-signal{background:var(--signal);color:var(--void);} .btn-peri{background:var(--periwinkle);color:var(--void);}
+  .btn-ghost{background:transparent;border:1px solid var(--hair);color:var(--text-dim);}
+  .btn-ghost:hover{color:var(--text);border-color:var(--text-dim);}
+  .btn-sm{padding:5px 9px;font-size:11px;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{text-align:left;font-family:'Antonio',sans-serif;letter-spacing:.05em;text-transform:uppercase;font-size:11px;color:var(--text-dim);padding:8px 10px;border-bottom:1px solid var(--hair);}
+  td{padding:7px 10px;border-bottom:1px solid #1c1c22;}
+  tr:hover td{background:rgba(255,255,255,.02);}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10.5px;font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.04em;}
+  .pill-g1,.pill-g2,.pill-g3{background:#3a3a44;color:var(--text-dim);}
+  .pill-g4,.pill-g5{background:#39415a;color:var(--periwinkle);}
+  .pill-g6{background:#5a3a1e;color:var(--signal);}
+  .pill-g7{background:#5a2f2f;color:#ff8a8f;}
+  .pill-g8{background:#4a2f5a;color:#d19bff;}
+  .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
+  .dot-green{background:var(--mint);} .dot-amber{background:var(--gold);} .dot-red{background:var(--alert);} .dot-grey{background:var(--text-faint);}
+  .status-inactive{opacity:.4;}
+  .empty{color:var(--text-faint);font-size:12px;padding:20px 4px;text-align:center;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media (max-width:820px){.grid2{grid-template-columns:1fr;}.sidebar{width:64px;}.navbtn span.label{display:none;}.topbar-title{font-size:16px;}.elbow{width:64px;}}
+  .small{font-size:11px;color:var(--text-dim);}
+  .event-card{border:1px solid var(--hair);border-radius:8px;padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:border-color .12s ease;}
+  .event-card:hover{border-color:var(--signal);}
+  .event-card.selected{border-color:var(--signal);background:rgba(255,145,66,.05);}
+  .event-card .ev-name{font-family:'Antonio',sans-serif;font-weight:700;font-size:15px;}
+  .event-card .ev-meta{font-size:11px;color:var(--text-dim);margin-top:2px;}
+  textarea.copybox{width:100%;min-height:200px;background:var(--panel-2);color:var(--text);border:1px solid var(--hair);border-radius:6px;font-family:'Space Mono',monospace;font-size:11.5px;padding:10px;white-space:pre;}
+  ::-webkit-scrollbar{width:8px;height:8px;} ::-webkit-scrollbar-thumb{background:var(--hair);border-radius:4px;}
+  .loading{padding:40px;text-align:center;color:var(--text-dim);font-size:12px;}
+  .db-badge{font-size:10px;display:flex;align-items:center;gap:5px;justify-content:flex-end;margin-top:2px;}
+  .db-badge .status-dot{margin-right:0;}
+  .errbox{background:#2a1414;border:1px solid var(--alert);color:#ffb3b6;padding:14px 16px;border-radius:8px;font-size:11.5px;margin-bottom:18px;white-space:pre-wrap;word-break:break-word;}
+  .viewonly-badge{background:var(--panel-2);border:1px solid var(--hair);color:var(--text-dim);font-size:10px;padding:3px 9px;border-radius:20px;letter-spacing:.05em;text-transform:uppercase;}
+  .toast{position:fixed;bottom:20px;right:20px;background:var(--panel);border:1px solid var(--signal);color:var(--text);padding:10px 16px;border-radius:8px;font-size:12px;box-shadow:0 4px 20px rgba(0,0,0,.4);z-index:50;opacity:0;transform:translateY(8px);transition:all .2s ease;pointer-events:none;max-width:320px;}
+  .toast.show{opacity:1;transform:translateY(0);}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">Establishing uplink to database…</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= SUPABASE CONFIG (read-only usage) ================= */
+const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+
+let roster = [];
+let events = [];
+let view = 'roster';
+let lbEventId = null;
+let lbGradeFilter = 'ALL';
+let selectedEventId = null;
+let dbStatus = 'connecting';
+let dbError = '';
+
+const app = document.getElementById('app');
+const toastEl = document.getElementById('toast');
+function toast(msg){ toastEl.textContent=msg; toastEl.classList.add('show'); clearTimeout(toastEl._t); toastEl._t=setTimeout(()=>toastEl.classList.remove('show'),2400); }
+
+function gradeForLevel(level){ level=Number(level); if(level<=20) return 'G1'; return 'G'+(Math.floor((level-21)/10)+2); }
+function gradeClass(g){ return 'pill-'+g.toLowerCase(); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function sb(path){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers:{ 'apikey':SUPABASE_KEY, 'Authorization':`Bearer ${SUPABASE_KEY}` }
+  });
+  if(!res.ok){
+    let msg=''; try{ const j=await res.json(); msg=j.message||JSON.stringify(j); }catch(e){ msg=res.statusText; }
+    throw new Error(`${res.status}: ${msg}`);
+  }
+  return res.json();
+}
+
+function setDbStatus(s,e){ dbStatus=s; dbError=e||''; updateDbBadge(); }
+function updateDbBadge(){
+  const el=document.getElementById('dbBadge'); if(!el) return;
+  const map={connecting:{text:'Connecting…',dot:'dot-grey'},connected:{text:'Live · Supabase',dot:'dot-green'},error:{text:'Connection error',dot:'dot-red'}};
+  const s=map[dbStatus]||map.connecting;
+  el.innerHTML=`<span class="status-dot ${s.dot}"></span>${s.text}`;
+}
+
+async function loadAll(){
+  setDbStatus('connecting');
+  try{
+    const [rosterRows, eventRows, scoreRows] = await Promise.all([
+      sb('roster?select=*&order=name.asc'),
+      sb('events?select=*&order=date.desc'),
+      sb('scores?select=*')
+    ]);
+    roster = rosterRows || [];
+    events = (eventRows||[]).map(e=>({...e, entries:{}}));
+    (scoreRows||[]).forEach(s=>{
+      const ev = events.find(e=>e.id===s.event_id);
+      if(ev) ev.entries[s.player_id] = s.score;
+    });
+    setDbStatus('connected');
+  }catch(e){
+    console.error(e);
+    setDbStatus('error', e.message);
+  }
+  render();
+}
+
+function allGrades(){ return Array.from(new Set(roster.map(p=>gradeForLevel(p.level)))).sort(); }
+function statusFor(score, threshold){
+  if(score===undefined||score===null||score==='') return {label:'No score',dot:'dot-grey',color:'var(--text-faint)'};
+  const s=Number(score);
+  if(s<=0) return {label:'0 pts',dot:'dot-red',color:'var(--alert)'};
+  if(s>=threshold) return {label:'Complete',dot:'dot-green',color:'var(--mint)'};
+  return {label:'In progress',dot:'dot-amber',color:'var(--gold)'};
+}
+
+function render(){
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="elbow"><span>PHX</span></div>
+      <div class="topbar-bar">
+        <div>
+          <div class="topbar-title"><b>PHOENIX</b> ALLIANCE — OPS VIEWER <span class="viewonly-badge">View Only</span></div>
+          <div class="topbar-sub">${roster.filter(p=>p.status==='active').length} active members</div>
+        </div>
+        <div class="stardate">LIVE DATA<div class="db-badge" id="dbBadge"></div></div>
+      </div>
+    </div>
+    <div class="body-row">
+      <div class="sidebar">
+        <button class="navbtn nav-1 ${view==='roster'?'active':''}" data-nav="roster"><span class="label">Roster</span></button>
+        <button class="navbtn nav-2 ${view==='leaderboard'?'active':''}" data-nav="leaderboard"><span class="label">Leaderboard</span></button>
+        <button class="navbtn nav-3 ${view==='history'?'active':''}" data-nav="history"><span class="label">History</span></button>
+        <div class="sidebar-foot">Read-only view of the live alliance database. To log scores or edit the roster, use the interactive tracker in Claude.</div>
+      </div>
+      <main id="main"></main>
+    </div>
+  `;
+  app.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>{view=b.dataset.nav;render();}));
+  updateDbBadge();
+  const main = document.getElementById('main');
+  if(dbStatus==='error'){
+    main.innerHTML = `<div class="errbox"><b>Could not reach the database.</b>\n${escapeHtml(dbError)}\n\n<button class="btn btn-signal btn-sm" id="retryBtn" style="margin-top:8px;">Retry</button></div>`;
+    main.querySelector('#retryBtn').addEventListener('click', loadAll);
+    return;
+  }
+  if(view==='roster') renderRoster(main);
+  else if(view==='leaderboard') renderLeaderboard(main);
+  else if(view==='history') renderHistory(main);
+}
+
+function renderRoster(main){
+  const sorted = roster.slice().sort((a,b)=> a.status===b.status ? a.name.localeCompare(b.name) : (a.status==='active'?-1:1));
+  main.innerHTML = `
+    <div class="section-head"><h1>Alliance <span class="accent">Roster</span></h1></div>
+    <div class="section-desc" style="margin-bottom:16px;">Grade is calculated from level (G1 spans 1–20; every band after that is 10 levels wide).</div>
+    <div class="panel" style="padding:0;overflow-x:auto;">
+      <table>
+        <thead><tr><th>Name</th><th>Level</th><th>Grade</th><th>Status</th></tr></thead>
+        <tbody>
+        ${sorted.map(p=>{
+          const g=gradeForLevel(p.level); const inactive=p.status!=='active';
+          return `<tr class="${inactive?'status-inactive':''}"><td>${escapeHtml(p.name)}</td><td>${p.level}</td><td><span class="pill ${gradeClass(g)}">${g}</span></td><td>${p.status==='active'?'Active':'Inactive'}</td></tr>`;
+        }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderLeaderboard(main){
+  if(events.length && !lbEventId) lbEventId = events[0].id;
+  const grades = allGrades();
+  main.innerHTML = `
+    <div class="section-head"><h1><span class="accent">Leaderboard</span></h1></div>
+    <div class="section-desc" style="margin-bottom:16px;">Filter by event and grade, then copy a clean list for Discord.</div>
+    <div class="panel">
+      <div class="row">
+        <select id="lbEvent" style="width:280px;">
+          ${events.length===0?'<option>No events yet</option>':events.map(ev=>`<option value="${ev.id}" ${ev.id===lbEventId?'selected':''}>${escapeHtml(ev.name)} · ${ev.date}</option>`).join('')}
+        </select>
+        <select id="lbGrade">
+          <option value="ALL" ${lbGradeFilter==='ALL'?'selected':''}>All grades</option>
+          ${grades.map(g=>`<option value="${g}" ${lbGradeFilter===g?'selected':''}>${g} only</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div id="lbTableWrap"></div>
+  `;
+  main.querySelector('#lbEvent').addEventListener('change',e=>{lbEventId=e.target.value;render();});
+  main.querySelector('#lbGrade').addEventListener('change',e=>{lbGradeFilter=e.target.value;render();});
+
+  const ev = events.find(e=>e.id===lbEventId);
+  const wrap = main.querySelector('#lbTableWrap');
+  if(!ev){ wrap.innerHTML = `<div class="empty">No events logged yet.</div>`; return; }
+
+  let members = roster.filter(p=>p.status==='active');
+  if(lbGradeFilter!=='ALL') members = members.filter(p=>gradeForLevel(p.level)===lbGradeFilter);
+  const rowsData = members.map(p=>({name:p.name, grade:gradeForLevel(p.level), score: ev.entries[p.id]!==undefined?ev.entries[p.id]:0})).sort((a,b)=>b.score-a.score);
+
+  wrap.innerHTML = `
+    <div class="panel" style="padding:0;overflow-x:auto;">
+      <table>
+        <thead><tr><th>#</th><th>Name</th><th>Grade</th><th>Score</th><th>Status</th></tr></thead>
+        <tbody>
+        ${rowsData.map((r,i)=>{ const st=statusFor(r.score,ev.threshold);
+          return `<tr><td>${i+1}</td><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td><td>${r.score.toLocaleString()}</td><td><span class="status-dot ${st.dot}"></span><span style="color:${st.color}">${st.label}</span></td></tr>`;
+        }).join('') || `<tr><td colspan="5" class="empty">No matching members.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Copy for Discord</div>
+      <div class="row" style="margin-bottom:10px;">
+        <button class="btn btn-peri btn-sm" id="copyAllBtn">Copy full list</button>
+        <button class="btn btn-ghost btn-sm" id="copyIncBtn">Copy incomplete only</button>
+      </div>
+      <textarea class="copybox" id="copyBox" readonly></textarea>
+    </div>
+  `;
+  function buildText(rows){ const w=Math.max(4,...rows.map(r=>r.name.length))+2; let out='```text\n'; rows.forEach(r=>{out+=r.name.padEnd(w,' ')+String(r.score).padStart(9,' ')+'\n';}); return out+'```'; }
+  const copyBox = wrap.querySelector('#copyBox'); copyBox.value = buildText(rowsData);
+  wrap.querySelector('#copyAllBtn').addEventListener('click',()=>{copyBox.value=buildText(rowsData); copyBox.select(); document.execCommand('copy'); toast('Full list copied');});
+  wrap.querySelector('#copyIncBtn').addEventListener('click',()=>{const inc=rowsData.filter(r=>r.score<ev.threshold); copyBox.value=buildText(inc); copyBox.select(); document.execCommand('copy'); toast('Incomplete list copied');});
+}
+
+function renderHistory(main){
+  main.innerHTML = `
+    <div class="section-head"><h1>Event <span class="accent">History</span></h1></div>
+    <div class="section-desc" style="margin-bottom:16px;">Click an event to see grade-by-grade completion.</div>
+    <div class="grid2"><div id="evList"></div><div id="evDetail"></div></div>
+  `;
+  const list = main.querySelector('#evList');
+  if(events.length===0){ list.innerHTML=`<div class="empty">No events logged yet.</div>`; }
+  else{
+    list.innerHTML = events.map(ev=>{ const n=Object.keys(ev.entries).length;
+      return `<div class="event-card ${ev.id===selectedEventId?'selected':''}" data-id="${ev.id}"><div class="ev-name">${escapeHtml(ev.name)}</div><div class="ev-meta">${ev.date} · ${n} score${n===1?'':'s'} · threshold ${Number(ev.threshold).toLocaleString()}</div></div>`;
+    }).join('');
+    list.querySelectorAll('.event-card').forEach(c=>c.addEventListener('click',()=>{selectedEventId=c.dataset.id;render();}));
+  }
+  const detail = main.querySelector('#evDetail');
+  const ev = events.find(e=>e.id===selectedEventId);
+  if(!ev){ detail.innerHTML=`<div class="empty">Select an event to view breakdown.</div>`; return; }
+  const grades = allGrades(); let rows='';
+  grades.forEach(g=>{
+    const members = roster.filter(p=>gradeForLevel(p.level)===g);
+    const scored = members.filter(p=>ev.entries[p.id]!==undefined);
+    const complete = scored.filter(p=>ev.entries[p.id]>=ev.threshold).length;
+    rows += `<tr><td><span class="pill ${gradeClass(g)}">${g}</span></td><td>${members.length}</td><td>${scored.length}</td><td style="color:var(--mint)">${complete}</td></tr>`;
+  });
+  detail.innerHTML = `<div class="panel"><div class="panel-title">${escapeHtml(ev.name)}</div><div class="small" style="margin-bottom:12px;">${ev.date} · Threshold ${Number(ev.threshold).toLocaleString()}</div><table><thead><tr><th>Grade</th><th>Members</th><th>Scored</th><th>Complete</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+loadAll();
+</script>
+</body>
+</html>
