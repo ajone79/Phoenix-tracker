@@ -91,10 +91,12 @@ let roster = [];
 let events = [];
 let view = 'roster';
 let lbEventId = null;
-let lbGradeFilter = 'ALL';
+let lbGradeFilters = new Set();
 let selectedEventId = null;
 let dbStatus = 'connecting';
 let dbError = '';
+let compGradeFilters = new Set();
+let compIncludeTest = false;
 
 const app = document.getElementById('app');
 const toastEl = document.getElementById('toast');
@@ -126,13 +128,15 @@ function updateDbBadge(){
 async function loadAll(){
   setDbStatus('connecting');
   try{
-    const [rosterRows, eventRows, scoreRows] = await Promise.all([
+    const [rosterRows, eventRows, scoreRows, arcRows] = await Promise.all([
       sb('roster?select=*&order=name.asc'),
       sb('events?select=*&order=date.desc'),
-      sb('scores?select=*')
+      sb('scores?select=*'),
+      sb('arcs?select=*')
     ]);
     roster = rosterRows || [];
-    events = (eventRows||[]).map(e=>({...e, entries:{}}));
+    const arcById = {}; (arcRows||[]).forEach(a=>{ arcById[a.id]=a; });
+    events = (eventRows||[]).map(e=>({...e, entries:{}, arc: arcById[e.arc_id]||null}));
     (scoreRows||[]).forEach(s=>{
       const ev = events.find(e=>e.id===s.event_id);
       if(ev) ev.entries[s.player_id] = s.score;
@@ -171,6 +175,7 @@ function render(){
         <button class="navbtn nav-1 ${view==='roster'?'active':''}" data-nav="roster"><span class="label">Roster</span></button>
         <button class="navbtn nav-2 ${view==='leaderboard'?'active':''}" data-nav="leaderboard"><span class="label">Leaderboard</span></button>
         <button class="navbtn nav-3 ${view==='history'?'active':''}" data-nav="history"><span class="label">History</span></button>
+        <button class="navbtn nav-1 ${view==='completion'?'active':''}" data-nav="completion" style="background:var(--mint);"><span class="label">Completion</span></button>
         <div class="sidebar-foot">Read-only view of the live alliance database. To log scores or edit the roster, use the interactive tracker in Claude.</div>
       </div>
       <main id="main"></main>
@@ -187,6 +192,79 @@ function render(){
   if(view==='roster') renderRoster(main);
   else if(view==='leaderboard') renderLeaderboard(main);
   else if(view==='history') renderHistory(main);
+  else if(view==='completion') renderCompletion(main);
+}
+
+function renderCompletion(main){
+  const grades = allGrades();
+  const relevantEvents = events.filter(e => compIncludeTest || !e.is_test).slice().sort((a,b)=> a.date.localeCompare(b.date));
+
+  main.innerHTML = `
+    <div class="section-head"><h1>Completion <span class="accent">Tracker</span></h1></div>
+    <div class="section-desc" style="margin-bottom:16px;">Every active member against every logged event. Green check = hit that event's threshold. Overall % is completed ÷ total events shown.</div>
+    <div class="panel">
+      <div class="row">
+        <div class="row" id="compGradePills">
+          ${grades.map(g=>`<button class="btn btn-sm ${compGradeFilters.has(g)?'btn-signal':'btn-ghost'}" data-grade="${g}">${g}</button>`).join('')}
+          <button class="btn btn-sm ${compGradeFilters.size===0?'btn-peri':'btn-ghost'}" id="compGradeClear">All grades</button>
+        </div>
+        <label class="small" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="compIncTest" ${compIncludeTest?'checked':''}> Include test events
+        </label>
+      </div>
+    </div>
+    <div id="compTableWrap"></div>
+  `;
+
+  main.querySelectorAll('#compGradePills [data-grade]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const g = btn.dataset.grade;
+      if(compGradeFilters.has(g)) compGradeFilters.delete(g); else compGradeFilters.add(g);
+      render();
+    });
+  });
+  main.querySelector('#compGradeClear').addEventListener('click', ()=>{ compGradeFilters.clear(); render(); });
+  main.querySelector('#compIncTest').addEventListener('change', e=>{ compIncludeTest=e.target.checked; render(); });
+
+  const wrap = main.querySelector('#compTableWrap');
+  if(relevantEvents.length===0){ wrap.innerHTML = `<div class="empty">No events logged yet.</div>`; return; }
+
+  let members = roster.filter(p=>p.status==='active');
+  if(compGradeFilters.size>0) members = members.filter(p=>compGradeFilters.has(gradeForLevel(p.level)));
+
+  const rowsData = members.map(p=>{
+    const cells = relevantEvents.map(ev=>{
+      const score = ev.entries[p.id];
+      const complete = score!==undefined && score >= ev.threshold;
+      return {complete, hasScore: score!==undefined && score > 0};
+    });
+    const completedCount = cells.filter(c=>c.complete).length;
+    const pct = relevantEvents.length ? Math.round(100*completedCount/relevantEvents.length) : 0;
+    return {name:p.name, grade:gradeForLevel(p.level), cells, completedCount, pct};
+  }).sort((a,b)=> b.pct-a.pct || b.completedCount-a.completedCount || a.name.localeCompare(b.name));
+
+  const headerCells = relevantEvents.map(ev=>`<th title="${escapeHtml(ev.name)} · ${ev.date}">${escapeHtml(ev.name.length>14?ev.name.slice(0,13)+'…':ev.name)}</th>`).join('');
+
+  wrap.innerHTML = `
+    <div class="panel" style="padding:0;overflow-x:auto;">
+      <table>
+        <thead><tr><th>Name</th><th>Grade</th>${headerCells}<th>Completed</th><th>Rate</th></tr></thead>
+        <tbody>
+        ${rowsData.map(r=>{
+          const cellHtml = r.cells.map(c=>{
+            if(!c.hasScore) return `<td style="text-align:center;color:var(--text-faint);">—</td>`;
+            return c.complete
+              ? `<td style="text-align:center;color:var(--mint);">✔</td>`
+              : `<td style="text-align:center;color:var(--gold);">●</td>`;
+          }).join('');
+          const rateColor = r.pct>=75?'var(--mint)':r.pct>=40?'var(--gold)':'var(--alert)';
+          return `<tr><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td>${cellHtml}<td>${r.completedCount}/${relevantEvents.length}</td><td style="color:${rateColor};font-weight:bold;">${r.pct}%</td></tr>`;
+        }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="small" style="margin-top:6px;">✔ = completed that event's threshold &nbsp;·&nbsp; ● = scored but under threshold &nbsp;·&nbsp; — = no score logged</div>
+  `;
 }
 
 function renderRoster(main){
@@ -216,8 +294,8 @@ function renderLeaderboard(main){
     <div class="section-desc" style="margin-bottom:16px;">Filter by event and grade, then copy a clean list for Discord.</div>
     <div class="panel">
       <div class="row">
-        <select id="lbEvent" style="width:280px;">
-          ${events.length===0?'<option>No events yet</option>':events.map(ev=>`<option value="${ev.id}" ${ev.id===lbEventId?'selected':''}>${escapeHtml(ev.name)} · ${ev.date}</option>`).join('')}
+        <select id="lbEvent" style="width:320px;">
+          ${events.length===0?'<option>No events yet</option>':events.map(ev=>`<option value="${ev.id}" ${ev.id===lbEventId?'selected':''}>${ev.arc?'['+escapeHtml(ev.arc.name)+'] ':''}${escapeHtml(ev.name)} · ${ev.date}</option>`).join('')}
         </select>
         <select id="lbGrade">
           <option value="ALL" ${lbGradeFilter==='ALL'?'selected':''}>All grades</option>
@@ -236,15 +314,19 @@ function renderLeaderboard(main){
 
   let members = roster.filter(p=>p.status==='active');
   if(lbGradeFilter!=='ALL') members = members.filter(p=>gradeForLevel(p.level)===lbGradeFilter);
+  const isTasks = ev.scoring_type === 'tasks';
   const rowsData = members.map(p=>({name:p.name, grade:gradeForLevel(p.level), score: ev.entries[p.id]!==undefined?ev.entries[p.id]:0})).sort((a,b)=>b.score-a.score);
+  const scoreColLabel = isTasks ? 'Tasks' : 'Score';
+  function fmtScore(s){ return isTasks ? `${s}/${ev.threshold}` : s.toLocaleString(); }
 
   wrap.innerHTML = `
+    ${ev.arc ? `<div class="small" style="margin-bottom:10px;">Arc: <b style="color:var(--periwinkle);">${escapeHtml(ev.arc.name)}</b> (${ev.arc.start_date} → ${ev.arc.end_date})${ev.start_date && ev.end_date ? ` · Event ran ${ev.start_date} → ${ev.end_date}` : ''}</div>` : ''}
     <div class="panel" style="padding:0;overflow-x:auto;">
       <table>
-        <thead><tr><th>#</th><th>Name</th><th>Grade</th><th>Score</th><th>Status</th></tr></thead>
+        <thead><tr><th>#</th><th>Name</th><th>Grade</th><th>${scoreColLabel}</th><th>Status</th></tr></thead>
         <tbody>
         ${rowsData.map((r,i)=>{ const st=statusFor(r.score,ev.threshold);
-          return `<tr><td>${i+1}</td><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td><td>${r.score.toLocaleString()}</td><td><span class="status-dot ${st.dot}"></span><span style="color:${st.color}">${st.label}</span></td></tr>`;
+          return `<tr><td>${i+1}</td><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td><td>${fmtScore(r.score)}</td><td><span class="status-dot ${st.dot}"></span><span style="color:${st.color}">${st.label}</span></td></tr>`;
         }).join('') || `<tr><td colspan="5" class="empty">No matching members.</td></tr>`}
         </tbody>
       </table>
@@ -274,7 +356,7 @@ function renderHistory(main){
   if(events.length===0){ list.innerHTML=`<div class="empty">No events logged yet.</div>`; }
   else{
     list.innerHTML = events.map(ev=>{ const n=Object.keys(ev.entries).length;
-      return `<div class="event-card ${ev.id===selectedEventId?'selected':''}" data-id="${ev.id}"><div class="ev-name">${escapeHtml(ev.name)}</div><div class="ev-meta">${ev.date} · ${n} score${n===1?'':'s'} · threshold ${Number(ev.threshold).toLocaleString()}</div></div>`;
+      return `<div class="event-card ${ev.id===selectedEventId?'selected':''}" data-id="${ev.id}"><div class="ev-name">${ev.arc?'['+escapeHtml(ev.arc.name)+'] ':''}${escapeHtml(ev.name)}</div><div class="ev-meta">${ev.date} · ${n} score${n===1?'':'s'} · threshold ${Number(ev.threshold).toLocaleString()}${ev.scoring_type==='tasks'?' (tasks)':''}</div></div>`;
     }).join('');
     list.querySelectorAll('.event-card').forEach(c=>c.addEventListener('click',()=>{selectedEventId=c.dataset.id;render();}));
   }
