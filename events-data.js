@@ -16,7 +16,8 @@ const CATS = {
   MISSION:   {label:'Mission Progress',       color:'#F5D97A'},
   PASS:      {label:'Passes / Flashpass',     color:'#9AA5B1'},
   ANOMALY:   {label:'Galactic Anomaly',       color:'#7FDBFF'},
-  TERRITORY: {label:'Territory Capture',     color:'#8CE071'}
+  TERRITORY: {label:'Territory Capture',     color:'#8CE071'},
+  FEDDAY:    {label:'Federation Day',         color:'#FF8FE3'}
 };
 
 /* =========================================================
@@ -149,7 +150,21 @@ const EVENTS = [
   {name:'Brellan — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:19,m:0},
     occ:{kind:'weekly', dayOfWeek:0, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · cost 3 currency.'},
   {name:'Bimasa — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:17,m:0},
-    occ:{kind:'weekly', dayOfWeek:2, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · cost 2 currency.'}
+    occ:{kind:'weekly', dayOfWeek:2, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · cost 2 currency.'},
+
+  // --- Federation Day 2026 (Level 20-80 Solo Milestones) ---
+  {name:'Federation Day (Meta)', variant:'AMS', category:'FEDDAY', heroic:false, opsMin:20, opsMax:80, time:{h:17,m:0},
+    occ:{kind:'ranges', ranges:[{start:'2026-08-09', end:'2026-08-13'}]}, note:'Alliance milestone — complete each daily Federation Day event.'},
+  {name:'Federation Day #1: Humans', variant:'SMS', category:'FEDDAY', heroic:false, opsMin:20, opsMax:80, time:{h:17,m:0},
+    occ:{kind:'dates', dates:['2026-08-09']}, note:'Score by destroying hostiles.'},
+  {name:'Federation Day #2: Vulcans', variant:'SMS', category:'FEDDAY', heroic:false, opsMin:20, opsMax:80, time:{h:17,m:0},
+    occ:{kind:'dates', dates:['2026-08-10']}, note:'Score by destroying Romulan hostiles.'},
+  {name:'Federation Day #3: Andorians', variant:'SMS', category:'FEDDAY', heroic:false, opsMin:20, opsMax:80, time:{h:17,m:0},
+    occ:{kind:'dates', dates:['2026-08-11']}, note:'Score by destroying Klingon hostiles.'},
+  {name:'Federation Day #4: Found Family', variant:'SMS', category:'FEDDAY', heroic:false, opsMin:20, opsMax:80, time:{h:17,m:0},
+    occ:{kind:'dates', dates:['2026-08-12']}, note:'Score by destroying Romulan and Klingon hostiles.'},
+  {name:'Federation Day #5: Legacy', variant:'SMS', category:'FEDDAY', heroic:false, opsMin:20, opsMax:80, time:{h:17,m:0},
+    occ:{kind:'dates', dates:['2026-08-13']}, note:'Score by destroying FKR hostiles.'}
 ];
 
 /* =========================================================
