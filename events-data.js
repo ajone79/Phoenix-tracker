@@ -17,7 +17,8 @@ const CATS = {
   PASS:      {label:'Passes / Flashpass',     color:'#9AA5B1'},
   ANOMALY:   {label:'Galactic Anomaly',       color:'#7FDBFF'},
   TERRITORY: {label:'Territory Capture',     color:'#8CE071'},
-  FEDDAY:    {label:'Federation Day',         color:'#FF8FE3'}
+  FEDDAY:    {label:'Federation Day',         color:'#FF8FE3'},
+  VATV:      {label:'Voyage Across the Void', color:'#4FD1C5'}
 };
 
 /* =========================================================
@@ -142,15 +143,17 @@ const EVENTS = [
 
   // --- Territory capture (weekly recurring, PHX / Server 168 EU, London time) ---
   {name:'Nujord — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:15,m:0},
-    occ:{kind:'weekly', dayOfWeek:5, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · cost 1 currency.'},
+    occ:{kind:'weekly', dayOfWeek:5, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 1*'},
   {name:'Duportas — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:14,m:0},
-    occ:{kind:'weekly', dayOfWeek:6, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · cost 2 currency.'},
+    occ:{kind:'weekly', dayOfWeek:6, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 2*'},
   {name:"Ber'Tho — Territory Capture", variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:19,m:0},
-    occ:{kind:'weekly', dayOfWeek:6, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · cost 2 currency.'},
+    occ:{kind:'weekly', dayOfWeek:6, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 2*'},
   {name:'Brellan — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:19,m:0},
-    occ:{kind:'weekly', dayOfWeek:0, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · cost 3 currency.'},
+    occ:{kind:'weekly', dayOfWeek:0, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 3*'},
   {name:'Bimasa — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:17,m:0},
-    occ:{kind:'weekly', dayOfWeek:2, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · cost 2 currency.'},
+    occ:{kind:'weekly', dayOfWeek:2, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 2*'},
+  {name:'Qoda — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:20,m:0},
+    occ:{kind:'weekly', dayOfWeek:1, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 4*'},
 
   // --- Federation Day 2026 (Level 20-80 Solo Milestones) ---
   {name:'Federation Day (Meta)', variant:'AMS', category:'FEDDAY', heroic:false, opsMin:20, opsMax:80, time:{h:17,m:0},
@@ -164,7 +167,30 @@ const EVENTS = [
   {name:'Federation Day #4: Found Family', variant:'SMS', category:'FEDDAY', heroic:false, opsMin:20, opsMax:80, time:{h:17,m:0},
     occ:{kind:'dates', dates:['2026-08-12']}, note:'Score by destroying Romulan and Klingon hostiles.'},
   {name:'Federation Day #5: Legacy', variant:'SMS', category:'FEDDAY', heroic:false, opsMin:20, opsMax:80, time:{h:17,m:0},
-    occ:{kind:'dates', dates:['2026-08-13']}, note:'Score by destroying FKR hostiles.'}
+    occ:{kind:'dates', dates:['2026-08-13']}, note:'Score by destroying FKR hostiles.'},
+
+  // --- Voyage Across the Void (weekly recurring meta, no end date — runs every arc) ---
+  {name:'Voyage Across the Void', variant:'Into the Unknown', category:'VATV', heroic:false, opsMin:1, opsMax:999, time:{h:17,m:0},
+    occ:{kind:'weekly', dayOfWeek:1, start:'2026-07-20', end:'2027-12-31'},
+    note:'SMS: Complete Away Team Assignments, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Complete Priority One Away Team Assignments.'},
+  {name:'Voyage Across the Void', variant:'Perimeter Breach', category:'VATV', heroic:false, opsMin:1, opsMax:999, time:{h:17,m:0},
+    occ:{kind:'weekly', dayOfWeek:2, start:'2026-07-20', end:'2027-12-31'},
+    note:'SMS: Clear Solo, Elite Solo, and Duo Wave Defense waves, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Clear Solo, Elite Solo, and Duo Wave Defense waves.'},
+  {name:'Voyage Across the Void', variant:'Singular Strike', category:'VATV', heroic:false, opsMin:1, opsMax:999, time:{h:17,m:0},
+    occ:{kind:'weekly', dayOfWeek:3, start:'2026-07-20', end:'2027-12-31'},
+    note:'SMS: Defeat Invading Entities and Solo Armadas, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Defeat Invading Entities and Solo Armadas.'},
+  {name:'Voyage Across the Void', variant:'United Offensive', category:'VATV', heroic:false, opsMin:1, opsMax:999, time:{h:17,m:0},
+    occ:{kind:'weekly', dayOfWeek:4, start:'2026-07-20', end:'2027-12-31'},
+    note:'SMS: Defeat group Armadas, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Defeat group Armadas.'},
+  {name:'Voyage Across the Void', variant:'Command Mobilization', category:'VATV', heroic:false, opsMin:1, opsMax:999, time:{h:17,m:0},
+    occ:{kind:'weekly', dayOfWeek:5, start:'2026-07-20', end:'2027-12-31'},
+    note:'Gain Power via Research, Defense Platforms, Buildings and Drydocks, or spend Ship XP / Officer Intel — scoring is the same across SMS, SLB, and ALB.'},
+  {name:'Voyage Across the Void', variant:'Subspace Surge', category:'VATV', heroic:false, opsMin:1, opsMax:999, time:{h:17,m:0},
+    occ:{kind:'weekly', dayOfWeek:6, start:'2026-07-20', end:'2027-12-31'},
+    note:'SMS: Defeat Solo Armadas or clear Wave Defense waves, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Defeat Solo Armadas or clear Wave Defense waves.'},
+  {name:'Voyage Across the Void', variant:'Echoes of War', category:'VATV', heroic:false, opsMin:1, opsMax:999, time:{h:17,m:0},
+    occ:{kind:'weekly', dayOfWeek:0, start:'2026-07-20', end:'2027-12-31'},
+    note:'Defeat Armadas, complete research, or upgrade buildings, or defeat Federation, Klingon, and Romulan hostiles — scoring is the same across SMS, SLB, and ALB.'}
 ];
 
 /* =========================================================

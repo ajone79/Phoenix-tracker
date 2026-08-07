@@ -223,7 +223,7 @@
   </div>
   <div class="row" id="chipRow"></div>
   <div class="row">
-    <label class="toggle-row"><input type="checkbox" id="heroicOnly"> Heroic only</label>
+    <label class="toggle-row"><input type="checkbox" id="showVATV" checked> Show Voyage Across the Void</label>
     <label class="toggle-row"><input type="checkbox" id="hideEmpty"> Hide days with no matches</label>
   </div>
   <details class="adv">
@@ -279,6 +279,7 @@ const TZ_OPTIONS = [
 let activeGrades = new Set(['G1','G2','G3','G4','G5','G6','G7','G8']);
 let territoryMode = false;
 let showAnomaly = false;
+let showVATV = true;
 const GRADE_BANDS = {G1:[1,20],G2:[21,30],G3:[31,40],G4:[41,50],G5:[51,60],G6:[61,70],G7:[71,80],G8:[81,90]};
 const el = id => document.getElementById(id);
 
@@ -354,11 +355,12 @@ function render(){
   const rangeStart = el('rangeStart').value;
   const rangeEnd = el('rangeEnd').value;
   const search = el('searchBox').value.trim().toLowerCase();
-  const heroicOnly = el('heroicOnly').checked;
+  const showVATVChecked = el('showVATV').checked;
   const hideEmpty = el('hideEmpty').checked;
 
   const occs = expand(EVENTS, rangeStart, rangeEnd, offset).filter(o => {
     if(o.ev.category === 'ANOMALY' && !showAnomaly) return false;
+    if(o.ev.category === 'VATV' && !showVATVChecked) return false;
     if(territoryMode){
       return o.ev.category === 'TERRITORY' && (!search || o.ev.name.toLowerCase().includes(search));
     }
@@ -367,7 +369,6 @@ function render(){
       return o.ev.opsMin <= gMax && o.ev.opsMax >= gMin;
     });
     if(!overlapsActiveGrade) return false;
-    if(heroicOnly && !o.ev.heroic) return false;
     if(search && !o.ev.name.toLowerCase().includes(search)) return false;
     return true;
   });
@@ -440,7 +441,7 @@ function init(){
   buildLegend();
   render();
 
-  ['tzSelect','rangeStart','rangeEnd','searchBox','heroicOnly','hideEmpty','showAnomaly'].forEach(id => {
+  ['tzSelect','rangeStart','rangeEnd','searchBox','showVATV','hideEmpty','showAnomaly'].forEach(id => {
     el(id).addEventListener('input', render);
     el(id).addEventListener('change', render);
   });
