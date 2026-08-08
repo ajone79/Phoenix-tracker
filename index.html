@@ -51,7 +51,7 @@
   button.btn-danger{background:transparent;border:1px solid var(--alert);color:var(--alert);}
   .btn-sm{padding:5px 9px;font-size:11px;}
   table{width:100%;border-collapse:collapse;font-size:12.5px;}
-  th{text-align:left;font-family:'Antonio',sans-serif;letter-spacing:.05em;text-transform:uppercase;font-size:11px;color:var(--text-dim);padding:8px 10px;border-bottom:1px solid var(--hair);}
+  th{text-align:left;font-family:'Antonio',sans-serif;letter-spacing:.05em;text-transform:uppercase;font-size:11px;color:var(--text-dim);padding:8px 10px;border-bottom:1px solid var(--hair);position:sticky;top:0;background:var(--panel);z-index:3;box-shadow:0 1px 0 var(--hair);}
   td{padding:7px 10px;border-bottom:1px solid #1c1c22;}
   tr:hover td{background:rgba(255,255,255,.02);}
   .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10.5px;font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.04em;}
@@ -542,7 +542,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
 
   wrap.innerHTML += `
     ${updatedLine()}
-    <div class="panel" style="padding:0;overflow-x:auto;">
+    <div class="panel" style="padding:0;overflow:auto;max-height:65vh;">
       <table>
         <thead><tr>
           <th class="sortable" data-sort="name">Name${sortArrow(compSort,'name')}</th>
@@ -591,7 +591,7 @@ function renderRoster(main){
     <div class="section-head"><h1>Alliance <span class="accent">Members</span></h1></div>
     <div class="section-desc" style="margin-bottom:16px;">Grade is calculated from level (G1 spans 1–20; every band after that is 10 levels wide). Click a column header to sort.</div>
     ${updatedLine()}
-    <div class="panel" style="padding:0;overflow-x:auto;">
+    <div class="panel" style="padding:0;overflow:auto;max-height:65vh;">
       <table>
         <thead><tr>
           <th class="sortable" data-sort="name">Name${sortArrow(rosterSort,'name')}</th>
@@ -678,7 +678,7 @@ function renderEvents(main){
       ${ev.start_date && ev.end_date ? `<span class="small">Ran ${ev.start_date} → ${ev.end_date}</span>` : ''}
     </div>
     ${updatedLine()}
-    <div class="panel" style="padding:0;overflow-x:auto;">
+    <div class="panel" style="padding:0;overflow:auto;max-height:65vh;">
       <table>
         <thead><tr>
           <th class="sortable" data-sort="rank">#${sortArrow(lbSort,'rank')}</th>
