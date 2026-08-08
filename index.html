@@ -31,6 +31,16 @@
   .nav-1{background:var(--signal);} .nav-2{background:var(--periwinkle);} .nav-3{background:var(--mint);}
   .nav-4{background:var(--gold);} .nav-5{background:#c9c9d4;}
   .sidebar-foot{margin-top:auto;padding:0 20px;font-size:10px;color:var(--text-faint);line-height:1.6;}
+  .support-link{
+    display:inline-flex;align-items:center;gap:7px;margin-top:14px;
+    padding:8px 14px;border-radius:20px;
+    background:var(--panel-2);border:1px solid var(--hair);
+    color:var(--text-dim);text-decoration:none;
+    font-family:'Antonio',sans-serif;font-weight:600;letter-spacing:.05em;
+    text-transform:uppercase;font-size:10.5px;
+    transition:border-color .15s ease,color .15s ease,background .15s ease;
+  }
+  .support-link:hover{border-color:var(--signal);color:var(--text);background:rgba(255,145,66,.08);}
   main{flex:1;padding:26px 30px 40px;overflow-y:auto;}
   .section-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;flex-wrap:wrap;}
   .section-head h1{font-family:'Antonio',sans-serif;font-weight:700;font-size:26px;margin:0;letter-spacing:.03em;}
@@ -403,7 +413,9 @@ function render(){
         <button class="navbtn nav-2 ${view==='overallCompletion'?'active':''}" data-nav="overallCompletion"><span class="label">Overall Completion</span></button>
         <button class="navbtn nav-5 ${view==='members'?'active':''}" data-nav="members"><span class="label">Members</span></button>
         <button class="navbtn nav-3 ${view==='history'?'active':''}" data-nav="history"><span class="label">History</span></button>
-        <div class="sidebar-foot">Read-only view of the live alliance database. "${activeArc()?escapeHtml(activeArc().name):'Current arc'}" tabs auto-update whenever a new arc goes active. To log scores, edit members, or manage arcs, use the interactive tracker in Claude.</div>
+        <div class="sidebar-foot">Read-only view of the live alliance database. "${activeArc()?escapeHtml(activeArc().name):'Current arc'}" tabs auto-update whenever a new arc goes active. To log scores, edit members, or manage arcs, use the interactive tracker in Claude.
+          <a class="support-link" href="https://www.buymeacoffee.com/ajaykhoulo7" target="_blank" rel="noopener">🍺 Buy me a beer</a>
+        </div>
       </div>
       <main id="main"></main>
     </div>
@@ -746,6 +758,5 @@ function renderHistory(main){
 loadAll();
 startHeaderTicker(); // independent of Supabase load — runs off events-data.js
 </script>
-<script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="ajaykhoulo7" data-color="#669196" data-emoji="🍺"  data-font="Bree" data-text="Buy me a beer pretty please" data-outline-color="#ffffff" data-font-color="#ffffff" data-coffee-color="#FFDD00" ></script>
 </body>
 </html>
