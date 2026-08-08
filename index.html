@@ -88,6 +88,9 @@
   th.sortable:hover{color:var(--text);}
   th.sortable .arrow{color:var(--signal);margin-left:3px;}
   .updated-line{font-size:10.5px;color:var(--text-faint);margin-bottom:10px;display:flex;align-items:center;gap:5px;}
+  th.ev-th{max-width:120px;white-space:normal;vertical-align:bottom;}
+  th.ev-th .ev-th-name{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.3;}
+  th.ev-th .ev-th-date{display:block;margin-top:3px;font-size:9.5px;color:var(--text-faint);font-weight:400;letter-spacing:.03em;text-transform:none;}
 
 /* ===== PHX cross-page nav strip ===== */
 .phx-nav{
@@ -179,6 +182,7 @@ function toast(msg){ toastEl.textContent=msg; toastEl.classList.add('show'); cle
 function gradeForLevel(level){ level=Number(level); if(level<=20) return 'G1'; return 'G'+(Math.floor((level-21)/10)+2); }
 function gradeClass(g){ return 'pill-'+g.toLowerCase(); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDDMM(dateStr){ if(!dateStr) return ''; const parts=String(dateStr).split('-'); if(parts.length<3) return ''; return parts[2]+'/'+parts[1]; }
 
 async function sb(path){
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -524,7 +528,11 @@ function renderCompletionTable(wrap, relevantEvents, grades){
     return c!==0 ? c : a.name.localeCompare(b.name);
   });
 
-  const headerCells = relevantEvents.map(ev=>`<th title="${ev.arc?escapeHtml(ev.arc.name)+' · ':''}${escapeHtml(ev.name)} · ${ev.date}">${escapeHtml(ev.name.length>14?ev.name.slice(0,13)+'…':ev.name)}</th>`).join('');
+  const headerCells = relevantEvents.map(ev=>{
+    const endDate = ev.end_date || ev.date;
+    const dateLabel = fmtDDMM(endDate);
+    return `<th class="ev-th" title="${ev.arc?escapeHtml(ev.arc.name)+' · ':''}${escapeHtml(ev.name)} · ${ev.date}"><span class="ev-th-name">${escapeHtml(ev.name)}</span>${dateLabel?`<span class="ev-th-date">${dateLabel}</span>`:''}</th>`;
+  }).join('');
 
   function taskColor(score){
     if(score>=12) return 'var(--mint)';
