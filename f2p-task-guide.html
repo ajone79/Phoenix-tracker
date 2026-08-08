@@ -360,6 +360,25 @@
     text-transform:uppercase;
     margin-right:6px;
   }
+  .notes .note-old{
+    color:var(--muted);
+    text-decoration:line-through;
+    text-decoration-color:var(--hoard);
+    opacity:.75;
+  }
+  .notes .tbc-badge{
+    display:inline-block;
+    margin-left:6px;
+    padding:1px 7px;
+    border-radius:10px;
+    background:var(--maybe);
+    color:#160404;
+    font-family:'Share Tech Mono', monospace;
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:.04em;
+    vertical-align:1px;
+  }
 
   .rewards-footer{
     margin-top:10px;
@@ -572,12 +591,12 @@ const RAW = [
 ["Acquire 1,000 G2 Uncommon Crystal.","Premium",4,[1,0,0,0,0,0,0],"20,000","4,400","4,400","300","Maybe? Seems misclassified (was legacy heroic)"],
 
 ["Defeat 800 points worth of Conqueror Borg Suppressor Hostiles.","Seasonal Elite",3,[0,0,0,0,1,1,1],"20,000","1,100","3,300","200","Maybe: If your borg sphere can hit at or above your ops level equivalent hostiles."],
-["Acquire 45 Athena Ship Parts","Seasonal Elite",3,[0,0,0,0,0,1,1],"20,000","1,100","3,300","200","Aggressive Hoarding: Need an Athena T13+ or T9+ with the skin, 2 pulls in a day, and/or timer reset with tier up (or some good RNG)."],
+["Acquire 45 Athena Ship Parts","Seasonal Elite",3,[0,0,0,0,0,1,1],"20,000","1,100","3,300","200","Easy Planning: §S§Aggressive Hoarding: Need an Athena T13+ or T9+ with the skin, 2 pulls in a day, and/or timer reset with tier up (or some good RNG).§/S§ Requirement dropped from 200 to 45 — likely far easier now, not yet reassessed. §TBC§"],
 
 ["Defeat 3 Uncommon Conqueror Borg Solo Armada","Seasonal Advanced",3,[0,0,0,0,1,1,1],"15,000","1,100","550","100","Easy Planning: hoard 3 days of directives (Uncommon = only 62–69 score)"],
 ["Defeat 5 Conqueror Borg Solo Armadas.","Seasonal Advanced",3,[0,0,0,0,0,1,1],"15,000","1,100","1,100","100","Easy Planning: same directive-hoarding approach as the Uncommon version, just hoard a couple extra days"],
 ["Defeat 20 Duo Wave Defense Waves","Seasonal Advanced",3,[0,0,0,0,0,1,1],"15,000","1,100","550","100","Easy Planning: Hoard starts. Easier with Athena."],
-["Acquire 112 Class Honors","Seasonal Advanced",3,[0,0,0,0,0,1,1],"15,000","1,100","550","100","Maybe: Double pull in Academy Refinery gets you there unless unlucky with double lows. Also sourced from various Battle Passes including WDBP."],
+["Acquire 112 Class Honors","Seasonal Advanced",3,[0,0,0,0,0,1,1],"15,000","1,100","550","100","Easy Planning: §S§Maybe: Double pull in Academy Refinery gets you there unless unlucky with double lows. Also sourced from various Battle Passes including WDBP.§/S§ Requirement dropped from 200 to 112 — likely far easier now, not yet reassessed. §TBC§"],
 ["Acquire 150 Borg Sphere Parts","Seasonal Advanced",3,[0,0,0,0,1,1,1],"15,000","1,100","550","100","Easy Planning: 1 pull."],
 ["Acquire 990 Ascension Particles","Seasonal Advanced",3,[0,0,0,1,0,0,0],"15,000","1,100","550","100","Maybe: all factions, max pulls"],
 ["Acquire 720 Ascension Particles","Seasonal Advanced",3,[0,0,1,0,0,0,0],"15,000","1,100","550","100","Maybe: all factions, max pulls"],
@@ -753,8 +772,12 @@ function buildCard(t){
   const opsSegs = t.ops.map(v=>`<div class="ops-seg${v? ' lit':''}"></div>`).join('');
   const opsLabels = OPS_LABELS.map(l=>`<span>${l}</span>`).join('');
 
+  const noteBody = escapeHtml(t.notes)
+    .replace(/§S§/g, '<s class="note-old">')
+    .replace(/§\/S§/g, '</s>')
+    .replace(/§TBC§/g, '<span class="tbc-badge">TBC</span>');
   const notesHtml = t.notes
-    ? `<div class="notes"><span class="label">${DIFF_LABEL[t.diff]}</span>${escapeHtml(t.notes)}</div>`
+    ? `<div class="notes"><span class="label">${DIFF_LABEL[t.diff]}</span>${noteBody}</div>`
     : '';
 
   card.innerHTML = `
