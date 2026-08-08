@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix EU168 — Links &amp; Credits</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#050507; --panel:#111116; --panel-2:#17171e; --hair:#2a2a34;
+    --signal:#ff9142; --periwinkle:#8fa3ff; --mint:#5fd068; --gold:#ffc857; --alert:#ff5a5f;
+    --text:#e8e6e1; --text-dim:#8a8a94; --text-faint:#55555f;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;-webkit-font-smoothing:antialiased;}
+  main{max-width:760px;margin:0 auto;padding:28px 20px 60px;}
+  .section-head h1{font-family:'Antonio',sans-serif;font-weight:700;font-size:26px;margin:18px 0 6px;letter-spacing:.03em;}
+  .section-head .accent{color:var(--signal);}
+  .section-desc{color:var(--text-dim);font-size:12.5px;max-width:620px;line-height:1.6;margin-bottom:26px;}
+  h2{font-family:'Antonio',sans-serif;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:34px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--hair);}
+  .link-card{
+    display:flex; align-items:center; gap:14px;
+    background:var(--panel); border:1px solid var(--hair); border-radius:10px;
+    padding:14px 16px; margin-bottom:10px; text-decoration:none; color:var(--text);
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .link-card:hover{border-color:var(--signal); background:rgba(255,145,66,.05);}
+  .link-icon{
+    width:40px;height:40px;border-radius:9px;flex-shrink:0;
+    background:var(--panel-2); border:1px solid var(--hair);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Antonio',sans-serif; font-weight:700; font-size:14px; color:var(--signal);
+    overflow:hidden;
+  }
+  .link-icon img{width:100%;height:100%;object-fit:cover;}
+  .link-body{flex:1; min-width:0;}
+  .link-name{font-family:'Antonio',sans-serif;font-weight:600;font-size:15px;}
+  .link-desc{font-size:11.5px;color:var(--text-dim);margin-top:2px;line-height:1.5;}
+  .link-arrow{font-family:'Space Mono',monospace;color:var(--signal);font-size:15px;flex-shrink:0;}
+  .credit-line{
+    background:var(--panel); border:1px solid var(--hair); border-radius:10px;
+    padding:14px 16px; margin-bottom:10px; font-size:12.5px; line-height:1.7; color:var(--text-dim);
+  }
+  .credit-line b{color:var(--text);}
+  .credit-line a{color:var(--periwinkle);}
+  footer{padding:30px 16px 10px;color:var(--text-faint);font-family:'Space Mono',monospace;font-size:10.5px;text-align:center;max-width:760px;margin:0 auto;}
+
+/* ===== PHX cross-page nav strip ===== */
+.phx-nav{
+  position:sticky; top:0; z-index:9999;
+  display:flex; align-items:center; gap:4px;
+  background:#0a0a0d; border-bottom:2px solid #f2a93b;
+  padding:0 14px; height:36px;
+  font-family:ui-monospace,'SF Mono','Consolas',monospace;
+  overflow-x:auto; white-space:nowrap;
+}
+.phx-nav .phx-nav-tag{
+  color:#f2a93b; font-weight:700; letter-spacing:.12em; font-size:11px;
+  margin-right:12px; flex-shrink:0;
+}
+.phx-nav a{
+  color:#9a9aa4; text-decoration:none; font-size:11px; letter-spacing:.06em;
+  text-transform:uppercase; padding:8px 12px; border-radius:0 0 6px 6px;
+  transition:color .15s ease, background .15s ease; flex-shrink:0;
+}
+.phx-nav a:hover{ color:#e8e6e1; background:rgba(255,255,255,.06); }
+.phx-nav a.current{ color:#0a0a0d; background:#f2a93b; font-weight:700; }
+</style>
+</head>
+<body>
+<nav class="phx-nav"><span class="phx-nav-tag">PHX</span><a href="index.html">ALB Participation</a><a href="events-calendar.html">Events Calendar</a><a href="f2p-task-guide.html">F2P Task Guide</a><a href="credits.html" class="current">Links &amp; Credits</a></nav>
+
+<main>
+  <div class="section-head">
+    <h1>Links &amp; <span class="accent">Credits</span></h1>
+    <div class="section-desc">This tracker leans on data, spreadsheets, and communities beyond our own alliance. This page says thanks and points you to where it comes from — check these out directly for the fullest, most current picture.</div>
+  </div>
+
+  <h2>Community Sites</h2>
+  <a class="link-card" href="https://stfc.phd" target="_blank" rel="noopener">
+    <div class="link-icon">PHD</div>
+    <div class="link-body">
+      <div class="link-name">STFC.PHD</div>
+      <div class="link-desc">Community spreadsheets and reference data — including the Alliance Tournament task list this tracker's F2P Task Guide is built from.</div>
+    </div>
+    <div class="link-arrow">↗</div>
+  </a>
+  <a class="link-card" href="https://stfc.cfd" target="_blank" rel="noopener">
+    <div class="link-icon">CFD</div>
+    <div class="link-body">
+      <div class="link-name">STFC.CFD</div>
+      <div class="link-desc">Community resource hub for Star Trek Fleet Command.</div>
+    </div>
+    <div class="link-arrow">↗</div>
+  </a>
+
+  <h2>Discord Communities</h2>
+  <a class="link-card" href="https://discord.gg/FF3yDHtycy" target="_blank" rel="noopener">
+    <div class="link-icon">K</div>
+    <div class="link-body">
+      <div class="link-name">Kali STFC Resources</div>
+      <div class="link-desc">Guides, tools, and community-maintained resources for STFC captains.</div>
+    </div>
+    <div class="link-arrow">↗</div>
+  </a>
+  <a class="link-card" href="https://discord.gg/BRhru6Vcnj" target="_blank" rel="noopener">
+    <div class="link-icon">OT</div>
+    <div class="link-body">
+      <div class="link-name">STFC Officer Tools</div>
+      <div class="link-desc">Officer-focused tools and planning resources for alliance leadership.</div>
+    </div>
+    <div class="link-arrow">↗</div>
+  </a>
+  <a class="link-card" href="https://discord.gg/qhhErbWeaC" target="_blank" rel="noopener">
+    <div class="link-icon">VP</div>
+    <div class="link-body">
+      <div class="link-name">STFC Briefings: Voice of the Players</div>
+      <div class="link-desc">Community briefings and discussion on STFC updates, events, and player feedback.</div>
+    </div>
+    <div class="link-arrow">↗</div>
+  </a>
+
+  <h2>Data &amp; Spreadsheet Credits</h2>
+  <div class="credit-line">
+    <b>Alliance Tournament M92 spreadsheet</b> — compiled by JulesVern, Quasel, BlueMandalorian &amp; the STFC community. Filtered into the <a href="f2p-task-guide.html">F2P Task Guide</a> on this site; data changes each tournament rotation, so verify in-game before heavy hoarding.
+  </div>
+  <div class="credit-line">
+    <b>Gherkin's Territory Helper</b> (territory.lol) &amp; in-game event release notes — sourced for the <a href="events-calendar.html">Events Calendar</a>.
+  </div>
+</main>
+
+<footer>Maintained for Phoenix EU168 · Thanks to everyone above for the tools and data that make this possible.</footer>
+</body>
+</html>
