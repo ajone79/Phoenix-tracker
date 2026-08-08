@@ -45,6 +45,16 @@
   .credit-line b{color:var(--text);}
   .credit-line a{color:var(--periwinkle);}
   footer{padding:30px 16px 10px;color:var(--text-faint);font-family:'Space Mono',monospace;font-size:10.5px;text-align:center;max-width:760px;margin:0 auto;}
+  .support-link{
+    display:inline-flex;align-items:center;gap:7px;margin-top:14px;
+    padding:9px 18px;border-radius:20px;
+    background:var(--panel);border:1px solid var(--hair);
+    color:var(--text-dim);text-decoration:none;
+    font-family:'Antonio',sans-serif;font-weight:600;letter-spacing:.05em;
+    text-transform:uppercase;font-size:11px;
+    transition:border-color .15s ease,color .15s ease,background .15s ease;
+  }
+  .support-link:hover{border-color:var(--signal);color:var(--text);background:rgba(255,145,66,.08);}
 
 /* ===== PHX cross-page nav strip ===== */
 .phx-nav{
@@ -143,7 +153,6 @@
   </div>
 </main>
 
-<footer>Maintained for Phoenix EU168 · Thanks to everyone above for the tools and data that make this possible.</footer>
-<script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="ajaykhoulo7" data-color="#669196" data-emoji="🍺"  data-font="Bree" data-text="Buy me a beer pretty please" data-outline-color="#ffffff" data-font-color="#ffffff" data-coffee-color="#FFDD00" ></script>
+<footer>Maintained for Phoenix EU168 · Thanks to everyone above for the tools and data that make this possible.<br><a class="support-link" href="https://www.buymeacoffee.com/ajaykhoulo7" target="_blank" rel="noopener">🍺 Buy me a beer</a></footer>
 </body>
 </html>
