@@ -341,8 +341,7 @@ const TZ_OPTIONS = [
    ========================================================= */
 let activeGrades = new Set(['G1','G2','G3','G4','G5','G6','G7','G8']);
 let territoryMode = false;
-let showAnomaly = false;
-let showVATV = true;
+let showAnomalyFlag = false;
 const GRADE_BANDS = {G1:[1,20],G2:[21,30],G3:[31,40],G4:[41,50],G5:[51,60],G6:[61,70],G7:[71,80],G8:[81,90]};
 const el = id => document.getElementById(id);
 
@@ -422,7 +421,7 @@ function render(){
   const hideEmpty = el('hideEmpty').checked;
 
   const occs = expand(EVENTS, rangeStart, rangeEnd, offset).filter(o => {
-    if(o.ev.category === 'ANOMALY' && !showAnomaly) return false;
+    if(o.ev.category === 'ANOMALY' && !showAnomalyFlag) return false;
     if(o.ev.category === 'VATV' && !showVATVChecked) return false;
     if(territoryMode){
       return o.ev.category === 'TERRITORY' && (!search || o.ev.name.toLowerCase().includes(search));
