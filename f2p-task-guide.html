@@ -23,6 +23,17 @@
     --grind: #9aa3ba;
     --none: #4f5b7a;
   }
+  .support-wrap{text-align:center;padding:34px 16px 10px;}
+  .support-link{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:9px 18px;border-radius:20px;
+    background:var(--panel-2);border:1px solid var(--line);
+    color:var(--muted);text-decoration:none;
+    font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:.04em;
+    text-transform:uppercase;font-size:12.5px;
+    transition:border-color .15s ease,color .15s ease,background .15s ease;
+  }
+  .support-link:hover{border-color:var(--amber);color:var(--text);background:rgba(242,169,59,.08);}
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
@@ -766,6 +777,6 @@ opsFilters.addEventListener('click', e=>{
 
 render();
 </script>
-<script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="ajaykhoulo7" data-color="#669196" data-emoji="🍺"  data-font="Bree" data-text="Buy me a beer pretty please" data-outline-color="#ffffff" data-font-color="#ffffff" data-coffee-color="#FFDD00" ></script>
+<div class="support-wrap"><a class="support-link" href="https://www.buymeacoffee.com/ajaykhoulo7" target="_blank" rel="noopener">🍺 Buy me a beer</a></div>
 </body>
 </html>
