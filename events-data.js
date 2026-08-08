@@ -18,7 +18,8 @@ const CATS = {
   ANOMALY:   {label:'Galactic Anomaly',       color:'#7FDBFF'},
   TERRITORY: {label:'Territory Capture',     color:'#8CE071'},
   FEDDAY:    {label:'Federation Day',         color:'#FF8FE3'},
-  VATV:      {label:'Voyage Across the Void', color:'#4FD1C5'}
+  VATV:      {label:'Voyage Across the Void', color:'#4FD1C5'},
+  OUTPOST:   {label:'Outpost Hold',           color:'#F2A93B'}
 };
 
 /* =========================================================
@@ -168,6 +169,14 @@ const EVENTS = [
     occ:{kind:'dates', dates:['2026-08-12']}, note:'Score by destroying Romulan and Klingon hostiles.'},
   {name:'Federation Day #5: Legacy', variant:'SMS', category:'FEDDAY', heroic:false, opsMin:20, opsMax:80, time:{h:17,m:0},
     occ:{kind:'dates', dates:['2026-08-13']}, note:'Score by destroying FKR hostiles.'},
+
+  // --- Outpost Hold (ALB/SLB/SMS — same scoring across all three formats, 1 entry covers all) ---
+  // NOT set up as a recurring rule yet: we've only confirmed this one window so far.
+  // When the next occurrence shows up in-game, add a new range below (or convert to
+  // occ.kind:'weekly'/'dates' once the actual interval between occurrences is confirmed).
+  {name:'Outpost Hold', variant:'ALB / SLB / SMS', category:'OUTPOST', heroic:false, opsMin:51, opsMax:999, time:{h:17,m:0},
+    occ:{kind:'ranges', ranges:[{start:'2026-08-06', end:'2026-08-08'}]},
+    note:'Score by defeating Outpost Retaliation attackers of your Grade or Higher. Bonus points for FC Sisko assigned in Seat 1. Scoring is the same across ALB, SLB, and SMS. (Recurrence interval not yet confirmed.)'},
 
   // --- Voyage Across the Void (weekly recurring meta, no end date — runs every arc) ---
   {name:'Voyage Across the Void', variant:'Into the Unknown', category:'VATV', heroic:false, opsMin:1, opsMax:999, time:{h:17,m:0},
