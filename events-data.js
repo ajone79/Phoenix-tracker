@@ -19,7 +19,8 @@ const CATS = {
   TERRITORY: {label:'Territory Capture',     color:'#8CE071'},
   FEDDAY:    {label:'Federation Day',         color:'#FF8FE3'},
   VATV:      {label:'Voyage Across the Void', color:'#4FD1C5'},
-  OUTPOST:   {label:'Outpost Hold',           color:'#F2A93B'}
+  OUTPOST:   {label:'Outpost Hold',           color:'#F2A93B'},
+  TOURNAMENT:{label:'Alliance Tournament',     color:'#FFD166'}
 };
 
 /* =========================================================
@@ -177,6 +178,11 @@ const EVENTS = [
   {name:'Outpost Hold', variant:'ALB / SLB / SMS', category:'OUTPOST', heroic:false, opsMin:51, opsMax:999, time:{h:17,m:0},
     occ:{kind:'ranges', ranges:[{start:'2026-08-06', end:'2026-08-08'}]},
     note:'Score by defeating Outpost Retaliation attackers of your Grade or Higher. Bonus points for FC Sisko assigned in Seat 1. Scoring is the same across ALB, SLB, and SMS. (Recurrence interval not yet confirmed.)'},
+
+  // --- Alliance Tournament (Update 93 M92 tasks — tied to the F2P Task Guide on this site) ---
+  {name:'Alliance Tournament', variant:'SMS / SLB / ALB', category:'TOURNAMENT', heroic:false, opsMin:1, opsMax:999, time:{h:17,m:0},
+    occ:{kind:'ranges', ranges:[{start:'2026-08-10', end:'2026-08-15'}]},
+    note:'Complete Alliance Tournament tasks to earn Alliance Tournament Credits and Legendary Credits. See the F2P Task Guide on this site for which tasks are realistically achievable.'},
 
   // --- Voyage Across the Void (weekly recurring meta, no end date — runs every arc) ---
   {name:'Voyage Across the Void', variant:'Into the Unknown', category:'VATV', heroic:false, opsMin:1, opsMax:999, time:{h:17,m:0},
