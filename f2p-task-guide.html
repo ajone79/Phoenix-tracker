@@ -421,6 +421,54 @@
     padding:20px;
   }
   .lightbox.open{display:flex;}
+
+  .notice-overlay{
+    position:fixed; inset:0; z-index:60;
+    background:rgba(4,6,12,.85);
+    display:none;
+    align-items:center; justify-content:center;
+    padding:20px;
+    backdrop-filter: blur(3px);
+  }
+  .notice-overlay.open{display:flex;}
+  .notice-box{
+    max-width:420px;
+    background:linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--amber-dim);
+    border-left:3px solid var(--amber);
+    border-radius:12px;
+    padding:22px 22px 18px;
+    box-shadow:0 0 60px rgba(242,169,59,.12);
+  }
+  .notice-box h3{
+    font-family:'Orbitron', sans-serif;
+    font-size:15px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin:0 0 12px;
+  }
+  .notice-box p{
+    font-size:14px;
+    line-height:1.55;
+    color:var(--text);
+    margin:0 0 14px;
+  }
+  .notice-box a{ color:var(--teal); }
+  .notice-box button{
+    width:100%;
+    padding:11px;
+    border-radius:8px;
+    border:1px solid var(--amber);
+    background:var(--amber);
+    color:#0a0d16;
+    font-family:'Share Tech Mono', monospace;
+    font-weight:700;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    font-size:12.5px;
+    cursor:pointer;
+  }
   .lightbox img{
     max-width:100%; max-height:100%;
     border-radius:10px;
@@ -546,6 +594,15 @@
   <div class="lb-caption">Task group reward chart — tap anywhere to close</div>
 </div>
 
+<div class="notice-overlay" id="noticeOverlay">
+  <div class="notice-box">
+    <h3>Heads up</h3>
+    <p>I've just gone through the last two rounds of Alliance Tournament patch notes and updated this list — new tasks, reward changes, and ops-range tweaks. I've done my best to get it all right, but with this many changes there's a chance something slipped through.</p>
+    <p>If you spot a mistake, drop by the Discord and let me know: <a href="https://discord.gg/6ecSvxcFjT" target="_blank" rel="noopener">discord.gg/6ecSvxcFjT</a></p>
+    <button id="noticeClose">Got it</button>
+  </div>
+</div>
+
 <footer>
   Source: Alliance Tournaments M92 spreadsheet — F2P filtered Task List, July 2026 edition.<br>
   Compiled by JulesVern, Quasel, BlueMandalorian &amp; the STFC community. Data changes with each tournament rotation — verify in-game before heavy hoarding.
@@ -565,6 +622,19 @@ document.getElementById('results').addEventListener('click', e=>{
 document.getElementById('lbClose').addEventListener('click', ()=> lightbox.classList.remove('open'));
 lightbox.addEventListener('click', e=>{
   if(e.target === lightbox) lightbox.classList.remove('open');
+});
+
+// first-visit notice about recent patch-note updates
+const NOTICE_KEY = 'f2pTasksNoticeSeen_v1';
+const noticeOverlay = document.getElementById('noticeOverlay');
+try{
+  if(!localStorage.getItem(NOTICE_KEY)){
+    noticeOverlay.classList.add('open');
+  }
+}catch(e){ /* localStorage unavailable, skip silently */ }
+document.getElementById('noticeClose').addEventListener('click', ()=>{
+  noticeOverlay.classList.remove('open');
+  try{ localStorage.setItem(NOTICE_KEY, '1'); }catch(e){}
 });
 </script>
 
