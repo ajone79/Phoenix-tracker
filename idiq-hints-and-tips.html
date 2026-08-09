@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IDIQ Hints &amp; Tips — Phoenix EU168</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0d16;
+    --panel: #121729;
+    --panel-2: #171d33;
+    --line: #262e4a;
+    --amber: #f2a93b;
+    --amber-dim: #7a5a24;
+    --teal: #4fd1c5;
+    --text: #e7ecf3;
+    --muted: #8b93a7;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Rajdhani', sans-serif;
+    font-size:16px;
+    line-height:1.5;
+  }
+  h1,h2,h3{ font-family:'Orbitron', sans-serif; letter-spacing:.04em; }
+  a{ color:var(--teal); }
+
+  .phx-nav{
+    display:flex; flex-wrap:wrap; gap:2px;
+    background:var(--panel-2); border-bottom:1px solid var(--line);
+    padding:10px 14px;
+  }
+  .phx-nav .phx-nav-tag{
+    font-family:'Orbitron', sans-serif; font-weight:800; font-size:11px;
+    color:var(--amber); padding:6px 10px; letter-spacing:.08em;
+  }
+  .phx-nav a{
+    text-decoration:none; color:var(--muted); font-size:13px;
+    padding:6px 12px; border-radius:6px; font-weight:600;
+  }
+  .phx-nav a:hover{ color:var(--text); background:rgba(255,255,255,.06); }
+  .phx-nav a.current{ color:#0a0a0d; background:var(--amber); font-weight:700; }
+
+  main{ max-width:900px; margin:0 auto; padding:24px 16px 60px; position:relative; }
+
+  .page-head{ text-align:center; margin-bottom:8px; }
+  .page-head h1{ font-size:26px; color:var(--amber); margin:0 0 4px; }
+  .page-head .sub{ color:var(--muted); font-size:13px; }
+
+  .wip-banner{
+    background:linear-gradient(90deg, rgba(235,87,87,.12), rgba(235,87,87,.04));
+    border:1px solid rgba(235,87,87,.4);
+    border-left:3px solid #eb5757;
+    border-radius:8px;
+    padding:10px 14px;
+    font-size:13px;
+    color:#f2a9a9;
+    margin:18px 0 26px;
+  }
+
+  section.block{
+    background:linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:18px 18px 20px;
+    margin-bottom:22px;
+  }
+  section.block h2{
+    font-size:16px; color:var(--amber); margin:0 0 4px;
+    text-transform:uppercase; letter-spacing:.06em;
+  }
+  section.block .block-sub{ color:var(--muted); font-size:12.5px; margin-bottom:14px; }
+
+  .event-card{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+    margin-bottom:12px;
+  }
+  .event-card:last-child{ margin-bottom:0; }
+  .event-title{
+    font-weight:700; font-size:13.5px; color:var(--text);
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin-bottom:8px;
+  }
+  .event-date{ color:var(--muted); font-size:11.5px; font-weight:500; }
+
+  .code-row{
+    display:flex; flex-wrap:wrap; gap:8px 14px;
+    align-items:center;
+    padding:6px 0;
+    border-top:1px solid var(--line);
+    font-size:13px;
+  }
+  .code-row:first-of-type{ border-top:none; }
+  .grade-tag{
+    background:rgba(242,169,59,.12); border:1px solid var(--amber-dim);
+    color:var(--amber); font-family:'Share Tech Mono', monospace;
+    font-size:11.5px; padding:2px 8px; border-radius:5px;
+    min-width:70px; text-align:center;
+  }
+  .code-val{
+    font-family:'Share Tech Mono', monospace; color:var(--teal);
+    font-weight:700; letter-spacing:.03em;
+  }
+  .code-reward{ color:var(--muted); font-size:12px; }
+  .code-notes{ color:var(--muted); font-size:11.5px; font-style:italic; width:100%; margin-top:2px; }
+
+  .day-label{
+    font-family:'Share Tech Mono', monospace; color:var(--amber);
+    font-size:11.5px; margin:10px 0 4px; text-transform:uppercase;
+  }
+  .day-label:first-child{ margin-top:0; }
+  .trivia-row{
+    display:flex; gap:10px; align-items:baseline;
+    padding:4px 0; font-size:13px;
+  }
+  .trivia-part{ color:var(--muted); font-size:11.5px; min-width:110px; }
+  .trivia-clue{ color:var(--text); font-weight:600; }
+  .trivia-answer{ color:var(--teal); }
+
+  .placeholder-note{
+    color:var(--muted); font-size:13px; text-align:center;
+    padding:26px 10px; border:1px dashed var(--line); border-radius:8px;
+  }
+
+  footer{
+    text-align:center; color:var(--muted); font-size:11.5px;
+    padding:24px 16px; border-top:1px solid var(--line);
+  }
+  footer a{ color:var(--teal); }
+
+  .wip-watermark{
+    position:fixed; inset:0; pointer-events:none; z-index:5;
+    overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .wip-watermark span{
+    font-family:'Orbitron', sans-serif; font-weight:800;
+    font-size:13vw; color:rgba(242,169,59,.05);
+    white-space:nowrap; transform:rotate(-28deg);
+    letter-spacing:.05em;
+  }
+</style>
+</head>
+<body>
+
+<div class="wip-watermark"><span>WORK IN PROGRESS</span></div>
+
+<nav class="phx-nav"><span class="phx-nav-tag">PHX</span><a href="index.html">ALB Participation</a><a href="events-calendar.html">Events Calendar</a><a href="f2p-task-guide.html">F2P Task Guide</a><a href="idiq-hints-and-tips.html" class="current">IDIQ Hints &amp; Tips</a><a href="credits.html">Links &amp; Credits</a></nav>
+
+<main>
+  <div class="page-head">
+    <h1>IDIQ Hints &amp; Tips</h1>
+    <div class="sub">Promo codes, trivia answers, arc overview &amp; suggested crews</div>
+  </div>
+
+  <div class="wip-banner">🚧 This page is a work in progress. The promo codes and trivia sections below are populated with <strong>placeholder data</strong> pulled from an old Discord screenshot purely to preview the layout — real IDIQ data hasn't been added yet. Arc Overview and Suggested Crews are coming once source material is ready.</div>
+
+  <section class="block">
+    <h2>Promo Codes</h2>
+    <div class="block-sub">Grouped by release. Enter for your grade/ops range — codes sometimes show an error but still apply the reward, check AMS to confirm.</div>
+    <div id="promoContainer"><div class="placeholder-note">Loading…</div></div>
+  </section>
+
+  <section class="block">
+    <h2>Trivia Answers</h2>
+    <div class="block-sub">Answers for in-game trivia / shifting-trial style events.</div>
+    <div id="triviaContainer"><div class="placeholder-note">Loading…</div></div>
+  </section>
+
+  <section class="block">
+    <h2>Arc Overview</h2>
+    <div class="block-sub">What this arc is about, key mechanics, and timeline.</div>
+    <div class="placeholder-note">Coming soon — waiting on source material.</div>
+  </section>
+
+  <section class="block">
+    <h2>Suggested Crews</h2>
+    <div class="block-sub">Recommended officer crews for this arc's content.</div>
+    <div class="placeholder-note">Coming soon — waiting on source material.</div>
+  </section>
+</main>
+
+<footer>
+  Data updates automatically from the shared alliance database. Spotted a mistake? Let me know on Discord: <a href="https://discord.gg/6ecSvxcFjT" target="_blank" rel="noopener">discord.gg/6ecSvxcFjT</a>
+</footer>
+
+<script>
+const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+
+function escapeHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function sb(path){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if(!res.ok) throw new Error(`${path} fetch failed: ${res.status}`);
+  return res.json();
+}
+
+function groupBy(arr, keyFn){
+  const map = new Map();
+  for(const item of arr){
+    const key = keyFn(item);
+    if(!map.has(key)) map.set(key, []);
+    map.get(key).push(item);
+  }
+  return map;
+}
+
+async function loadPromoCodes(){
+  const container = document.getElementById('promoContainer');
+  try{
+    const rows = await sb('arc_promo_codes?select=*&order=sort_order.asc');
+    if(!rows.length){ container.innerHTML = '<div class="placeholder-note">No promo codes posted yet for this arc.</div>'; return; }
+    const groups = groupBy(rows, r => `${r.event_name}|||${r.event_date ?? ''}`);
+    let html = '';
+    for(const [key, items] of groups){
+      const [eventName, eventDate] = key.split('|||');
+      const dateStr = eventDate ? new Date(eventDate + 'T00:00:00').toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'}) : '';
+      html += `<div class="event-card">
+        <div class="event-title"><span>${escapeHtml(eventName)}</span><span class="event-date">${escapeHtml(dateStr)}</span></div>`;
+      for(const item of items){
+        html += `<div class="code-row">
+          <span class="grade-tag">${escapeHtml(item.grade_label)}</span>
+          <span class="code-val">${escapeHtml(item.code)}</span>
+          ${item.reward ? `<span class="code-reward">${escapeHtml(item.reward)}</span>` : ''}
+          ${item.notes ? `<span class="code-notes">${escapeHtml(item.notes)}</span>` : ''}
+        </div>`;
+      }
+      html += `</div>`;
+    }
+    container.innerHTML = html;
+  }catch(e){
+    console.error(e);
+    container.innerHTML = '<div class="placeholder-note">Could not load promo codes. Please refresh.</div>';
+  }
+}
+
+async function loadTrivia(){
+  const container = document.getElementById('triviaContainer');
+  try{
+    const rows = await sb('arc_trivia?select=*&order=sort_order.asc');
+    if(!rows.length){ container.innerHTML = '<div class="placeholder-note">No trivia answers posted yet for this arc.</div>'; return; }
+    const groups = groupBy(rows, r => r.event_name);
+    let html = '';
+    for(const [eventName, items] of groups){
+      html += `<div class="event-card"><div class="event-title"><span>${escapeHtml(eventName)}</span></div>`;
+      const dayGroups = groupBy(items, r => r.day_number ?? '');
+      for(const [day, dayItems] of dayGroups){
+        if(day !== ''){
+          html += `<div class="day-label">Day ${escapeHtml(day)}</div>`;
+        }
+        for(const item of dayItems){
+          html += `<div class="trivia-row">
+            <span class="trivia-part">${escapeHtml(item.label)}</span>
+            ${item.clue ? `<span class="trivia-clue">${escapeHtml(item.clue)} —</span>` : ''}
+            <span class="trivia-answer">${escapeHtml(item.answer)}</span>
+          </div>`;
+        }
+      }
+      html += `</div>`;
+    }
+    container.innerHTML = html;
+  }catch(e){
+    console.error(e);
+    container.innerHTML = '<div class="placeholder-note">Could not load trivia answers. Please refresh.</div>';
+  }
+}
+
+loadPromoCodes();
+loadTrivia();
+</script>
+</body>
+</html>
