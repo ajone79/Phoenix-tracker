@@ -675,7 +675,8 @@ function buildCard(t){
   const opsSegs = t.ops.map(v=>`<div class="ops-seg${v? ' lit':''}"></div>`).join('');
   const opsLabels = OPS_LABELS.map(l=>`<span>${l}</span>`).join('');
 
-  const noteBody = escapeHtml(t.notes)
+  const displayNotes = t.notes.replace(/^\s*(easy planning|aggressive hoarding|maybe|grind)\s*:\s*/i, '');
+  const noteBody = escapeHtml(displayNotes)
     .replace(/§S§/g, '<s class="note-old">')
     .replace(/§\/S§/g, '</s>')
     .replace(/§TBC§/g, '<span class="tbc-badge">TBC</span>');
