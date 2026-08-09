@@ -571,112 +571,19 @@ lightbox.addEventListener('click', e=>{
 <script>
 const OPS_LABELS = ["10–19","20–29","30–39","40–50","51–60","61–70","71–80"];
 
-// task, category, group, ops[7], points, legendary, regular, rerolls, notes
-const RAW = [
-["Acquire 55,000 Forbidden Tech Protomatter.","Premium",4,[0,1,1,1,1,1,1],"20,000","4,400","4,400","300","Maybe: Need a load of Trials Bells, but with lvl 70 Q Court, it requires 20 T4 kills (2,800 per)"],
-["Acquire 400 Rare Open Armada Directives.","Premium",4,[0,0,0,0,0,0,1],"20,000","4,400","4,400","300","Aggressive Hoarding: 9x chest pull of ALL 3 faction unc bundles"],
-["Acquire 25,000 Maverick Credits.","Premium",4,[0,0,0,0,1,1,1],"20,000","4,400","4,400","300","Aggressive Hoarding: Ops 64+ ALL TASKS; or ops 55+ ALL TASKS & T2 Sphere tasks"],
-["Acquire 11,200 Simulation Codes.","Premium",4,[0,0,0,0,0,1,1],"20,000","4,400","4,400","300","Aggressive Hoarding: use tier up gifts from building and ship"],
-["Acquire 52,000 G4 Uncommon Ore.","Premium",4,[0,0,0,1,0,0,0],"20,000","4,400","4,400","300","Maybe? Seems misclassified (was legacy heroic)"],
-["Acquire 52,000 G4 Uncommon Gas.","Premium",4,[0,0,0,1,0,0,0],"20,000","4,400","4,400","300","Maybe? Seems misclassified (was legacy heroic)"],
-["Acquire 52,000 G4 Uncommon Crystal.","Premium",4,[0,0,0,1,0,0,0],"20,000","4,400","4,400","300","Maybe? Seems misclassified (was legacy heroic)"],
-["Acquire 400 3★ Battleship Parts.","Premium",4,[0,1,0,0,0,0,0],"20,000","4,400","4,400","300","Maybe? Lat conversion?"],
-["Acquire 3,400 G3 Uncommon Ore.","Premium",4,[0,1,1,0,0,0,0],"20,000","4,400","4,400","300","Maybe? Seems misclassified (was legacy heroic)"],
-["Acquire 3,400 G3 Uncommon Gas.","Premium",4,[0,1,1,0,0,0,0],"20,000","4,400","4,400","300","Maybe? Seems misclassified (was legacy heroic)"],
-["Acquire 3,400 G3 Uncommon Crystal.","Premium",4,[0,1,1,0,0,0,0],"20,000","4,400","4,400","300","Maybe? Seems misclassified (was legacy heroic)"],
-["Acquire 1,200 2★ Survey Parts.","Premium",4,[1,0,0,0,0,0,0],"20,000","4,400","4,400","300","Maybe? Lat conversion?"],
-["Acquire 1,200 2★ Battleship Parts.","Premium",4,[1,0,0,0,0,0,0],"20,000","4,400","4,400","300","Maybe? Lat conversion?"],
-["Acquire 1,000 G2 Uncommon Ore.","Premium",4,[1,0,0,0,0,0,0],"20,000","4,400","4,400","300","Maybe? Seems misclassified (was legacy heroic)"],
-["Acquire 1,000 G2 Uncommon Gas.","Premium",4,[1,0,0,0,0,0,0],"20,000","4,400","4,400","300","Maybe? Seems misclassified (was legacy heroic)"],
-["Acquire 1,000 G2 Uncommon Crystal.","Premium",4,[1,0,0,0,0,0,0],"20,000","4,400","4,400","300","Maybe? Seems misclassified (was legacy heroic)"],
-
-["Defeat 800 points worth of Conqueror Borg Suppressor Hostiles.","Seasonal Elite",3,[0,0,0,0,1,1,1],"20,000","1,100","3,300","200","Maybe: If your borg sphere can hit at or above your ops level equivalent hostiles."],
-["Acquire 45 Athena Ship Parts","Seasonal Elite",3,[0,0,0,0,0,1,1],"20,000","1,100","3,300","200","Easy Planning: §S§Aggressive Hoarding: Need an Athena T13+ or T9+ with the skin, 2 pulls in a day, and/or timer reset with tier up (or some good RNG).§/S§ Requirement dropped from 200 to 45 — likely far easier now, not yet reassessed. §TBC§"],
-
-["Defeat 3 Uncommon Conqueror Borg Solo Armada","Seasonal Advanced",3,[0,0,0,0,1,1,1],"15,000","1,100","550","100","Easy Planning: hoard 3 days of directives (Uncommon = only 62–69 score)"],
-["Defeat 5 Conqueror Borg Solo Armadas.","Seasonal Advanced",3,[0,0,0,0,0,1,1],"15,000","1,100","1,100","100","Easy Planning: same directive-hoarding approach as the Uncommon version, just hoard a couple extra days"],
-["Defeat 20 Duo Wave Defense Waves","Seasonal Advanced",3,[0,0,0,0,0,1,1],"15,000","1,100","550","100","Easy Planning: Hoard starts. Easier with Athena."],
-["Acquire 112 Class Honors","Seasonal Advanced",3,[0,0,0,0,0,1,1],"15,000","1,100","550","100","Easy Planning: §S§Maybe: Double pull in Academy Refinery gets you there unless unlucky with double lows. Also sourced from various Battle Passes including WDBP.§/S§ Requirement dropped from 200 to 112 — likely far easier now, not yet reassessed. §TBC§"],
-["Acquire 150 Borg Sphere Parts","Seasonal Advanced",3,[0,0,0,0,1,1,1],"15,000","1,100","550","100","Easy Planning: 1 pull."],
-["Acquire 990 Ascension Particles","Seasonal Advanced",3,[0,0,0,1,0,0,0],"15,000","1,100","550","100","Maybe: all factions, max pulls"],
-["Acquire 720 Ascension Particles","Seasonal Advanced",3,[0,0,1,0,0,0,0],"15,000","1,100","550","100","Maybe: all factions, max pulls"],
-["Acquire 675 Ascension Particles","Seasonal Advanced",3,[0,1,0,0,0,0,0],"15,000","1,100","550","100","Maybe: all factions, max pulls"],
-
-["Acquire 330 Ascension Particles","Seasonal Standard",3,[0,0,0,1,0,0,0],"10,000","220","550","0","Easy Planning: 3x pull of 1 faction, or 1x of all 3 factions"],
-["Acquire 240 Ascension Particles","Seasonal Standard",3,[0,0,1,0,0,0,0],"10,000","220","550","0","Easy Planning: 3x pull of 1 faction, or 1x of all 3 factions"],
-["Acquire 225 Ascension Particles","Seasonal Standard",3,[0,1,0,0,0,0,0],"10,000","220","550","0","Easy Planning: 3x pull of 1 faction, or 1x of all 3 factions"],
-["Spend 6,000 Recon Locus Schematics","Seasonal Standard",2,[0,0,0,0,1,1,1],"10,000","220","550","0",""],
-["Spend 6,400 R Prototype Tech Catalysts","Seasonal Standard",2,[0,0,0,1,1,1,1],"10,000","220","550","0",""],
-["Spend 53,000 R Prototype Tech Protomatter","Seasonal Standard",2,[0,0,0,1,1,1,1],"10,000","220","550","0",""],
-["Defeat 400 points worth of Venari Ral Hostiles.","Seasonal Standard",2,[0,0,0,0,0,1,1],"10,000","220","550","0","Aggressive Hoarding of Academy Field Passes: requires Athena"],
-["Defeat 400 points worth of Academy Training Drones.","Seasonal Standard",2,[0,0,0,0,0,1,1],"10,000","220","550","0","Grind"],
-["Defeat 1 Uncommon Conqueror Borg Solo Armada","Seasonal Standard",2,[0,0,0,0,1,1,1],"10,000","220","550","0","Easy: 1 day of directives (Uncommon = only 62–69 score)"],
-["Acquire 6,600 Maverick Credits","Seasonal Standard",2,[0,0,0,0,1,1,1],"10,000","220","550","0","Easy Planning: Completing Maverick tasks"],
-["Acquire 1,800 Academy Engineering Credits","Seasonal Standard",2,[0,0,0,0,0,0,1],"10,000","220","550","0","Maybe: Requires 3x pull at ops 71 (gets easier)"],
-["Spend 55,000 Forbidden Tech Protomatter.","Seasonal Standard",2,[0,1,1,1,1,1,0],"10,000","220","550","0",""],
-["Spend 4,500 Transogen Forge Foundation","Seasonal Standard",2,[0,0,1,1,0,0,0],"10,000","220","550","0",""],
-["Defeat 400 points worth of Romulan Elite Assassins.","Seasonal Standard",2,[0,1,1,1,0,0,0],"10,000","220","550","0","Grind"],
-["Defeat 400 points worth of Klingon Elite Assassins.","Seasonal Standard",2,[0,1,1,1,0,0,0],"10,000","220","550","0","Grind"],
-["Defeat 400 points worth of Federation Elite Assassins.","Seasonal Standard",2,[0,1,1,1,0,0,0],"10,000","220","550","0","Grind"],
-["Acquire 150 Academy Engineering Credits","Seasonal Standard",2,[0,0,0,0,0,1,0],"10,000","220","550","0","Maybe: Requires 3x pull at ops 61 (gets easier)"],
-
-["Acquire 7,000 Galactic Recruit Token.","Legacy Heroic",2,[1,1,1,1,1,1,1],"10,000","220","4,400","0","Aggressive Hoarding: 9x Emergency Field Rations"],
-["Acquire 6,000 Uncommon Ex-Borg Credits.","Legacy Heroic",2,[0,0,1,1,1,1,1],"10,000","220","4,400","0","Easy Planning: 16–24 chests of the NX-01 Safe opportunity chests"],
-["Acquire 50,100 Pioneer Crests.","Legacy Heroic",2,[0,0,0,0,0,0,1],"10,000","220","4,400","0","Aggressive Hoarding: LOTS of P1 ATAs"],
-["Acquire 2,485 G7 Uncommon Ore.","Legacy Heroic",2,[0,0,0,0,0,0,1],"10,000","220","4,400","0","Aggressive Hoarding: Battlepass, refineries, multiphasics, 7/30 day chests, etc."],
-["Acquire 2,485 G7 Uncommon Gas.","Legacy Heroic",2,[0,0,0,0,0,0,1],"10,000","220","4,400","0","Aggressive Hoarding: Battlepass, refineries, multiphasics, 7/30 day chests, etc."],
-["Acquire 2,485 G7 Uncommon Crystal.","Legacy Heroic",2,[0,0,0,0,0,0,1],"10,000","220","4,400","0","Aggressive Hoarding: Battlepass, refineries, multiphasics, 7/30 day chests, etc."],
-["Acquire 15,000 Temporal Disruptors.","Legacy Heroic",2,[0,0,0,1,1,1,1],"10,000","220","4,400","0","Easy Planning: convert excess Temporal Artifact shards; 3x Rare Xindi bundle"],
-["Acquire 1,500 Uncommon Commander Skill Points.","Legacy Heroic",2,[1,1,1,1,1,1,1],"10,000","220","4,400","0","Maybe: Upgrade Command Center."],
-["Acquire 74,958 Frequency Modulators.","Legacy Heroic",2,[1,1,0,0,0,0,0],"10,000","220","4,400","0","Aggressive Hoarding: Grinding"],
-["Acquire 500 Epic Dominion Solo Armada Directives.","Legacy Heroic",2,[0,0,1,1,0,0,0],"10,000","220","4,400","0","Easy Planning: For G4 ONLY!"],
-["Acquire 500 Epic Borg Solo Armada Directives.","Legacy Heroic",2,[0,0,1,1,0,0,0],"10,000","220","4,400","0","Easy Planning: For G4 ONLY!"],
-["Acquire 35,000 Pioneer Crests.","Legacy Heroic",2,[0,1,0,0,0,0,0],"10,000","220","4,400","0","Aggressive Hoarding: LOTS of P1 ATAs"],
-["Acquire 3,630 G6 Uncommon Ore.","Legacy Heroic",2,[0,0,0,0,0,1,0],"10,000","220","4,400","0","Aggressive Hoarding: Battlepass, refineries, multiphasics, 7/30 day chests, etc."],
-["Acquire 3,630 G6 Uncommon Gas.","Legacy Heroic",2,[0,0,0,0,0,1,0],"10,000","220","4,400","0","Aggressive Hoarding: Battlepass, refineries, multiphasics, 7/30 day chests, etc."],
-["Acquire 3,630 G6 Uncommon Crystal.","Legacy Heroic",2,[0,0,0,0,0,1,0],"10,000","220","4,400","0","Aggressive Hoarding: Battlepass, refineries, multiphasics, 7/30 day chests, etc."],
-["Acquire 28,000 G5 Uncommon Ore.","Legacy Heroic",2,[0,0,0,0,1,0,0],"10,000","220","4,400","0","Aggressive Hoarding: Battlepass, refineries, multiphasics, 7/30 day chests, etc."],
-["Acquire 28,000 G5 Uncommon Gas.","Legacy Heroic",2,[0,0,0,0,1,0,0],"10,000","220","4,400","0","Aggressive Hoarding: Battlepass, refineries, multiphasics, 7/30 day chests, etc."],
-["Acquire 28,000 G5 Uncommon Crystal.","Legacy Heroic",2,[0,0,0,0,1,0,0],"10,000","220","4,400","0","Aggressive Hoarding: Battlepass, refineries, multiphasics, 7/30 day chests, etc."],
-["Acquire 2,730 Bajoran Faction Credits.","Legacy Heroic",2,[0,0,1,1,0,0,0],"10,000","220","4,400","0","Easy Planning: Credit Exchange in Bajoran Faction Store"],
-
-["Spend 750 Uncommon Commander Skill Points.","Legacy Easy",1,[1,1,1,1,1,1,1],"5,000","0","275","0",""],
-["Spend 7,000 Galactic Recruit Token.","Legacy Easy",1,[1,1,1,1,1,1,1],"5,000","0","275","0",""],
-["Spend 340,000 Sigma Parsteel.","Legacy Easy",1,[0,0,0,0,0,1,1],"5,000","0","275","0",""],
-["Spend 200 Sigma Dilithium.","Legacy Easy",1,[0,0,0,0,0,1,1],"5,000","0","275","0",""],
-["Spend 200 Rare Formation Armada Directives.","Legacy Easy",1,[0,1,1,1,1,0,1],"5,000","0","275","0",""],
-["Spend 15 Rare Commander Skill Points.","Legacy Easy",1,[0,1,1,1,1,1,1],"5,000","0","275","0",""],
-["Spend 100 Uncommon Formation Armada Directives.","Legacy Easy",1,[0,1,1,1,1,0,1],"5,000","0","275","0",""],
-["Spend 1,500 Uncommon Commander Skill Points.","Legacy Easy",1,[1,1,1,1,1,1,1],"5,000","0","275","0",""],
-["Spend 1,500 Sigma Tritanium.","Legacy Easy",1,[0,0,0,0,0,1,1],"5,000","0","275","0",""],
-["Defeat 6 Rare Solo Armadas with Temporal Conduit Chaos Tech equipped on your ship.","Legacy Easy",1,[0,0,0,1,1,1,1],"5,000","0","275","0","Need to check which Solo Armada counts…"],
-["Defeat 5 Rare Formation Armadas.","Legacy Easy",1,[0,1,1,1,1,0,1],"5,000","0","275","0",""],
-["Defeat 2 FKR G6 Rare Solo Armadas.","Legacy Easy",1,[0,0,0,0,0,1,1],"5,000","0","275","0","Possibly G5 Mirror Hostiles"],
-["Defeat 2 FKR G6 Epic Solo Armadas.","Legacy Easy",1,[0,0,0,0,0,1,1],"5,000","0","275","0",""],
-["Spend 600 Uncommon FKR Armada Directives.","Legacy Easy",1,[0,1,1,1,1,0,0],"5,000","0","275","0",""],
-["Spend 5,000 Independent Archives Schematics.","Legacy Easy",1,[1,1,1,1,0,0,0],"5,000","0","275","0",""],
-["Spend 4,000 Ultra Recruit Tokens.","Legacy Easy",1,[1,1,1,1,1,1,0],"5,000","0","275","0",""],
-["Spend 250 Artifact Gallery Schematics.","Legacy Easy",1,[0,1,1,1,0,0,0],"5,000","0","275","0",""],
-["Spend 200 Uncommon FKR Armada Directives.","Legacy Easy",1,[0,1,1,1,1,0,0],"5,000","0","275","0",""],
-["Spend 2,100 Rare Ex-Borg Credits.","Legacy Easy",1,[0,0,1,1,0,0,0],"5,000","0","275","0",""],
-["Spend 2,000 Premium Artifact Tokens.","Legacy Easy",1,[0,0,1,1,1,1,0],"5,000","0","275","0",""],
-["Defeat 8 Uncommon Dominion Solo Armadas.","Legacy Easy",1,[0,0,1,1,0,0,0],"5,000","0","275","0",""],
-["Defeat 8 Uncommon Borg Solo Armadas.","Legacy Easy",1,[0,0,1,1,0,0,0],"5,000","0","275","0",""],
-["Defeat 5 Rare Borg Solo Armadas.","Legacy Easy",1,[0,0,1,1,0,0,0],"5,000","0","275","0",""],
-["Defeat 400 points worth of Xindi Hostiles.","Legacy Easy",1,[0,0,1,1,1,0,0],"5,000","0","275","0",""],
-["Defeat 400 points worth of Texas-class Sentry Hostiles.","Legacy Easy",1,[0,0,0,1,0,0,0],"5,000","0","275","0",""],
-["Defeat 400 points worth of Swarm Hostiles.","Legacy Easy",1,[1,1,1,1,0,0,0],"5,000","0","275","0",""],
-["Defeat 400 points worth of Hirogen Hostiles.","Legacy Easy",1,[0,1,1,1,0,0,0],"5,000","0","275","0",""],
-["Defeat 400 points worth of Gorn Hunting Pack Hostiles.","Legacy Easy",1,[0,0,0,1,1,0,0],"5,000","0","275","0",""],
-["Defeat 400 points worth of Borg Probe Hostiles.","Legacy Easy",1,[0,1,1,1,0,0,0],"5,000","0","275","0",""],
-["Defeat 4 Rare Dominion Solo Armadas.","Legacy Easy",1,[0,0,1,1,0,0,0],"5,000","0","275","0","Maybe: G4+ only — G3 does not get directives"],
-["Defeat 3 Rare Borg Solo Armadas.","Legacy Easy",1,[0,0,1,1,0,0,0],"5,000","0","275","0",""],
-["Defeat 20 Mirror Universe Hostiles.","Legacy Easy",1,[0,0,0,1,1,0,0],"5,000","0","275","0","Alt route: defeat 2 Rare FKR G6 solos"],
-["Defeat 2 Epic Solo Armadas with Temporal Conduit Chaos Tech equipped on your ship.","Legacy Easy",1,[0,0,0,1,1,1,0],"5,000","0","275","0","Need to check which Solo Armada counts… Borg & Dominion confirmed"],
-["Defeat 2 Dominion Solo Armadas.","Legacy Easy",1,[0,0,1,1,0,0,0],"5,000","0","275","0",""],
-["Defeat 100 points worth of Assimilated Coryn-class, Prohibitor-class or Frohmun-class Hostiles.","Legacy Easy",1,[0,0,0,1,1,0,0],"5,000","0","275","0",""],
-["Defeat 10 Uncommon FKR Armadas.","Legacy Easy",1,[0,1,1,1,1,0,0],"5,000","0","275","0",""],
-];
+// task data now lives in Supabase (table: f2p_tasks) so both the private
+// tracker and the public mirror site stay in sync from one source.
+const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+let RAW = [];
+async function fetchTasksFromSupabase(){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/f2p_tasks?select=task,category,task_group,ops,points,legendary,regular,rerolls,notes&order=sort_order.asc`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if(!res.ok) throw new Error('f2p_tasks fetch failed: ' + res.status);
+  const rows = await res.json();
+  return rows.map(r => [r.task, r.category, r.task_group, r.ops, r.points, r.legendary, r.regular, r.rerolls, r.notes]);
+}
 
 const CATEGORY_ORDER = ["Premium","Seasonal Elite","Seasonal Advanced","Seasonal Standard","Legacy Heroic","Legacy Easy"];
 
@@ -691,11 +598,7 @@ function classify(notes){
 }
 const DIFF_LABEL = {easy:"Easy planning", maybe:"Maybe", hoard:"Aggressive hoarding", grind:"Grind", none:"Notes"};
 
-const TASKS = RAW.map(r => ({
-  task:r[0], category:r[1], group:r[2], ops:r[3],
-  points:r[4], legendary:r[5], regular:r[6], rerolls:r[7],
-  notes:r[8], diff: classify(r[8])
-}));
+let TASKS = [];
 
 // build category filter pills
 const catFilters = document.getElementById('catFilters');
@@ -838,7 +741,19 @@ opsFilters.addEventListener('click', e=>{
   render();
 });
 
-render();
+fetchTasksFromSupabase().then(rows => {
+  RAW = rows;
+  TASKS = RAW.map(r => ({
+    task:r[0], category:r[1], group:r[2], ops:r[3],
+    points:r[4], legendary:r[5], regular:r[6], rerolls:r[7],
+    notes:r[8], diff: classify(r[8])
+  }));
+  render();
+}).catch(err => {
+  console.error(err);
+  const results = document.getElementById('results');
+  results.innerHTML = '<div class="empty-state" style="display:block;">Could not load tasks from the database. Please refresh the page or try again shortly.</div>';
+});
 
 /* =========================================================
    HEADER TICKER — next 2 Territory Captures (persistent) +
