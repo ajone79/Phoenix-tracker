@@ -52,6 +52,18 @@
   .page-head h1{ font-size:26px; color:var(--amber); margin:0 0 4px; }
   .page-head .sub{ color:var(--muted); font-size:13px; }
 
+  .quick-nav{
+    display:flex; flex-wrap:wrap; justify-content:center; gap:8px;
+    margin:16px 0 6px;
+  }
+  .quick-nav a{
+    text-decoration:none; font-size:12.5px; font-weight:600;
+    color:var(--teal); background:var(--panel-2);
+    border:1px solid var(--line); border-radius:20px;
+    padding:6px 14px;
+  }
+  .quick-nav a:hover{ border-color:var(--teal); color:var(--text); }
+
   .wip-banner{
     background:linear-gradient(90deg, rgba(235,87,87,.12), rgba(235,87,87,.04));
     border:1px solid rgba(235,87,87,.4);
@@ -197,33 +209,40 @@
 <main>
   <div class="page-head">
     <h1>IDIQ Hints &amp; Tips</h1>
-    <div class="sub">Promo codes, trivia answers, arc overview &amp; suggested crews</div>
+    <div class="sub">Arc overview, suggested crews, promo codes &amp; trivia answers</div>
   </div>
 
-  <div class="wip-banner">🚧 This whole page is a work in progress. Everything below — promo codes, trivia, arc overview, and suggested crews — is <strong>placeholder content</strong> to preview the layout, not confirmed data for this arc. Real content will replace it as it's finalised.</div>
+  <div class="quick-nav">
+    <a href="#overview">Arc Overview</a>
+    <a href="#crews">Suggested Crews</a>
+    <a href="#promo">Promo Codes</a>
+    <a href="#trivia">Trivia Answers</a>
+  </div>
 
-  <section class="block">
-    <h2>Promo Codes</h2>
-    <div class="block-sub">Grouped by release. Enter for your grade/ops range — codes sometimes show an error but still apply the reward, check AMS to confirm.</div>
-    <div id="promoContainer"><div class="placeholder-note">Loading…</div></div>
-  </section>
+  <div class="wip-banner">🚧 This whole page is a work in progress. Everything below — arc overview, suggested crews, promo codes, and trivia — is <strong>placeholder content</strong> to preview the layout, not confirmed data for this arc. Real content will replace it as it's finalised.</div>
 
-  <section class="block">
-    <h2>Trivia Answers</h2>
-    <div class="block-sub">Answers for in-game trivia / shifting-trial style events.</div>
-    <div id="triviaContainer"><div class="placeholder-note">Loading…</div></div>
-  </section>
-
-  <section class="block">
+  <section class="block" id="overview">
     <h2>Arc Overview</h2>
     <div class="block-sub">What this arc is about, key mechanics, and timeline. Tap a card to view full size.</div>
     <div class="gallery" id="overviewGallery"></div>
   </section>
 
-  <section class="block">
+  <section class="block" id="crews">
     <h2>Suggested Crews</h2>
     <div class="block-sub">Recommended officer crews for this arc's content. Tap a card to view full size.</div>
     <div class="gallery" id="crewsGallery"></div>
+  </section>
+
+  <section class="block" id="promo">
+    <h2>Promo Codes</h2>
+    <div class="block-sub">Grouped by release. Enter for your grade/ops range — codes sometimes show an error but still apply the reward, check AMS to confirm.</div>
+    <div id="promoContainer"><div class="placeholder-note">Loading…</div></div>
+  </section>
+
+  <section class="block" id="trivia">
+    <h2>Trivia Answers</h2>
+    <div class="block-sub">Answers for in-game trivia / shifting-trial style events.</div>
+    <div id="triviaContainer"><div class="placeholder-note">Loading…</div></div>
   </section>
 </main>
 
@@ -369,21 +388,39 @@ renderGallery('crewsGallery', CREW_ITEMS);
 
 const galleryData = { overviewGallery: OVERVIEW_ITEMS, crewsGallery: CREW_ITEMS };
 const glightbox = document.getElementById('glightbox');
+
+function openGlightbox(item){
+  document.getElementById('glImg').src = item.image;
+  document.getElementById('glImg').alt = item.title;
+  document.getElementById('glCaption').textContent = item.caption;
+  document.getElementById('glCredit').textContent = item.credit;
+  glightbox.classList.add('open');
+  history.pushState({ glightboxOpen: true }, '');
+}
+function closeGlightbox(fromPopstate){
+  if(!glightbox.classList.contains('open')) return;
+  glightbox.classList.remove('open');
+  if(!fromPopstate){
+    // we're closing via the X or backdrop tap, not the back button —
+    // consume the history entry we pushed so back-button state stays in sync
+    if(history.state && history.state.glightboxOpen){
+      history.back();
+    }
+  }
+}
 document.addEventListener('click', e => {
   const card = e.target.closest('.gallery-card');
   if(card){
     const items = galleryData[card.dataset.gallery];
-    const item = items[Number(card.dataset.index)];
-    document.getElementById('glImg').src = item.image;
-    document.getElementById('glImg').alt = item.title;
-    document.getElementById('glCaption').textContent = item.caption;
-    document.getElementById('glCredit').textContent = item.credit;
-    glightbox.classList.add('open');
+    openGlightbox(items[Number(card.dataset.index)]);
     return;
   }
   if(e.target === glightbox || e.target.id === 'glClose'){
-    glightbox.classList.remove('open');
+    closeGlightbox(false);
   }
+});
+window.addEventListener('popstate', () => {
+  closeGlightbox(true);
 });
 </script>
 </body>
