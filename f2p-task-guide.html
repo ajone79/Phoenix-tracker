@@ -585,7 +585,7 @@ async function fetchTasksFromSupabase(){
   return rows.map(r => [r.task, r.category, r.task_group, r.ops, r.points, r.legendary, r.regular, r.rerolls, r.notes]);
 }
 
-const CATEGORY_ORDER = ["Premium","Seasonal Elite","Seasonal Advanced","Seasonal Standard","Legacy Heroic","Legacy Easy"];
+const CATEGORY_ORDER = ["Premium","Seasonal Elite","Seasonal Advanced","Seasonal Standard","Legacy Heroic","Legacy Engagement","Legacy Easy"];
 
 function classify(notes){
   const n = notes.toLowerCase();
