@@ -130,6 +130,45 @@
     padding:26px 10px; border:1px dashed var(--line); border-radius:8px;
   }
 
+  .gallery{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
+    gap:14px;
+  }
+  .gallery-card{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+    cursor:pointer;
+    transition:border-color .15s ease;
+  }
+  .gallery-card:hover{ border-color:var(--amber-dim); }
+  .gallery-card img{
+    width:100%; height:140px; object-fit:cover; display:block;
+    background:var(--panel);
+  }
+  .gallery-card .gc-body{ padding:10px 12px 12px; }
+  .gallery-card .gc-title{ font-weight:700; font-size:13.5px; margin-bottom:3px; }
+  .gallery-card .gc-caption{ color:var(--muted); font-size:11.5px; line-height:1.4; margin-bottom:6px; }
+  .gallery-card .gc-credit{ color:var(--teal); font-size:11px; }
+
+  .glightbox{
+    position:fixed; inset:0; z-index:70;
+    background:rgba(4,6,12,.94);
+    display:none; align-items:center; justify-content:center;
+    padding:24px; flex-direction:column; gap:10px;
+  }
+  .glightbox.open{ display:flex; }
+  .glightbox img{ max-width:92vw; max-height:78vh; border-radius:8px; border:1px solid var(--line); }
+  .glightbox .gl-caption{ color:var(--text); font-size:13px; text-align:center; max-width:640px; }
+  .glightbox .gl-credit{ color:var(--teal); font-size:12px; }
+  .glightbox .gl-close{
+    position:absolute; top:18px; right:22px;
+    color:var(--muted); font-size:26px; cursor:pointer; line-height:1;
+  }
+  .glightbox .gl-close:hover{ color:var(--text); }
+
   footer{
     text-align:center; color:var(--muted); font-size:11.5px;
     padding:24px 16px; border-top:1px solid var(--line);
@@ -161,7 +200,7 @@
     <div class="sub">Promo codes, trivia answers, arc overview &amp; suggested crews</div>
   </div>
 
-  <div class="wip-banner">🚧 This page is a work in progress. The promo codes and trivia sections below are populated with <strong>placeholder data</strong> pulled from an old Discord screenshot purely to preview the layout — real IDIQ data hasn't been added yet. Arc Overview and Suggested Crews are coming once source material is ready.</div>
+  <div class="wip-banner">🚧 This page is a work in progress. Promo codes and trivia are <strong>placeholder data</strong> from an old Discord screenshot, purely to preview the layout. Arc Overview and Suggested Crews now show real example content — more will be added as the arc develops.</div>
 
   <section class="block">
     <h2>Promo Codes</h2>
@@ -177,16 +216,23 @@
 
   <section class="block">
     <h2>Arc Overview</h2>
-    <div class="block-sub">What this arc is about, key mechanics, and timeline.</div>
-    <div class="placeholder-note">Coming soon — waiting on source material.</div>
+    <div class="block-sub">What this arc is about, key mechanics, and timeline. Tap a card to view full size.</div>
+    <div class="gallery" id="overviewGallery"></div>
   </section>
 
   <section class="block">
     <h2>Suggested Crews</h2>
-    <div class="block-sub">Recommended officer crews for this arc's content.</div>
-    <div class="placeholder-note">Coming soon — waiting on source material.</div>
+    <div class="block-sub">Recommended officer crews for this arc's content. Tap a card to view full size.</div>
+    <div class="gallery" id="crewsGallery"></div>
   </section>
 </main>
+
+<div class="glightbox" id="glightbox">
+  <div class="gl-close" id="glClose">✕</div>
+  <img id="glImg" src="" alt="">
+  <div class="gl-caption" id="glCaption"></div>
+  <div class="gl-credit" id="glCredit"></div>
+</div>
 
 <footer>
   Data updates automatically from the shared alliance database. Spotted a mistake? Let me know on Discord: <a href="https://discord.gg/6ecSvxcFjT" target="_blank" rel="noopener">discord.gg/6ecSvxcFjT</a>
@@ -280,6 +326,65 @@ async function loadTrivia(){
 
 loadPromoCodes();
 loadTrivia();
+
+// --- Arc Overview & Suggested Crews galleries ---
+// To add more later: just add another object to these arrays.
+const OVERVIEW_ITEMS = [
+  {
+    title: "U.S.S. Excelsior / V'ger Challenge",
+    image: "assets/arc/arc-vger-overview.png",
+    caption: "Official STFC breakdown of the V'ger Challenge Track, Search and Destroy Daily Challenge, Excelsior's Enhance ability, and the Challenge Refinery.",
+    credit: "Source: Star Trek Fleet Command"
+  }
+];
+
+const CREW_ITEMS = [
+  {
+    title: "V'ger Challenge Hostiles — Crew Sheet",
+    image: "assets/arc/crews-blue-vger.jpg",
+    caption: "Bridge/below-deck officer setups per hostile (Hurak, Gorn, Silent, Orion) plus Excelsior vs V'ger Fighters, with tech/boost recommendations and what to avoid.",
+    credit: "Crews by BlueMandalorian"
+  }
+];
+
+function renderGallery(containerId, items){
+  const el = document.getElementById(containerId);
+  if(!items.length){
+    el.innerHTML = '<div class="placeholder-note">Coming soon — waiting on source material.</div>';
+    return;
+  }
+  el.innerHTML = items.map((it, i) => `
+    <div class="gallery-card" data-gallery="${containerId}" data-index="${i}">
+      <img src="${it.image}" alt="${escapeHtml(it.title)}" loading="lazy">
+      <div class="gc-body">
+        <div class="gc-title">${escapeHtml(it.title)}</div>
+        <div class="gc-caption">${escapeHtml(it.caption)}</div>
+        <div class="gc-credit">${escapeHtml(it.credit)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+renderGallery('overviewGallery', OVERVIEW_ITEMS);
+renderGallery('crewsGallery', CREW_ITEMS);
+
+const galleryData = { overviewGallery: OVERVIEW_ITEMS, crewsGallery: CREW_ITEMS };
+const glightbox = document.getElementById('glightbox');
+document.addEventListener('click', e => {
+  const card = e.target.closest('.gallery-card');
+  if(card){
+    const items = galleryData[card.dataset.gallery];
+    const item = items[Number(card.dataset.index)];
+    document.getElementById('glImg').src = item.image;
+    document.getElementById('glImg').alt = item.title;
+    document.getElementById('glCaption').textContent = item.caption;
+    document.getElementById('glCredit').textContent = item.credit;
+    glightbox.classList.add('open');
+    return;
+  }
+  if(e.target === glightbox || e.target.id === 'glClose'){
+    glightbox.classList.remove('open');
+  }
+});
 </script>
 </body>
 </html>
