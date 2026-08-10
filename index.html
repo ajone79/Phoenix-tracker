@@ -781,5 +781,23 @@ function renderHistory(main){
 loadAll();
 startHeaderTicker(); // independent of Supabase load — runs off events-data.js
 </script>
+<script>
+(function(){
+  try{
+    fetch('https://mmzizgsanwqjpiumpqay.supabase.co/rest/v1/page_views', {
+      method: 'POST',
+      headers: {
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        site: 'phoenix-tracker',
+        path: location.pathname,
+        referrer: document.referrer || null
+      })
+    });
+  }catch(e){}
+})();
+</script>
 </body>
 </html>
