@@ -596,9 +596,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
               return `<td style="text-align:center;color:${taskColor(c.score)};font-weight:bold;">${c.score}/${max}</td>`;
             }
             if(!c.hasScore) return `<td style="text-align:center;color:var(--text-faint);">—</td>`;
-            return c.complete
-              ? `<td style="text-align:center;color:var(--mint);">✔</td>`
-              : `<td style="text-align:center;color:var(--gold);">●</td>`;
+            return `<td style="text-align:center;color:${c.complete?'var(--mint)':'var(--gold)'};font-weight:bold;">${Number(c.score).toLocaleString()}</td>`;
           }).join('');
           const rateColor = r.pct>=75?'var(--mint)':r.pct>=40?'var(--gold)':'var(--alert)';
           return `<tr><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td>${cellHtml}<td>${r.completedCount}/${r.totalEligible}</td><td style="color:${rateColor};font-weight:bold;">${r.pct}%</td></tr>`;
@@ -606,7 +604,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
         </tbody>
       </table>
     </div>
-    <div class="small" style="margin-top:6px;">✔ = complete &nbsp;·&nbsp; ● = scored but under threshold &nbsp;·&nbsp; — = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament cells: green ≥12, amber 9–11, red ≤8</div>
+    <div class="small" style="margin-top:6px;">Green number = complete &nbsp;·&nbsp; Gold number = scored but under threshold &nbsp;·&nbsp; — = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament cells: green ≥12, amber 9–11, red ≤8</div>
   `;
   bindSort(wrap, compSort, 'th[data-sort]');
 }
