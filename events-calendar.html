@@ -675,15 +675,18 @@ startHeaderTicker();
     const el = document.getElementById('heroTicker');
     if(!el) return;
     try{
-      const [scores, roster] = await Promise.all([
-        sb('scores?select=player_id,score'),
-        sb('roster?select=id,name,status,level')
+      const [scores, roster, eventsList] = await Promise.all([
+        sb('scores?select=player_id,score,event_id'),
+        sb('roster?select=id,name,status,level'),
+        sb('events?select=id,is_test')
       ]);
       const nameMap = {};
       roster.forEach(r => { nameMap[r.id] = r; });
+      const testEventIds = new Set(eventsList.filter(e => e.is_test).map(e => e.id));
       const totals = {};
       scores.forEach(s => {
         if(s.player_id === EXCLUDE_ID) return; // strict: never include this id
+        if(testEventIds.has(s.event_id)) return; // never count test/demo events
         totals[s.player_id] = (totals[s.player_id] || 0) + Number(s.score || 0);
       });
       const list = Object.keys(totals)
