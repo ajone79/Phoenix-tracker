@@ -15,7 +15,7 @@
     --void:#050507; --panel:#111116; --panel-2:#17171e; --hair:#2a2a34;
     --signal:#ff9142; --periwinkle:#8fa3ff; --mint:#5fd068; --gold:#ffc857; --alert:#ff5a5f;
     --text:#e8e6e1; --text-dim:#8a8a94; --text-faint:#55555f;
-    --tier-gold:#ffd700; --tier-pink:#ff6ec7; --tier-lightred:#ff8a80; --tier-darkred:#8b1e1e;
+    --tier-gold:#ffea00; --tier-pink:#ff6ec7; --tier-lightred:#ff8a80; --tier-darkred:#8b1e1e;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;-webkit-font-smoothing:antialiased;}
@@ -260,11 +260,13 @@ function allGrades(){ return Array.from(new Set(roster.map(p=>gradeForLevel(p.le
 function gradePercentiles(ev, grade){
   const scorers = roster.filter(p=>p.status==='active' && gradeForLevel(p.level)===grade)
                           .map(p=>({id:p.id, score:Number(ev.entries[p.id])||0}))
-                          .filter(x=>x.score>0)
-                          .sort((a,b)=>b.score-a.score);
+                          .filter(x=>x.score>0);
   const n = scorers.length;
   const pctMap = {};
-  scorers.forEach((s,i)=>{ pctMap[s.id] = n ? 100*(n-i)/n : 0; });
+  scorers.forEach(s=>{
+    const higherCount = scorers.filter(x=>x.score > s.score).length;
+    pctMap[s.id] = n ? 100*(n-higherCount)/n : 0;
+  });
   return pctMap;
 }
 function tierForPercentile(pct){
