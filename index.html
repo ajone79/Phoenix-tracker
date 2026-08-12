@@ -272,8 +272,13 @@ function statusForAvg(score, avg){
   if(pct < 0.50) return {label:'Amber', dot:'dot-amber', color:'var(--gold)', tier:'amber'};
   return {label:'Complete', dot:'dot-green', color:'var(--mint)', tier:'green'};
 }
+function thresholdForGrade(ev, grade){
+  if(ev.grade_thresholds && ev.grade_thresholds[grade]!==undefined) return ev.grade_thresholds[grade];
+  return ev.threshold;
+}
 function scoringDisplay(ev){
   if(ev.scoring_type==='tasks') return `threshold ${Number(ev.threshold).toLocaleString()}`;
+  if(ev.completion_mode==='threshold') return ev.grade_thresholds ? Object.entries(ev.grade_thresholds).map(([g,t])=>`${g}: ${Number(t).toLocaleString()}+`).join(' · ') : `threshold ${Number(ev.threshold).toLocaleString()}`;
   return `50%+ of grade average = complete`;
 }
 function statusFor(score, threshold){
@@ -564,7 +569,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
 
   const avgCache = {};
   relevantEvents.forEach(ev=>{
-    if(ev.scoring_type==='tasks') return;
+    if(ev.scoring_type==='tasks' || ev.completion_mode==='threshold') return;
     avgCache[ev.id] = {};
     allGrades().forEach(g=> avgCache[ev.id][g] = gradeAverage(ev, g));
   });
@@ -576,10 +581,14 @@ function renderCompletionTable(wrap, relevantEvents, grades){
       const score = ev.entries[p.id];
       if(ev.scoring_type==='tasks'){
         const complete = score!==undefined && score >= ev.threshold;
-        return {type:'normal', ev, score, complete, hasScore: score!==undefined && score>0};
+        return {type:'normal', ev, score, complete, hasScore: score!==undefined && score>0, mode:'tasks'};
+      }
+      if(ev.completion_mode==='threshold'){
+        const complete = score!==undefined && score >= thresholdForGrade(ev, grade);
+        return {type:'normal', ev, score, complete, hasScore: score!==undefined && score>0, mode:'threshold'};
       }
       const st = statusForAvg(score, avgCache[ev.id][grade]);
-      return {type:'normal', ev, score, st, complete: st.tier==='green', hasScore: st.tier!=='none'};
+      return {type:'normal', ev, score, st, complete: st.tier==='green', hasScore: st.tier!=='none', mode:'average'};
     });
     const eligibleCells = cells.filter(c=>c.type!=='bye');
     const completedCount = eligibleCells.filter(c=>c.complete).length;
@@ -626,6 +635,10 @@ function renderCompletionTable(wrap, relevantEvents, grades){
               if(c.score===undefined) return `<td style="text-align:center;color:var(--text-faint);">✗</td>`;
               const max = c.ev.max_tasks || c.ev.threshold || 15;
               return `<td style="text-align:center;color:${taskColor(c.score)};font-weight:bold;">${c.score}/${max}</td>`;
+            }
+            if(c.mode==='threshold'){
+              if(!c.hasScore) return `<td style="text-align:center;color:var(--text-faint);">✗</td>`;
+              return `<td style="text-align:center;color:${c.complete?'var(--mint)':'var(--gold)'};font-weight:bold;">${Number(c.score).toLocaleString()}</td>`;
             }
             if(c.st.tier==='none') return `<td style="text-align:center;color:var(--text-faint);">✗</td>`;
             if(c.st.tier==='low') return `<td style="text-align:center;color:var(--text-faint);" title="${Number(c.score).toLocaleString()} pts">😢</td>`;
@@ -725,7 +738,9 @@ function renderEvents(main){
   let rowsData = members.map(p=>{
     const score = ev.entries[p.id]!==undefined?ev.entries[p.id]:0;
     const grade = gradeForLevel(p.level);
-    const st = isTasks ? statusFor(ev.entries[p.id], ev.threshold) : statusForAvg(ev.entries[p.id], gradeAvgCache[grade]);
+    const st = isTasks ? statusFor(ev.entries[p.id], ev.threshold)
+              : ev.completion_mode==='threshold' ? statusFor(ev.entries[p.id], thresholdForGrade(ev, grade))
+              : statusForAvg(ev.entries[p.id], gradeAvgCache[grade]);
     return {name:p.name, grade, score, st};
   }).sort((a,b)=>b.score-a.score);
   rowsData.forEach((r,i)=>{ r.rank = i+1; });
@@ -810,6 +825,8 @@ function renderHistory(main){
     let complete;
     if(ev.scoring_type==='tasks'){
       complete = scored.filter(p=>ev.entries[p.id]>=ev.threshold).length;
+    } else if(ev.completion_mode==='threshold'){
+      complete = scored.filter(p=>ev.entries[p.id]>=thresholdForGrade(ev, g)).length;
     } else {
       const avg = gradeAverage(ev, g);
       complete = scored.filter(p=>statusForAvg(ev.entries[p.id], avg).tier==='green').length;
