@@ -578,6 +578,9 @@ function renderCompletionTable(wrap, relevantEvents, grades){
   let members = roster.filter(p=>p.status==='active');
   if(compGradeFilters.size>0) members = members.filter(p=>compGradeFilters.has(gradeForLevel(p.level)));
 
+  const mainMembers = members.filter(p=>parseInt(gradeForLevel(p.level).slice(1),10)>=6);
+  const subMembers = members.filter(p=>parseInt(gradeForLevel(p.level).slice(1),10)<6);
+
   const pctCache = {};
   relevantEvents.forEach(ev=>{
     if(ev.scoring_type==='tasks' || ev.completion_mode==='threshold') return;
@@ -585,7 +588,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
     allGrades().forEach(g=> pctCache[ev.id][g] = gradePercentiles(ev, g));
   });
 
-  const rowsData = members.map(p=>{
+  function buildRow(p){
     const grade = gradeForLevel(p.level);
     const cells = relevantEvents.map(ev=>{
       if(!isEligible(ev,p)) return {type:'bye', ev};
@@ -605,15 +608,22 @@ function renderCompletionTable(wrap, relevantEvents, grades){
     const completedCount = eligibleCells.filter(c=>c.complete).length;
     const pct = eligibleCells.length ? Math.round(100*completedCount/eligibleCells.length) : 0;
     return {name:p.name, grade, cells, completedCount, totalEligible: eligibleCells.length, pct};
-  }).sort((a,b)=>{
-    let av,bv;
-    if(compSort.key==='name'){ av=a.name.toLowerCase(); bv=b.name.toLowerCase(); }
-    else if(compSort.key==='grade'){ av=parseInt(a.grade.slice(1)); bv=parseInt(b.grade.slice(1)); }
-    else if(compSort.key==='completed'){ av=a.completedCount; bv=b.completedCount; }
-    else { av=a.pct; bv=b.pct; }
-    const c = cmp(av,bv,compSort.dir);
-    return c!==0 ? c : a.name.localeCompare(b.name);
-  });
+  }
+
+  function sortRows(rows){
+    return rows.sort((a,b)=>{
+      let av,bv;
+      if(compSort.key==='name'){ av=a.name.toLowerCase(); bv=b.name.toLowerCase(); }
+      else if(compSort.key==='grade'){ av=parseInt(a.grade.slice(1)); bv=parseInt(b.grade.slice(1)); }
+      else if(compSort.key==='completed'){ av=a.completedCount; bv=b.completedCount; }
+      else { av=a.pct; bv=b.pct; }
+      const c = cmp(av,bv,compSort.dir);
+      return c!==0 ? c : a.name.localeCompare(b.name);
+    });
+  }
+
+  const mainRows = sortRows(mainMembers.map(buildRow));
+  const subRows = sortRows(subMembers.map(buildRow));
 
   const headerCells = relevantEvents.map(ev=>{
     const endDate = ev.end_date || ev.date;
@@ -627,8 +637,23 @@ function renderCompletionTable(wrap, relevantEvents, grades){
     return 'var(--alert)';
   }
 
-  wrap.innerHTML += `
-    ${updatedLine()}
+  function cellHtml(c){
+    if(c.type==='bye') return `<td style="text-align:center;color:var(--text-faint);" title="Not eligible for this event">N/A</td>`;
+    if(c.ev.scoring_type==='tasks'){
+      if(c.score===undefined) return `<td style="text-align:center;color:var(--text-faint);">✗</td>`;
+      const max = c.ev.max_tasks || c.ev.threshold || 15;
+      return `<td style="text-align:center;color:${taskColor(c.score)};font-weight:bold;">${c.score}/${max}</td>`;
+    }
+    if(c.mode==='threshold'){
+      if(!c.hasScore) return `<td style="text-align:center;color:var(--text-faint);">✗</td>`;
+      return `<td style="text-align:center;color:${c.complete?'var(--mint)':'var(--gold)'};font-weight:bold;">${Number(c.score).toLocaleString()}</td>`;
+    }
+    if(c.st.tier==='none') return `<td style="text-align:center;color:var(--text-faint);">✗</td>`;
+    return `<td style="text-align:center;color:${c.st.color};font-weight:bold;">${Number(c.score).toLocaleString()}</td>`;
+  }
+
+  function mainTableHtml(rows){
+    return `
     <div class="panel" style="padding:0;overflow:auto;max-height:65vh;">
       <table>
         <thead><tr>
@@ -639,29 +664,46 @@ function renderCompletionTable(wrap, relevantEvents, grades){
           <th class="sortable" data-sort="pct">Rate${sortArrow(compSort,'pct')}</th>
         </tr></thead>
         <tbody>
-        ${rowsData.map(r=>{
-          const cellHtml = r.cells.map(c=>{
-            if(c.type==='bye') return `<td style="text-align:center;color:var(--text-faint);" title="Not eligible for this event">N/A</td>`;
-            if(c.ev.scoring_type==='tasks'){
-              if(c.score===undefined) return `<td style="text-align:center;color:var(--text-faint);">✗</td>`;
-              const max = c.ev.max_tasks || c.ev.threshold || 15;
-              return `<td style="text-align:center;color:${taskColor(c.score)};font-weight:bold;">${c.score}/${max}</td>`;
-            }
-            if(c.mode==='threshold'){
-              if(!c.hasScore) return `<td style="text-align:center;color:var(--text-faint);">✗</td>`;
-              return `<td style="text-align:center;color:${c.complete?'var(--mint)':'var(--gold)'};font-weight:bold;">${Number(c.score).toLocaleString()}</td>`;
-            }
-            if(c.st.tier==='none') return `<td style="text-align:center;color:var(--text-faint);">✗</td>`;
-            return `<td style="text-align:center;color:${c.st.color};font-weight:bold;">${Number(c.score).toLocaleString()}</td>`;
-            return `<td style="text-align:center;color:${c.st.color};font-weight:bold;">${Number(c.score).toLocaleString()}</td>`;
-          }).join('');
+        ${rows.map(r=>{
+          const rowCells = r.cells.map(cellHtml).join('');
           const rateColor = r.pct>=75?'var(--mint)':r.pct>=40?'var(--gold)':'var(--alert)';
-          return `<tr><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td>${cellHtml}<td>${r.completedCount}/${r.totalEligible}</td><td style="color:${rateColor};font-weight:bold;">${r.pct}%</td></tr>`;
-        }).join('')}
+          return `<tr><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td>${rowCells}<td>${r.completedCount}/${r.totalEligible}</td><td style="color:${rateColor};font-weight:bold;">${r.pct}%</td></tr>`;
+        }).join('') || `<tr><td colspan="${4+relevantEvents.length}" class="empty">No matching members.</td></tr>`}
         </tbody>
       </table>
-    </div>
+    </div>`;
+  }
+
+  function subTableHtml(rows){
+    return `
+    <div class="panel" style="padding:0;overflow:auto;max-height:65vh;">
+      <table>
+        <thead><tr>
+          <th class="sortable" data-sort="name">Name${sortArrow(compSort,'name')}</th>
+          <th class="sortable" data-sort="grade">Grade${sortArrow(compSort,'grade')}</th>
+          ${headerCells}
+          <th>Completed</th>
+        </tr></thead>
+        <tbody>
+        ${rows.map(r=>{
+          const rowCells = r.cells.map(cellHtml).join('');
+          return `<tr><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td>${rowCells}<td style="color:var(--text-faint);">n/a</td></tr>`;
+        }).join('') || `<tr><td colspan="${3+relevantEvents.length}" class="empty">No matching members.</td></tr>`}
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  wrap.innerHTML += `
+    ${updatedLine()}
+    ${mainTableHtml(mainRows)}
     <div class="small" style="margin-top:6px;">Percentile-scored events, ranked within your grade: <span style="color:var(--tier-gold)">Gold</span> = top 20% &nbsp;·&nbsp; <span style="color:var(--mint)">Green</span> = 60–79% &nbsp;·&nbsp; <span style="color:var(--gold)">Amber</span> = 40–59% &nbsp;·&nbsp; <span style="color:var(--tier-pink)">Pink</span> = 20–39% &nbsp;·&nbsp; <span style="color:var(--tier-lightred)">Light red</span> = 5–19% &nbsp;·&nbsp; <span style="color:var(--tier-darkred)">Dark red</span> = bottom 4% &nbsp;·&nbsp; ✗ = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament cells: green ≥12, amber 9–11, red ≤8</div>
+    ${subMembers.length ? `
+    <div class="section-desc" style="margin:22px 0 8px;">
+      <strong>G1–G5 members</strong> — shown separately. These grades play a different real-world event set that this tracker doesn't have visibility into, so a Completed/Rate column here would be misleading (it would show 100% for anyone with zero tracked events, which isn't a fair reflection of participation). Cells below show whatever's actually logged for them, with no summary rate attached.
+    </div>
+    ${subTableHtml(subRows)}
+    ` : ''}
   `;
   bindSort(wrap, compSort, 'th[data-sort]');
 }
