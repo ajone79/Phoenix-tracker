@@ -148,8 +148,6 @@ const EVENTS = [
     occ:{kind:'weekly', dayOfWeek:5, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 1*'},
   {name:'Duportas — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:14,m:0},
     occ:{kind:'weekly', dayOfWeek:6, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 2*'},
-  {name:"Ber'Tho — Territory Capture", variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:19,m:0},
-    occ:{kind:'weekly', dayOfWeek:6, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 2*'},
   {name:'Brellan — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:19,m:0},
     occ:{kind:'weekly', dayOfWeek:0, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 3*'},
   {name:'Bimasa — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:17,m:0},
