@@ -199,12 +199,14 @@
     letter-spacing:.05em;
   }
 
-.hero-ticker{ overflow:hidden; white-space:nowrap; background:rgba(242,169,59,.06); border-bottom:1px solid rgba(242,169,59,.25); padding:5px 0; }
-.hero-ticker .htrack{ display:inline-block; font-family:'Share Tech Mono', 'Space Mono', monospace; font-size:11.5px; animation: heroTickerScroll 32s linear infinite; }
+.hero-ticker{ height:38px; overflow:hidden; position:relative; background:rgba(242,169,59,.06); border-bottom:1px solid rgba(242,169,59,.25); }
+.hero-ticker .htrack{ position:absolute; top:0; left:0; width:100%; animation-name:heroTickerScrollV; animation-timing-function:linear; animation-iteration-count:infinite; }
+.hero-ticker .hrow{ height:19px; line-height:19px; padding:0 12px; font-family:'Share Tech Mono', 'Space Mono', monospace; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hero-ticker .hgrouphead{ color:#f2a93b; font-weight:700; letter-spacing:.08em; opacity:.85; }
 .hero-ticker .hlabel{ color:#f2a93b; font-weight:700; letter-spacing:.05em; }
 .hero-ticker .hname{ color:#f2a93b; font-weight:700; }
 .hero-ticker .hscore{ color:#4fd1c5; }
-@keyframes heroTickerScroll{ 0%{transform:translateX(0);} 100%{transform:translateX(-50%);} }
+@keyframes heroTickerScrollV{ 0%{transform:translateY(0);} 100%{transform:translateY(-50%);} }
 </style>
 </head>
 <body>
@@ -454,8 +456,6 @@ window.addEventListener('popstate', () => {
 (function(){
   const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
-  const EXCLUDE_ID = 'p62';
-  const EXCLUDE_NAME = 'ajone79';
 
   async function sb(path){
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -489,12 +489,10 @@ window.addEventListener('popstate', () => {
       const testEventIds = new Set(eventsList.filter(e => e.is_test).map(e => e.id));
       const totals = {};
       scores.forEach(s => {
-        if(s.player_id === EXCLUDE_ID) return; // strict: never include this id
         if(testEventIds.has(s.event_id)) return; // never count test/demo events
         totals[s.player_id] = (totals[s.player_id] || 0) + Number(s.score || 0);
       });
       const list = Object.keys(totals)
-        .filter(id => id !== EXCLUDE_ID)
         .map(id => ({
           id,
           name: nameMap[id] ? nameMap[id].name : id,
@@ -502,7 +500,7 @@ window.addEventListener('popstate', () => {
           grade: nameMap[id] ? gradeForLevelHero(nameMap[id].level) : null,
           total: totals[id]
         }))
-        .filter(x => x.status === 'active' && x.grade && x.total > 0 && x.name.toLowerCase() !== EXCLUDE_NAME.toLowerCase());
+        .filter(x => x.status === 'active' && x.grade && x.total > 0); // zero-scorers never shown, no padding
 
       if(!list.length){ el.innerHTML = ''; return; }
 
@@ -510,16 +508,20 @@ window.addEventListener('popstate', () => {
       list.forEach(x => { (byGrade[x.grade] = byGrade[x.grade] || []).push(x); });
       const grades = Object.keys(byGrade).sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
 
-      let segments = '';
+      let rowsHtml = `<div class="hrow hgrouphead">\ud83c\udfc6 CURRENT ALLIANCE HEROES \u2014 TOP 5 PER GRADE</div>`;
+      let rowCount = 1;
       grades.forEach(g => {
-        const top5 = byGrade[g].sort((a, b) => b.total - a.total).slice(0, 5);
-        const items = top5.map((h, i) => `<span class="hname">#${i+1} ${escapeHtmlHero(h.name)}</span> <span class="hscore">${h.total.toLocaleString()} pts</span>`).join('&nbsp;&nbsp;\u00b7&nbsp;&nbsp;');
-        segments += `<span class="hlabel">${g} TOP 5</span>&nbsp;&nbsp;\u00b7&nbsp;&nbsp;${items}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`;
+        const top5 = byGrade[g].sort((a, b) => b.total - a.total).slice(0, 5); // fewer than 5 real scorers = fewer rows, never padded
+        rowsHtml += `<div class="hrow hgrouphead">\u2014 ${g} \u2014</div>`;
+        rowCount++;
+        top5.forEach((h, i) => {
+          rowsHtml += `<div class="hrow"><span class="hname">#${i+1} ${escapeHtmlHero(h.name)}</span> <span class="hscore">${h.total.toLocaleString()} pts</span></div>`;
+          rowCount++;
+        });
       });
 
-      const label = '<span class="hlabel">\ud83c\udfc6 CURRENT ALLIANCE HEROES</span>&nbsp;&nbsp;\u00b7&nbsp;&nbsp;';
-      const full = label + segments;
-      el.innerHTML = `<div class="htrack">${full}${full}</div>`;
+      const duration = Math.max(20, rowCount * 2.2);
+      el.innerHTML = `<div class="htrack" style="animation-duration:${duration}s;">${rowsHtml}${rowsHtml}</div>`;
     }catch(e){
       console.error(e);
       el.innerHTML = '';
