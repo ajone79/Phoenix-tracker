@@ -261,10 +261,15 @@ function gradePercentiles(ev, grade){
   const scorers = roster.filter(p=>p.status==='active' && gradeForLevel(p.level)===grade)
                           .map(p=>({id:p.id, score:Number(ev.entries[p.id])||0}))
                           .filter(x=>x.score>0);
-  const n = scorers.length;
   const pctMap = {};
-  scorers.forEach(s=>{
-    const higherCount = scorers.filter(x=>x.score > s.score).length;
+  if(!scorers.length) return pctMap;
+  const maxScore = Math.max(...scorers.map(s=>s.score));
+  const topScorers = scorers.filter(s=>s.score===maxScore);
+  const rest = scorers.filter(s=>s.score!==maxScore);
+  topScorers.forEach(s=>{ pctMap[s.id] = 100; }); // guaranteed gold, excluded from the pool below
+  const n = rest.length;
+  rest.forEach(s=>{
+    const higherCount = rest.filter(x=>x.score > s.score).length;
     pctMap[s.id] = n ? 100*(n-higherCount)/n : 0;
   });
   return pctMap;
@@ -699,7 +704,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
   wrap.innerHTML += `
     ${updatedLine()}
     ${mainTableHtml(mainRows)}
-    <div class="small" style="margin-top:6px;">Percentile-scored events, ranked within your grade: <span style="color:var(--tier-gold)">Gold</span> = top 20% &nbsp;·&nbsp; <span style="color:var(--mint)">Green</span> = 60–79% &nbsp;·&nbsp; <span style="color:var(--tier-amber)">Amber</span> = 40–59% &nbsp;·&nbsp; <span style="color:var(--tier-pink)">Pink</span> = 20–39% &nbsp;·&nbsp; <span style="color:var(--tier-lightred)">Light red</span> = 5–19% &nbsp;·&nbsp; <span style="color:var(--tier-darkred)">Dark red</span> = bottom 4% &nbsp;·&nbsp; ✗ = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament cells: green ≥12, amber 9–11, red ≤8</div>
+    <div class="small" style="margin-top:6px;">Percentile-scored events, ranked within your grade (top scorer always gold, excluded from the rest of the ranking so they don't crowd out everyone else): <span style="color:var(--tier-gold)">Gold</span> = top 20% &nbsp;·&nbsp; <span style="color:var(--mint)">Green</span> = 60–79% &nbsp;·&nbsp; <span style="color:var(--tier-amber)">Amber</span> = 40–59% &nbsp;·&nbsp; <span style="color:var(--tier-pink)">Pink</span> = 20–39% &nbsp;·&nbsp; <span style="color:var(--tier-lightred)">Light red</span> = 5–19% &nbsp;·&nbsp; <span style="color:var(--tier-darkred)">Dark red</span> = bottom 4% &nbsp;·&nbsp; ✗ = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament cells: green ≥12, amber 9–11, red ≤8</div>
     ${subMembers.length ? `
     <div class="section-desc" style="margin:22px 0 8px;">
       <strong>G1–G5 members</strong> — shown separately. These grades play a different real-world event set that this tracker doesn't have visibility into, so a Completed/Rate column here would be misleading (it would show 100% for anyone with zero tracked events, which isn't a fair reflection of participation). Cells below show whatever's actually logged for them, with no summary rate attached.
