@@ -15,6 +15,7 @@
     --void:#050507; --panel:#111116; --panel-2:#17171e; --hair:#2a2a34;
     --signal:#ff9142; --periwinkle:#8fa3ff; --mint:#5fd068; --gold:#ffc857; --alert:#ff5a5f;
     --text:#e8e6e1; --text-dim:#8a8a94; --text-faint:#55555f;
+    --tier-gold:#ffd700; --tier-pink:#ff6ec7; --tier-lightred:#ff8a80; --tier-darkred:#8b1e1e;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;-webkit-font-smoothing:antialiased;}
@@ -256,22 +257,32 @@ async function loadAll(){
 }
 
 function allGrades(){ return Array.from(new Set(roster.map(p=>gradeForLevel(p.level)))).sort(); }
-function gradeAverage(ev, grade){
-  const scores = roster.filter(p=>p.status==='active' && gradeForLevel(p.level)===grade)
-                        .map(p=>ev.entries[p.id])
-                        .filter(s=>s!==undefined && s!==null && Number(s)>0)
-                        .map(Number);
-  if(!scores.length) return 0;
-  return scores.reduce((a,b)=>a+b,0)/scores.length;
+function gradePercentiles(ev, grade){
+  const scorers = roster.filter(p=>p.status==='active' && gradeForLevel(p.level)===grade)
+                          .map(p=>({id:p.id, score:Number(ev.entries[p.id])||0}))
+                          .filter(x=>x.score>0)
+                          .sort((a,b)=>b.score-a.score);
+  const n = scorers.length;
+  const pctMap = {};
+  scorers.forEach((s,i)=>{ pctMap[s.id] = n ? 100*(n-i)/n : 0; });
+  return pctMap;
 }
-function statusForAvg(score, avg){
+function tierForPercentile(pct){
+  if(pct>=80) return {label:'Top 20%', color:'var(--tier-gold)', tier:'gold'};
+  if(pct>=60) return {label:'60-79%', color:'var(--mint)', tier:'green'};
+  if(pct>=40) return {label:'40-59%', color:'var(--gold)', tier:'amber'};
+  if(pct>=20) return {label:'20-39%', color:'var(--tier-pink)', tier:'pink'};
+  if(pct>=5) return {label:'5-19%', color:'var(--tier-lightred)', tier:'lightred'};
+  return {label:'0-4%', color:'var(--tier-darkred)', tier:'darkred'};
+}
+function statusForPercentile(score, pctMap, playerId){
   const s = Number(score)||0;
   if(s<=0) return {label:'No score', dot:'dot-grey', color:'var(--text-faint)', tier:'none'};
-  const pct = avg>0 ? s/avg : 1;
-  if(pct < 0.40) return {label:'Low', dot:'dot-red', color:'var(--text-faint)', tier:'low'};
-  if(pct < 0.50) return {label:'Amber', dot:'dot-amber', color:'var(--gold)', tier:'amber'};
-  return {label:'Complete', dot:'dot-green', color:'var(--mint)', tier:'green'};
+  const pct = pctMap[playerId] ?? 0;
+  const t = tierForPercentile(pct);
+  return {...t, pct};
 }
+const GOOD_TIERS = new Set(['gold','green']);
 function thresholdForGrade(ev, grade){
   if(ev.grade_thresholds && ev.grade_thresholds[grade]!==undefined) return ev.grade_thresholds[grade];
   return ev.threshold;
@@ -279,7 +290,7 @@ function thresholdForGrade(ev, grade){
 function scoringDisplay(ev){
   if(ev.scoring_type==='tasks') return `threshold ${Number(ev.threshold).toLocaleString()}`;
   if(ev.completion_mode==='threshold') return ev.grade_thresholds ? Object.entries(ev.grade_thresholds).map(([g,t])=>`${g}: ${Number(t).toLocaleString()}+`).join(' · ') : `threshold ${Number(ev.threshold).toLocaleString()}`;
-  return `50%+ of grade average = complete`;
+  return `Percentile rank within grade (top 20% gold)`;
 }
 function statusFor(score, threshold){
   if(score===undefined||score===null||score==='') return {label:'No score',dot:'dot-grey',color:'var(--text-faint)'};
@@ -567,11 +578,11 @@ function renderCompletionTable(wrap, relevantEvents, grades){
   let members = roster.filter(p=>p.status==='active');
   if(compGradeFilters.size>0) members = members.filter(p=>compGradeFilters.has(gradeForLevel(p.level)));
 
-  const avgCache = {};
+  const pctCache = {};
   relevantEvents.forEach(ev=>{
     if(ev.scoring_type==='tasks' || ev.completion_mode==='threshold') return;
-    avgCache[ev.id] = {};
-    allGrades().forEach(g=> avgCache[ev.id][g] = gradeAverage(ev, g));
+    pctCache[ev.id] = {};
+    allGrades().forEach(g=> pctCache[ev.id][g] = gradePercentiles(ev, g));
   });
 
   const rowsData = members.map(p=>{
@@ -587,8 +598,8 @@ function renderCompletionTable(wrap, relevantEvents, grades){
         const complete = score!==undefined && score >= thresholdForGrade(ev, grade);
         return {type:'normal', ev, score, complete, hasScore: score!==undefined && score>0, mode:'threshold'};
       }
-      const st = statusForAvg(score, avgCache[ev.id][grade]);
-      return {type:'normal', ev, score, st, complete: st.tier==='green', hasScore: st.tier!=='none', mode:'average'};
+      const st = statusForPercentile(score, pctCache[ev.id][grade], p.id);
+      return {type:'normal', ev, score, st, complete: GOOD_TIERS.has(st.tier), hasScore: st.tier!=='none', mode:'percentile'};
     });
     const eligibleCells = cells.filter(c=>c.type!=='bye');
     const completedCount = eligibleCells.filter(c=>c.complete).length;
@@ -641,7 +652,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
               return `<td style="text-align:center;color:${c.complete?'var(--mint)':'var(--gold)'};font-weight:bold;">${Number(c.score).toLocaleString()}</td>`;
             }
             if(c.st.tier==='none') return `<td style="text-align:center;color:var(--text-faint);">✗</td>`;
-            if(c.st.tier==='low') return `<td style="text-align:center;color:var(--text-faint);" title="${Number(c.score).toLocaleString()} pts">😢</td>`;
+            return `<td style="text-align:center;color:${c.st.color};font-weight:bold;">${Number(c.score).toLocaleString()}</td>`;
             return `<td style="text-align:center;color:${c.st.color};font-weight:bold;">${Number(c.score).toLocaleString()}</td>`;
           }).join('');
           const rateColor = r.pct>=75?'var(--mint)':r.pct>=40?'var(--gold)':'var(--alert)';
@@ -650,7 +661,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
         </tbody>
       </table>
     </div>
-    <div class="small" style="margin-top:6px;">Green number = 50%+ of grade average &nbsp;·&nbsp; Gold number = 40–49% of grade average &nbsp;·&nbsp; 😢 = scored, but under 40% of grade average &nbsp;·&nbsp; ✗ = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament cells: green ≥12, amber 9–11, red ≤8</div>
+    <div class="small" style="margin-top:6px;">Percentile-scored events, ranked within your grade: <span style="color:var(--tier-gold)">Gold</span> = top 20% &nbsp;·&nbsp; <span style="color:var(--mint)">Green</span> = 60–79% &nbsp;·&nbsp; <span style="color:var(--gold)">Amber</span> = 40–59% &nbsp;·&nbsp; <span style="color:var(--tier-pink)">Pink</span> = 20–39% &nbsp;·&nbsp; <span style="color:var(--tier-lightred)">Light red</span> = 5–19% &nbsp;·&nbsp; <span style="color:var(--tier-darkred)">Dark red</span> = bottom 4% &nbsp;·&nbsp; ✗ = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament cells: green ≥12, amber 9–11, red ≤8</div>
   `;
   bindSort(wrap, compSort, 'th[data-sort]');
 }
@@ -732,15 +743,15 @@ function renderEvents(main){
   if(lbGradeFilters.size>0) members = members.filter(p=>lbGradeFilters.has(gradeForLevel(p.level)));
   if(ev.eligible_grades && ev.eligible_grades.length>0) members = members.filter(p=>ev.eligible_grades.includes(gradeForLevel(p.level)));
   const isTasks = ev.scoring_type === 'tasks';
-  const statusRank = {'Complete':4,'Amber':3,'Low':2,'No score':1,'In progress':2,'0 pts':1};
-  const gradeAvgCache = {};
-  allGrades().forEach(g=> gradeAvgCache[g] = gradeAverage(ev, g));
+  const statusRank = {'Top 20%':6,'60-79%':5,'40-59%':4,'20-39%':3,'5-19%':2,'0-4%':1,'No score':0,'Complete':4,'In progress':2,'0 pts':1};
+  const gradePctCache = {};
+  allGrades().forEach(g=> gradePctCache[g] = gradePercentiles(ev, g));
   let rowsData = members.map(p=>{
     const score = ev.entries[p.id]!==undefined?ev.entries[p.id]:0;
     const grade = gradeForLevel(p.level);
     const st = isTasks ? statusFor(ev.entries[p.id], ev.threshold)
               : ev.completion_mode==='threshold' ? statusFor(ev.entries[p.id], thresholdForGrade(ev, grade))
-              : statusForAvg(ev.entries[p.id], gradeAvgCache[grade]);
+              : statusForPercentile(ev.entries[p.id], gradePctCache[grade], p.id);
     return {name:p.name, grade, score, st};
   }).sort((a,b)=>b.score-a.score);
   rowsData.forEach((r,i)=>{ r.rank = i+1; });
@@ -792,7 +803,7 @@ function renderEvents(main){
   function buildText(rows){ const w=Math.max(4,...rows.map(r=>r.name.length))+2; let out='```text\n'; rows.forEach(r=>{out+=r.name.padEnd(w,' ')+String(r.score).padStart(9,' ')+'\n';}); return out+'```'; }
   const copyBox = wrap.querySelector('#copyBox'); copyBox.value = buildText(rowsData);
   wrap.querySelector('#copyAllBtn').addEventListener('click',()=>{copyBox.value=buildText(rowsData); copyBox.select(); document.execCommand('copy'); toast('Full list copied');});
-  wrap.querySelector('#copyIncBtn').addEventListener('click',()=>{const inc=rowsData.filter(r=>r.st.tier!=='green' && r.st.label!=='Complete'); copyBox.value=buildText(inc); copyBox.select(); document.execCommand('copy'); toast('Incomplete list copied');});
+  wrap.querySelector('#copyIncBtn').addEventListener('click',()=>{const inc=rowsData.filter(r=>!GOOD_TIERS.has(r.st.tier) && r.st.label!=='Complete'); copyBox.value=buildText(inc); copyBox.select(); document.execCommand('copy'); toast('Incomplete list copied');});
 }
 
 /* ---------------- HISTORY ---------------- */
@@ -828,8 +839,8 @@ function renderHistory(main){
     } else if(ev.completion_mode==='threshold'){
       complete = scored.filter(p=>ev.entries[p.id]>=thresholdForGrade(ev, g)).length;
     } else {
-      const avg = gradeAverage(ev, g);
-      complete = scored.filter(p=>statusForAvg(ev.entries[p.id], avg).tier==='green').length;
+      const pctMap = gradePercentiles(ev, g);
+      complete = scored.filter(p=>GOOD_TIERS.has(statusForPercentile(ev.entries[p.id], pctMap, p.id).tier)).length;
     }
     rows += `<tr><td><span class="pill ${gradeClass(g)}">${g}</span></td><td>${members.length}</td><td>${scored.length}</td><td style="color:var(--mint)">${complete}</td></tr>`;
   });
