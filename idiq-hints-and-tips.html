@@ -502,7 +502,7 @@ window.addEventListener('popstate', () => {
           grade: nameMap[id] ? gradeForLevelHero(nameMap[id].level) : null,
           total: totals[id]
         }))
-        .filter(x => x.status === 'active' && x.grade && x.name.toLowerCase() !== EXCLUDE_NAME.toLowerCase());
+        .filter(x => x.status === 'active' && x.grade && x.total > 0 && x.name.toLowerCase() !== EXCLUDE_NAME.toLowerCase());
 
       if(!list.length){ el.innerHTML = ''; return; }
 
