@@ -15,7 +15,7 @@
     --void:#050507; --panel:#111116; --panel-2:#17171e; --hair:#2a2a34;
     --signal:#ff9142; --periwinkle:#8fa3ff; --mint:#5fd068; --gold:#ffc857; --alert:#ff5a5f;
     --text:#e8e6e1; --text-dim:#8a8a94; --text-faint:#55555f;
-    --tier-gold:#ffea00; --tier-pink:#ff6ec7; --tier-lightred:#ff8a80; --tier-darkred:#8b1e1e;
+    --tier-gold:#ffea00; --tier-amber:#d2601b; --tier-pink:#ff6ec7; --tier-lightred:#ff8a80; --tier-darkred:#8b1e1e;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;-webkit-font-smoothing:antialiased;}
@@ -272,7 +272,7 @@ function gradePercentiles(ev, grade){
 function tierForPercentile(pct){
   if(pct>=80) return {label:'Top 20%', color:'var(--tier-gold)', tier:'gold'};
   if(pct>=60) return {label:'60-79%', color:'var(--mint)', tier:'green'};
-  if(pct>=40) return {label:'40-59%', color:'var(--gold)', tier:'amber'};
+  if(pct>=40) return {label:'40-59%', color:'var(--tier-amber)', tier:'amber'};
   if(pct>=20) return {label:'20-39%', color:'var(--tier-pink)', tier:'pink'};
   if(pct>=5) return {label:'5-19%', color:'var(--tier-lightred)', tier:'lightred'};
   return {label:'0-4%', color:'var(--tier-darkred)', tier:'darkred'};
@@ -635,7 +635,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
 
   function taskColor(score){
     if(score>=12) return 'var(--mint)';
-    if(score>=9) return 'var(--gold)';
+    if(score>=9) return 'var(--tier-amber)';
     return 'var(--alert)';
   }
 
@@ -699,7 +699,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
   wrap.innerHTML += `
     ${updatedLine()}
     ${mainTableHtml(mainRows)}
-    <div class="small" style="margin-top:6px;">Percentile-scored events, ranked within your grade: <span style="color:var(--tier-gold)">Gold</span> = top 20% &nbsp;·&nbsp; <span style="color:var(--mint)">Green</span> = 60–79% &nbsp;·&nbsp; <span style="color:var(--gold)">Amber</span> = 40–59% &nbsp;·&nbsp; <span style="color:var(--tier-pink)">Pink</span> = 20–39% &nbsp;·&nbsp; <span style="color:var(--tier-lightred)">Light red</span> = 5–19% &nbsp;·&nbsp; <span style="color:var(--tier-darkred)">Dark red</span> = bottom 4% &nbsp;·&nbsp; ✗ = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament cells: green ≥12, amber 9–11, red ≤8</div>
+    <div class="small" style="margin-top:6px;">Percentile-scored events, ranked within your grade: <span style="color:var(--tier-gold)">Gold</span> = top 20% &nbsp;·&nbsp; <span style="color:var(--mint)">Green</span> = 60–79% &nbsp;·&nbsp; <span style="color:var(--tier-amber)">Amber</span> = 40–59% &nbsp;·&nbsp; <span style="color:var(--tier-pink)">Pink</span> = 20–39% &nbsp;·&nbsp; <span style="color:var(--tier-lightred)">Light red</span> = 5–19% &nbsp;·&nbsp; <span style="color:var(--tier-darkred)">Dark red</span> = bottom 4% &nbsp;·&nbsp; ✗ = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament cells: green ≥12, amber 9–11, red ≤8</div>
     ${subMembers.length ? `
     <div class="section-desc" style="margin:22px 0 8px;">
       <strong>G1–G5 members</strong> — shown separately. These grades play a different real-world event set that this tracker doesn't have visibility into, so a Completed/Rate column here would be misleading (it would show 100% for anyone with zero tracked events, which isn't a fair reflection of participation). Cells below show whatever's actually logged for them, with no summary rate attached.
