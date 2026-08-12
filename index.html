@@ -34,7 +34,7 @@
   .navbtn:hover{filter:brightness(1.12);transform:translateX(3px);}
   .navbtn.active{filter:brightness(1.2);box-shadow:0 0 0 2px rgba(255,255,255,.25) inset;}
   .nav-1{background:var(--signal);} .nav-2{background:var(--periwinkle);} .nav-3{background:var(--mint);}
-  .nav-4{background:var(--gold);} .nav-5{background:#c9c9d4;}
+  .nav-4{background:var(--gold);} .nav-5{background:#c9c9d4;} .nav-6{background:#b892ff;}
   .sidebar-foot{margin-top:auto;padding:0 20px;font-size:10px;color:var(--text-faint);line-height:1.6;}
   .support-link{
     display:inline-flex;align-items:center;gap:7px;margin-top:14px;
@@ -489,6 +489,7 @@ function render(){
         <button class="navbtn nav-2 ${view==='overallCompletion'?'active':''}" data-nav="overallCompletion"><span class="label">Overall Completion</span></button>
         <button class="navbtn nav-5 ${view==='members'?'active':''}" data-nav="members"><span class="label">Members</span></button>
         <button class="navbtn nav-3 ${view==='history'?'active':''}" data-nav="history"><span class="label">History</span></button>
+        <button class="navbtn nav-6 ${view==='scoringMetrics'?'active':''}" data-nav="scoringMetrics"><span class="label">Scoring Metrics</span></button>
         <div class="sidebar-foot">Read-only view of the live alliance database. "${activeArc()?escapeHtml(activeArc().name):'Current arc'}" tabs auto-update whenever a new arc goes active. To log scores, edit members, or manage arcs, use the interactive tracker in Claude.
           <a class="support-link" href="https://www.buymeacoffee.com/ajaykhoulo7" target="_blank" rel="noopener">🍺 Buy me a beer</a>
         </div>
@@ -507,6 +508,7 @@ function render(){
   }
   if(view==='events') renderEvents(main);
   else if(view==='history') renderHistory(main);
+  else if(view==='scoringMetrics') renderScoringMetrics(main);
   else if(view==='arcCompletion') renderArcCompletion(main);
   else if(view==='overallCompletion') renderOverallCompletion(main);
   else if(view==='members') renderRoster(main);
@@ -863,6 +865,56 @@ function renderEvents(main){
   const copyBox = wrap.querySelector('#copyBox'); copyBox.value = buildText(rowsData);
   wrap.querySelector('#copyAllBtn').addEventListener('click',()=>{copyBox.value=buildText(rowsData); copyBox.select(); document.execCommand('copy'); toast('Full list copied');});
   wrap.querySelector('#copyIncBtn').addEventListener('click',()=>{const inc=rowsData.filter(r=>!GOOD_TIERS.has(r.st.tier) && r.st.label!=='Complete'); copyBox.value=buildText(inc); copyBox.select(); document.execCommand('copy'); toast('Incomplete list copied');});
+}
+
+/* ---------------- SCORING METRICS ---------------- */
+function renderScoringMetrics(main){
+  main.innerHTML = `
+    <div class="section-head"><h1>Scoring <span class="accent">Metrics</span></h1></div>
+    <div class="section-desc" style="margin-bottom:16px;">How the colors, ranks, and completion rates on this tracker are actually worked out.</div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-title">Ranked against your own grade</div>
+      <p class="small">Each event, you're compared only against people in your <b>same grade</b> — not the whole alliance. That way a G3 player isn't judged against a G7 player's numbers.</p>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-title">The color tiers</div>
+      <p class="small">Whoever scores highest in your grade for that event automatically gets <b style="color:var(--tier-gold, #ffea00);">gold</b>, no matter what. Everyone else is then ranked by where they land percentile-wise among the rest of the grade:</p>
+      <table style="margin-top:8px;">
+        <thead><tr><th>Tier</th><th>Percentile</th></tr></thead>
+        <tbody>
+          <tr><td style="color:var(--tier-gold, #ffea00);font-weight:bold;">Gold</td><td>Top 20%</td></tr>
+          <tr><td style="color:var(--mint);font-weight:bold;">Green</td><td>60–79%</td></tr>
+          <tr><td style="color:var(--tier-amber, #d2601b);font-weight:bold;">Amber</td><td>40–59%</td></tr>
+          <tr><td style="color:var(--tier-pink, #ff6ec7);font-weight:bold;">Pink</td><td>20–39%</td></tr>
+          <tr><td style="color:var(--tier-lightred, #ff8a80);font-weight:bold;">Light red</td><td>5–19%</td></tr>
+          <tr><td style="color:var(--tier-darkred, #8b1e1e);font-weight:bold;">Dark red</td><td>Bottom 4%</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;">If two people tie exactly, they always get the same color — never split by chance.</p>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-title">"Complete" and your Rate %</div>
+      <p class="small">"Complete" means <b style="color:var(--tier-gold, #ffea00);">gold</b> or <b style="color:var(--mint);">green</b>. Your Rate % on the Completion tabs is just how many events you completed out of how many you were eligible for.</p>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-title">Fixed-threshold events</div>
+      <p class="small">A few events use a fixed point target instead of this percentile system — you'll see the number directly on that event's page if so.</p>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-title">G1–G5</div>
+      <p class="small">These grades get their own table with no Rate/% column, since this tracker doesn't have visibility into the different real-world events those grades actually play — showing a percentage there would be misleading.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">The "Alliance Heroes" ticker</div>
+      <p class="small">Separate from all of the above — it just shows the top 5 total scorers per grade across every real event ever logged (test data never counts).</p>
+    </div>
+  `;
 }
 
 /* ---------------- HISTORY ---------------- */
