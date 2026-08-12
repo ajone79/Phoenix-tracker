@@ -256,6 +256,14 @@ async function loadAll(){
 }
 
 function allGrades(){ return Array.from(new Set(roster.map(p=>gradeForLevel(p.level)))).sort(); }
+function thresholdForGrade(ev, grade){
+  if(ev.grade_thresholds && ev.grade_thresholds[grade]!==undefined) return ev.grade_thresholds[grade];
+  return ev.threshold;
+}
+function thresholdDisplay(ev){
+  if(ev.grade_thresholds) return Object.entries(ev.grade_thresholds).map(([g,t])=>`${g}: ${Number(t).toLocaleString()}+`).join(' · ');
+  return `threshold ${Number(ev.threshold).toLocaleString()}`;
+}
 function statusFor(score, threshold){
   if(score===undefined||score===null||score==='') return {label:'No score',dot:'dot-grey',color:'var(--text-faint)'};
   const s=Number(score);
@@ -546,7 +554,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
     const cells = relevantEvents.map(ev=>{
       if(!isEligible(ev,p)) return {type:'bye', ev};
       const score = ev.entries[p.id];
-      const complete = score!==undefined && score >= ev.threshold;
+      const complete = score!==undefined && score >= thresholdForGrade(ev, gradeForLevel(p.level));
       return {type:'normal', ev, score, complete, hasScore: score!==undefined && score>0};
     });
     const eligibleCells = cells.filter(c=>c.type!=='bye');
@@ -689,7 +697,7 @@ function renderEvents(main){
   const statusRank = {'Complete':3,'In progress':2,'0 pts':1,'No score':0};
   let rowsData = members.map(p=>{
     const score = ev.entries[p.id]!==undefined?ev.entries[p.id]:0;
-    return {name:p.name, grade:gradeForLevel(p.level), score, st: statusFor(ev.entries[p.id], ev.threshold)};
+    return {name:p.name, grade:gradeForLevel(p.level), score, st: statusFor(ev.entries[p.id], thresholdForGrade(ev, gradeForLevel(p.level)))};
   }).sort((a,b)=>b.score-a.score);
   rowsData.forEach((r,i)=>{ r.rank = i+1; });
   rowsData = rowsData.slice().sort((a,b)=>{
@@ -740,7 +748,7 @@ function renderEvents(main){
   function buildText(rows){ const w=Math.max(4,...rows.map(r=>r.name.length))+2; let out='```text\n'; rows.forEach(r=>{out+=r.name.padEnd(w,' ')+String(r.score).padStart(9,' ')+'\n';}); return out+'```'; }
   const copyBox = wrap.querySelector('#copyBox'); copyBox.value = buildText(rowsData);
   wrap.querySelector('#copyAllBtn').addEventListener('click',()=>{copyBox.value=buildText(rowsData); copyBox.select(); document.execCommand('copy'); toast('Full list copied');});
-  wrap.querySelector('#copyIncBtn').addEventListener('click',()=>{const inc=rowsData.filter(r=>r.score<ev.threshold); copyBox.value=buildText(inc); copyBox.select(); document.execCommand('copy'); toast('Incomplete list copied');});
+  wrap.querySelector('#copyIncBtn').addEventListener('click',()=>{const inc=rowsData.filter(r=>r.score<thresholdForGrade(ev, r.grade)); copyBox.value=buildText(inc); copyBox.select(); document.execCommand('copy'); toast('Incomplete list copied');});
 }
 
 /* ---------------- HISTORY ---------------- */
@@ -758,7 +766,7 @@ function renderHistory(main){
   if(arcEvents.length===0){ list.innerHTML=`<div class="empty">No events in this arc yet.</div>`; }
   else{
     list.innerHTML = arcEvents.map(ev=>{ const n=Object.keys(ev.entries).length;
-      return `<div class="event-card ${ev.id===selectedEventId?'selected':''}" data-id="${ev.id}"><div class="ev-name">${escapeHtml(ev.name)}</div><div class="ev-meta">${ev.date} · ${n} score${n===1?'':'s'} · threshold ${Number(ev.threshold).toLocaleString()}${ev.scoring_type==='tasks'?' (tasks)':''}${ev.eligible_grades&&ev.eligible_grades.length?' · '+ev.eligible_grades.join('/')+' only':''}</div></div>`;
+      return `<div class="event-card ${ev.id===selectedEventId?'selected':''}" data-id="${ev.id}"><div class="ev-name">${escapeHtml(ev.name)}</div><div class="ev-meta">${ev.date} · ${n} score${n===1?'':'s'} · ${thresholdDisplay(ev)}${ev.scoring_type==='tasks'?' (tasks)':''}${ev.eligible_grades&&ev.eligible_grades.length?' · '+ev.eligible_grades.join('/')+' only':''}</div></div>`;
     }).join('');
     list.querySelectorAll('.event-card').forEach(c=>c.addEventListener('click',()=>{selectedEventId=c.dataset.id;render();}));
   }
@@ -770,10 +778,10 @@ function renderHistory(main){
     if(ev.eligible_grades && ev.eligible_grades.length && !ev.eligible_grades.includes(g)) return;
     const members = roster.filter(p=>gradeForLevel(p.level)===g);
     const scored = members.filter(p=>ev.entries[p.id]!==undefined);
-    const complete = scored.filter(p=>ev.entries[p.id]>=ev.threshold).length;
+    const complete = scored.filter(p=>ev.entries[p.id]>=thresholdForGrade(ev, g)).length;
     rows += `<tr><td><span class="pill ${gradeClass(g)}">${g}</span></td><td>${members.length}</td><td>${scored.length}</td><td style="color:var(--mint)">${complete}</td></tr>`;
   });
-  detail.innerHTML = `<div class="panel">${updatedLine()}<div class="panel-title">${escapeHtml(ev.name)}</div><div class="small" style="margin-bottom:12px;">${ev.date} · Threshold ${Number(ev.threshold).toLocaleString()}${ev.eligible_grades&&ev.eligible_grades.length?' · Eligible: '+ev.eligible_grades.join(', '):''}</div><table><thead><tr><th>Grade</th><th>Members</th><th>Scored</th><th>Complete</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  detail.innerHTML = `<div class="panel">${updatedLine()}<div class="panel-title">${escapeHtml(ev.name)}</div><div class="small" style="margin-bottom:12px;">${ev.date} · ${thresholdDisplay(ev)}${ev.eligible_grades&&ev.eligible_grades.length?' · Eligible: '+ev.eligible_grades.join(', '):''}</div><table><thead><tr><th>Grade</th><th>Members</th><th>Scored</th><th>Complete</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 loadAll();
