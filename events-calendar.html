@@ -665,13 +665,19 @@ startHeaderTicker();
     return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  function gradeForLevelHero(level){
+    level = Number(level);
+    if(level <= 20) return 'G1';
+    return 'G' + (Math.floor((level - 21) / 10) + 2);
+  }
+
   async function loadHeroes(){
     const el = document.getElementById('heroTicker');
     if(!el) return;
     try{
       const [scores, roster] = await Promise.all([
         sb('scores?select=player_id,score'),
-        sb('roster?select=id,name,status')
+        sb('roster?select=id,name,status,level')
       ]);
       const nameMap = {};
       roster.forEach(r => { nameMap[r.id] = r; });
@@ -682,14 +688,31 @@ startHeaderTicker();
       });
       const list = Object.keys(totals)
         .filter(id => id !== EXCLUDE_ID)
-        .map(id => ({ id, name: nameMap[id] ? nameMap[id].name : id, status: nameMap[id] ? nameMap[id].status : 'active', total: totals[id] }))
-        .filter(x => x.status === 'active' && x.name.toLowerCase() !== EXCLUDE_NAME.toLowerCase())
-        .sort((a, b) => b.total - a.total)
-        .slice(0, 8);
+        .map(id => ({
+          id,
+          name: nameMap[id] ? nameMap[id].name : id,
+          status: nameMap[id] ? nameMap[id].status : 'active',
+          grade: nameMap[id] ? gradeForLevelHero(nameMap[id].level) : null,
+          total: totals[id]
+        }))
+        .filter(x => x.status === 'active' && x.grade && x.name.toLowerCase() !== EXCLUDE_NAME.toLowerCase());
+
       if(!list.length){ el.innerHTML = ''; return; }
-      const items = list.map((h, i) => `<span class="hname">#${i+1} ${escapeHtmlHero(h.name)}</span> <span class="hscore">${h.total.toLocaleString()} pts</span>`).join('&nbsp;&nbsp;\u00b7&nbsp;&nbsp;');
+
+      const byGrade = {};
+      list.forEach(x => { (byGrade[x.grade] = byGrade[x.grade] || []).push(x); });
+      const grades = Object.keys(byGrade).sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
+
+      let segments = '';
+      grades.forEach(g => {
+        const top5 = byGrade[g].sort((a, b) => b.total - a.total).slice(0, 5);
+        const items = top5.map((h, i) => `<span class="hname">#${i+1} ${escapeHtmlHero(h.name)}</span> <span class="hscore">${h.total.toLocaleString()} pts</span>`).join('&nbsp;&nbsp;\u00b7&nbsp;&nbsp;');
+        segments += `<span class="hlabel">${g} TOP 5</span>&nbsp;&nbsp;\u00b7&nbsp;&nbsp;${items}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`;
+      });
+
       const label = '<span class="hlabel">\ud83c\udfc6 CURRENT ALLIANCE HEROES</span>&nbsp;&nbsp;\u00b7&nbsp;&nbsp;';
-      el.innerHTML = `<div class="htrack">${label}${items}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${label}${items}</div>`;
+      const full = label + segments;
+      el.innerHTML = `<div class="htrack">${full}${full}</div>`;
     }catch(e){
       console.error(e);
       el.innerHTML = '';
