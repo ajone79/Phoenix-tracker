@@ -599,11 +599,11 @@ function renderCompletionTable(wrap, relevantEvents, grades){
           const cellHtml = r.cells.map(c=>{
             if(c.type==='bye') return `<td style="text-align:center;color:var(--text-faint);" title="Not eligible for this event">N/A</td>`;
             if(c.ev.scoring_type==='tasks'){
-              if(c.score===undefined) return `<td style="text-align:center;color:var(--text-faint);">—</td>`;
+              if(c.score===undefined) return `<td style="text-align:center;color:var(--text-faint);">😢</td>`;
               const max = c.ev.max_tasks || c.ev.threshold || 15;
               return `<td style="text-align:center;color:${taskColor(c.score)};font-weight:bold;">${c.score}/${max}</td>`;
             }
-            if(!c.hasScore) return `<td style="text-align:center;color:var(--text-faint);">—</td>`;
+            if(!c.hasScore) return `<td style="text-align:center;color:var(--text-faint);">😢</td>`;
             return `<td style="text-align:center;color:${c.complete?'var(--mint)':'var(--gold)'};font-weight:bold;">${Number(c.score).toLocaleString()}</td>`;
           }).join('');
           const rateColor = r.pct>=75?'var(--mint)':r.pct>=40?'var(--gold)':'var(--alert)';
@@ -612,7 +612,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
         </tbody>
       </table>
     </div>
-    <div class="small" style="margin-top:6px;">Green number = complete &nbsp;·&nbsp; Gold number = scored but under threshold &nbsp;·&nbsp; — = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament cells: green ≥12, amber 9–11, red ≤8</div>
+    <div class="small" style="margin-top:6px;">Green number = complete &nbsp;·&nbsp; Gold number = scored but under threshold &nbsp;·&nbsp; 😢 = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament cells: green ≥12, amber 9–11, red ≤8</div>
   `;
   bindSort(wrap, compSort, 'th[data-sort]');
 }
