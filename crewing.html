@@ -37,12 +37,17 @@
   .empty{color:var(--text-faint);font-size:12px;padding:30px 4px;text-align:center;}
   .loading{padding:40px;text-align:center;color:var(--text-dim);font-size:12px;}
   .crew-card{background:var(--panel);border:1px solid var(--hair);border-radius:10px;overflow:hidden;margin-bottom:22px;}
-  .crew-card img{width:100%;display:block;cursor:zoom-in;background:#1c1c22;}
+  .crew-card img{width:100%;max-width:100%;height:auto;display:block;cursor:zoom-in;}
   .crew-card-meta{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
   .crew-card-title{font-family:'Antonio',sans-serif;font-weight:700;font-size:15px;}
   .crew-card-sub{font-size:11px;color:var(--text-dim);}
   .crew-card-tags{padding:0 16px 12px;display:flex;gap:6px;flex-wrap:wrap;}
   .tag{font-size:10px;background:var(--panel-2);border:1px solid var(--hair);color:var(--text-dim);padding:2px 8px;border-radius:20px;letter-spacing:.03em;}
+  .crew-card-img-wrap{background:#0c0c10;padding:20px 20px 4px;}
+  .crew-card-img-wrap img{border-radius:6px;width:auto;max-width:100%;margin:0 auto;display:block;cursor:zoom-in;}
+  .crew-notes{margin:0 16px 16px;background:var(--panel-2);border-left:3px solid var(--signal);border-radius:0 8px 8px 0;padding:12px 16px;}
+  .crew-notes-head{font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px;color:var(--signal);margin-bottom:8px;}
+  .crew-notes pre{margin:0;white-space:pre-wrap;font-family:'Space Mono',monospace;font-size:12px;color:var(--text);line-height:1.7;}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:999;padding:24px;cursor:zoom-out;}
   .lightbox.show{display:flex;}
   .lightbox img{max-width:100%;max-height:100%;border-radius:8px;}
@@ -183,7 +188,6 @@ function render(){
   }
   cardsWrap.innerHTML = matching.map(c => `
     <div class="crew-card">
-      <img src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.title)}" loading="lazy" data-src="${escapeHtml(c.image_url)}">
       <div class="crew-card-meta">
         <div>
           <div class="crew-card-title">${escapeHtml(c.title)}</div>
@@ -191,7 +195,10 @@ function render(){
         </div>
       </div>
       ${(c.hostile_types||[]).length>1 ? `<div class="crew-card-tags">${(c.hostile_types||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
-      ${c.notes ? `<div class="crew-card-tags"><span class="crew-card-sub">${escapeHtml(c.notes)}</span></div>` : ''}
+      ${c.notes ? `<div class="crew-notes"><div class="crew-notes-head">Notes</div><pre>${escapeHtml(c.notes)}</pre></div>` : ''}
+      <div class="crew-card-img-wrap">
+        <img src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.title)}" loading="lazy" data-src="${escapeHtml(c.image_url)}">
+      </div>
     </div>
   `).join('');
   cardsWrap.querySelectorAll('img[data-src]').forEach(img=>{
