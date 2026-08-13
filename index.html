@@ -651,9 +651,12 @@ function renderCompletionTable(wrap, relevantEvents, grades){
   }).join('');
 
   function taskColor(score){
+    if(score>=15) return 'var(--tier-gold, #ffea00)';
     if(score>=12) return 'var(--mint)';
     if(score>=9) return 'var(--tier-amber)';
-    return 'var(--alert)';
+    if(score>=6) return 'var(--tier-pink, #ff6ec7)';
+    if(score>=3) return 'var(--tier-lightred, #ff8a80)';
+    return 'var(--tier-darkred, #8b1e1e)';
   }
 
   function cellHtml(c){
@@ -716,7 +719,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
   wrap.innerHTML += `
     ${updatedLine()}
     ${mainTableHtml(mainRows)}
-    <div class="small" style="margin-top:6px;">Percentile-scored events, ranked within your grade (top scorer always gold, excluded from the rest of the ranking so they don't crowd out everyone else): <span style="color:var(--tier-gold)">Gold</span> = top 20% &nbsp;·&nbsp; <span style="color:var(--mint)">Green</span> = 60–79% &nbsp;·&nbsp; <span style="color:var(--tier-amber)">Amber</span> = 40–59% &nbsp;·&nbsp; <span style="color:var(--tier-pink)">Pink</span> = 20–39% &nbsp;·&nbsp; <span style="color:var(--tier-lightred)">Light red</span> = 5–19% &nbsp;·&nbsp; <span style="color:var(--tier-darkred)">Dark red</span> = bottom 4% &nbsp;·&nbsp; ✗ = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament cells: green ≥12, amber 9–11, red ≤8</div>
+    <div class="small" style="margin-top:6px;">Percentile-scored events, ranked within your grade (top scorer always gold, excluded from the rest of the ranking so they don't crowd out everyone else): <span style="color:var(--tier-gold)">Gold</span> = top 20% &nbsp;·&nbsp; <span style="color:var(--mint)">Green</span> = 60–79% &nbsp;·&nbsp; <span style="color:var(--tier-amber)">Amber</span> = 40–59% &nbsp;·&nbsp; <span style="color:var(--tier-pink)">Pink</span> = 20–39% &nbsp;·&nbsp; <span style="color:var(--tier-lightred)">Light red</span> = 5–19% &nbsp;·&nbsp; <span style="color:var(--tier-darkred)">Dark red</span> = bottom 4% &nbsp;·&nbsp; ✗ = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament (task) cells: <span style="color:var(--tier-gold)">Gold</span> 15/15 &nbsp;·&nbsp; <span style="color:var(--mint)">Green</span> 12–14 &nbsp;·&nbsp; <span style="color:var(--tier-amber)">Amber</span> 9–11 &nbsp;·&nbsp; <span style="color:var(--tier-pink)">Pink</span> 6–8 &nbsp;·&nbsp; <span style="color:var(--tier-lightred)">Light red</span> 3–5 &nbsp;·&nbsp; <span style="color:var(--tier-darkred)">Dark red</span> 0–2</div>
     ${subMembers.length ? `
     <div class="section-desc" style="margin:22px 0 8px;">
       <strong>G1–G5 members</strong> — shown separately. These grades play a different real-world event set that this tracker doesn't have visibility into, so a Completed/Rate column here would be misleading (it would show 100% for anyone with zero tracked events, which isn't a fair reflection of participation). Cells below show whatever's actually logged for them, with no summary rate attached.
@@ -903,6 +906,22 @@ function renderScoringMetrics(main){
     <div class="panel" style="margin-bottom:14px;">
       <div class="panel-title">Fixed-threshold events</div>
       <p class="small">A few events use a fixed point target instead of this percentile system — you'll see the number directly on that event's page if so.</p>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-title">Alliance Tournament (task-count) events</div>
+      <p class="small">These use the same gold-to-dark-red palette, but based on how many of the 15 tasks you completed rather than a percentile — everyone has the same 15 tasks available, so it's not graded on a curve:</p>
+      <table style="margin-top:8px;">
+        <thead><tr><th>Tier</th><th>Tasks</th></tr></thead>
+        <tbody>
+          <tr><td style="color:var(--tier-gold, #ffea00);font-weight:bold;">Gold</td><td>15/15</td></tr>
+          <tr><td style="color:var(--mint);font-weight:bold;">Green</td><td>12–14</td></tr>
+          <tr><td style="color:var(--tier-amber, #d2601b);font-weight:bold;">Amber</td><td>9–11</td></tr>
+          <tr><td style="color:var(--tier-pink, #ff6ec7);font-weight:bold;">Pink</td><td>6–8</td></tr>
+          <tr><td style="color:var(--tier-lightred, #ff8a80);font-weight:bold;">Light red</td><td>3–5</td></tr>
+          <tr><td style="color:var(--tier-darkred, #8b1e1e);font-weight:bold;">Dark red</td><td>0–2</td></tr>
+        </tbody>
+      </table>
     </div>
 
     <div class="panel" style="margin-bottom:14px;">
