@@ -128,8 +128,16 @@ async function loadAll(){
 function openLightbox(src){
   document.getElementById('lightboxImg').src = src;
   document.getElementById('lightbox').classList.add('show');
+  history.pushState({lightboxOpen:true}, '');
 }
-document.getElementById('lightbox').addEventListener('click', ()=>{
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('show');
+  if(history.state && history.state.lightboxOpen){
+    history.back();
+  }
+}
+document.getElementById('lightbox').addEventListener('click', closeLightbox);
+window.addEventListener('popstate', ()=>{
   document.getElementById('lightbox').classList.remove('show');
 });
 
