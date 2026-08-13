@@ -69,6 +69,13 @@
   th{text-align:left;font-family:'Antonio',sans-serif;letter-spacing:.05em;text-transform:uppercase;font-size:11px;color:var(--text-dim);padding:8px 10px;border-bottom:1px solid var(--hair);position:sticky;top:0;background:var(--panel);z-index:3;box-shadow:0 1px 0 var(--hair);}
   td{padding:7px 10px;border-bottom:1px solid #1c1c22;}
   tr:hover td{background:rgba(255,255,255,.02);}
+  /* Freeze panes: keep the player name column visible while scrolling horizontally */
+  .col-freeze{position:sticky;left:0;z-index:2;background:var(--panel);box-shadow:2px 0 6px -2px rgba(0,0,0,.6);}
+  thead .col-freeze{z-index:4;}
+  .col-freeze-rank{position:sticky;left:0;z-index:2;background:var(--panel);width:34px;min-width:34px;max-width:34px;}
+  thead .col-freeze-rank{z-index:4;}
+  .col-freeze-after-rank{position:sticky;left:34px;z-index:2;background:var(--panel);box-shadow:2px 0 6px -2px rgba(0,0,0,.6);}
+  thead .col-freeze-after-rank{z-index:4;}
   .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10.5px;font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.04em;}
   .pill-g1,.pill-g2,.pill-g3{background:#3a3a44;color:var(--text-dim);}
   .pill-g4,.pill-g5{background:#39415a;color:var(--periwinkle);}
@@ -679,7 +686,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
     <div class="panel" style="padding:0;overflow:auto;max-height:65vh;">
       <table>
         <thead><tr>
-          <th class="sortable" data-sort="name">Name${sortArrow(compSort,'name')}</th>
+          <th class="sortable col-freeze" data-sort="name">Name${sortArrow(compSort,'name')}</th>
           <th class="sortable" data-sort="grade">Grade${sortArrow(compSort,'grade')}</th>
           ${headerCells}
           <th class="sortable" data-sort="completed">Completed${sortArrow(compSort,'completed')}</th>
@@ -689,7 +696,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
         ${rows.map(r=>{
           const rowCells = r.cells.map(cellHtml).join('');
           const rateColor = r.pct>=75?'var(--mint)':r.pct>=40?'var(--gold)':'var(--alert)';
-          return `<tr><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td>${rowCells}<td>${r.completedCount}/${r.totalEligible}</td><td style="color:${rateColor};font-weight:bold;">${r.pct}%</td></tr>`;
+          return `<tr><td class="col-freeze">${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td>${rowCells}<td>${r.completedCount}/${r.totalEligible}</td><td style="color:${rateColor};font-weight:bold;">${r.pct}%</td></tr>`;
         }).join('') || `<tr><td colspan="${4+relevantEvents.length}" class="empty">No matching members.</td></tr>`}
         </tbody>
       </table>
@@ -701,7 +708,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
     <div class="panel" style="padding:0;overflow:auto;max-height:65vh;">
       <table>
         <thead><tr>
-          <th class="sortable" data-sort="name">Name${sortArrow(compSort,'name')}</th>
+          <th class="sortable col-freeze" data-sort="name">Name${sortArrow(compSort,'name')}</th>
           <th class="sortable" data-sort="grade">Grade${sortArrow(compSort,'grade')}</th>
           ${headerCells}
           <th>Completed</th>
@@ -709,7 +716,7 @@ function renderCompletionTable(wrap, relevantEvents, grades){
         <tbody>
         ${rows.map(r=>{
           const rowCells = r.cells.map(cellHtml).join('');
-          return `<tr><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td>${rowCells}<td style="color:var(--text-faint);">n/a</td></tr>`;
+          return `<tr><td class="col-freeze">${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td>${rowCells}<td style="color:var(--text-faint);">n/a</td></tr>`;
         }).join('') || `<tr><td colspan="${3+relevantEvents.length}" class="empty">No matching members.</td></tr>`}
         </tbody>
       </table>
@@ -748,7 +755,7 @@ function renderRoster(main){
     <div class="panel" style="padding:0;overflow:auto;max-height:65vh;">
       <table>
         <thead><tr>
-          <th class="sortable" data-sort="name">Name${sortArrow(rosterSort,'name')}</th>
+          <th class="sortable col-freeze" data-sort="name">Name${sortArrow(rosterSort,'name')}</th>
           <th class="sortable" data-sort="level">Level${sortArrow(rosterSort,'level')}</th>
           <th class="sortable" data-sort="grade">Grade${sortArrow(rosterSort,'grade')}</th>
           <th class="sortable" data-sort="status">Status${sortArrow(rosterSort,'status')}</th>
@@ -756,7 +763,7 @@ function renderRoster(main){
         <tbody>
         ${sorted.map(p=>{
           const g=gradeForLevel(p.level); const inactive=p.status!=='active';
-          return `<tr class="${inactive?'status-inactive':''}"><td>${escapeHtml(p.name)}</td><td>${p.level}</td><td><span class="pill ${gradeClass(g)}">${g}</span></td><td>${p.status==='active'?'Active':'Inactive'}</td></tr>`;
+          return `<tr class="${inactive?'status-inactive':''}"><td class="col-freeze">${escapeHtml(p.name)}</td><td>${p.level}</td><td><span class="pill ${gradeClass(g)}">${g}</span></td><td>${p.status==='active'?'Active':'Inactive'}</td></tr>`;
         }).join('')}
         </tbody>
       </table>
@@ -841,15 +848,15 @@ function renderEvents(main){
     <div class="panel" style="padding:0;overflow:auto;max-height:65vh;">
       <table>
         <thead><tr>
-          <th class="sortable" data-sort="rank">#${sortArrow(lbSort,'rank')}</th>
-          <th class="sortable" data-sort="name">Name${sortArrow(lbSort,'name')}</th>
+          <th class="sortable col-freeze-rank" data-sort="rank">#${sortArrow(lbSort,'rank')}</th>
+          <th class="sortable col-freeze-after-rank" data-sort="name">Name${sortArrow(lbSort,'name')}</th>
           <th class="sortable" data-sort="grade">Grade${sortArrow(lbSort,'grade')}</th>
           <th class="sortable" data-sort="score">${scoreColLabel}${sortArrow(lbSort,'score')}</th>
           <th class="sortable" data-sort="status">Status${sortArrow(lbSort,'status')}</th>
         </tr></thead>
         <tbody>
         ${rowsData.map((r)=>{
-          return `<tr><td>${r.rank}</td><td>${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td><td>${fmtScore(r.score)}</td><td><span class="status-dot ${r.st.dot}"></span><span style="color:${r.st.color}">${r.st.label}</span></td></tr>`;
+          return `<tr><td class="col-freeze-rank">${r.rank}</td><td class="col-freeze-after-rank">${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td><td>${fmtScore(r.score)}</td><td><span class="status-dot ${r.st.dot}"></span><span style="color:${r.st.color}">${r.st.label}</span></td></tr>`;
         }).join('') || `<tr><td colspan="5" class="empty">No matching members.</td></tr>`}
         </tbody>
       </table>
