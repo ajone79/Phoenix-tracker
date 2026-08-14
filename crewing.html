@@ -48,6 +48,8 @@
   .crew-notes{margin:0 16px 16px;background:var(--panel-2);border-left:3px solid var(--signal);border-radius:0 8px 8px 0;padding:12px 16px;}
   .crew-notes-head{font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px;color:var(--signal);margin-bottom:8px;}
   .crew-notes pre{margin:0;white-space:pre-wrap;font-family:'Space Mono',monospace;font-size:12px;color:var(--text);line-height:1.7;}
+  .crew-link{display:inline-flex;align-items:center;gap:6px;margin:0 16px 16px;padding:8px 14px;background:var(--panel-2);border:1px solid var(--periwinkle);border-radius:20px;color:var(--periwinkle);text-decoration:none;font-size:11px;letter-spacing:.03em;text-transform:uppercase;font-family:'Antonio',sans-serif;font-weight:700;width:fit-content;}
+  .crew-link:hover{background:var(--periwinkle);color:var(--void);}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:999;padding:24px;cursor:zoom-out;}
   .lightbox.show{display:flex;}
   .lightbox img{max-width:100%;max-height:100%;border-radius:8px;}
@@ -214,6 +216,7 @@ function render(){
       </div>
       ${(c.hostile_types||[]).length>1 ? `<div class="crew-card-tags">${(c.hostile_types||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       ${c.notes ? `<div class="crew-notes"><div class="crew-notes-head">Notes</div><pre>${escapeHtml(c.notes)}</pre></div>` : ''}
+      ${c.link_url ? `<a class="crew-link" href="${escapeHtml(c.link_url)}" target="_blank" rel="noopener">🔗 ${escapeHtml(c.link_label || 'Loop Chart Link')}</a>` : ''}
       <div class="crew-card-img-wrap">
         <img src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.title)}" loading="lazy" data-src="${escapeHtml(c.image_url)}">
       </div>
