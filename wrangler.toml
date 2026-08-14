@@ -1,0 +1,6 @@
+name = "phoenix-eu168"
+account_id = "9d1202cc74e137008e0feafebb8a8d06"
+compatibility_date = "2026-08-14"
+
+[assets]
+directory = "./"
