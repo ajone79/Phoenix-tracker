@@ -71,6 +71,30 @@
   .note-banner{display:flex;align-items:flex-start;gap:10px;background:repeating-linear-gradient(135deg, #0d1a2a, #0d1a2a 10px, #0a1622 10px, #0a1622 20px);border:2px solid var(--periwinkle);border-radius:8px;padding:12px 14px;margin-bottom:20px;font-size:11px;color:var(--text-dim);}
   .note-banner b{color:var(--periwinkle);}
 
+  .slots-row{margin:0 20px 4px;display:flex;align-items:center;gap:8px;}
+  .slots-row select{background:var(--panel-2);border:1px solid var(--hair);color:var(--text);font-family:'Space Mono',monospace;font-size:12px;padding:5px 8px;border-radius:6px;}
+  .slots-note{margin:0 20px 18px;font-size:9.5px;color:var(--text-faint);line-height:1.5;}
+
+  .team-divider{display:flex;align-items:center;gap:10px;margin:22px 0 12px;}
+  .team-divider span{font-family:'Antonio',sans-serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);white-space:nowrap;}
+  .team-divider .line{height:1px;background:var(--hair);flex:1;}
+  .onduty-tag{font-size:9.5px;background:var(--gold);color:var(--void);padding:2px 7px;border-radius:20px;letter-spacing:.04em;text-transform:uppercase;font-weight:700;}
+
+  .skills-toggle{background:none;border:1px solid var(--hair);color:var(--text-dim);font-family:'Space Mono',monospace;font-size:10px;padding:3px 10px;border-radius:20px;cursor:pointer;margin-top:6px;}
+  .skills-toggle:hover{color:var(--text);border-color:var(--periwinkle);}
+  .skills-panel{margin-top:10px;border-top:1px solid var(--hair);padding-top:10px;display:none;}
+  .skills-panel.open{display:block;}
+  .skills-tree-label{font-family:'Antonio',sans-serif;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--signal);margin:8px 0 4px;}
+  .skill-row{font-size:10.5px;color:var(--text-dim);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.03);display:flex;gap:8px;flex-wrap:wrap;align-items:baseline;}
+  .skill-row .sname{color:var(--text);font-weight:700;}
+  .skill-type{font-size:9px;padding:1px 6px;border-radius:10px;letter-spacing:.03em;text-transform:uppercase;flex-shrink:0;}
+  .skill-type.always{background:rgba(95,208,104,.15);color:var(--mint);}
+  .skill-type.dock{background:rgba(143,163,255,.15);color:var(--periwinkle);}
+  .skill-type.selectable{background:rgba(255,145,66,.15);color:var(--signal);}
+  .skill-type.active{background:rgba(255,200,87,.15);color:var(--gold);}
+  .skill-bonus{color:var(--text-faint);font-size:9.5px;}
+  .infer-mark{color:var(--text-faint);font-size:9px;}
+
   .wip-banner{display:flex;align-items:center;gap:12px;background:repeating-linear-gradient(135deg, #2a1a05, #2a1a05 10px, #241505 10px, #241505 20px);border-bottom:2px solid var(--gold);padding:10px 22px;font-size:12px;color:var(--gold);}
   .wip-banner .wip-tag{font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:12px;flex-shrink:0;color:var(--alert);}
   .wip-banner span.wip-txt{color:var(--text-dim);}
@@ -129,10 +153,14 @@ const SCENARIOS = [
   { id:'ft', label:'Faction Team Efficiency', cats:[['Other','FT Efficiency']] },
 ];
 
+const SLOTS_KEY = 'phx_fc_slots_v1';
 let commanders = [];
 let ratings = []; // {fc_id, category_group, category, active}
+let skills = []; // {fc_id, tree, skill_name, type, type_inferred, effect, bonus_min, bonus_max, cc_unlock, rank_unlock, max_level}
 let owned = new Set(JSON.parse(localStorage.getItem(OWNED_KEY) || '[]'));
 let selectedScenario = SCENARIOS[0].id;
+let fcSlots = parseInt(localStorage.getItem(SLOTS_KEY) || '3', 10);
+let expandedFc = new Set();
 let dbStatus = 'connecting';
 let dbError = '';
 
@@ -154,12 +182,14 @@ async function sb(path){
 async function loadAll(){
   dbStatus='connecting';
   try{
-    const [c, r] = await Promise.all([
+    const [c, r, s] = await Promise.all([
       sb('fc_commanders?select=*&order=sort_order.asc'),
-      sb('fc_ratings?select=*')
+      sb('fc_ratings?select=*'),
+      sb('fc_skills?select=*&order=tree.asc')
     ]);
     commanders = c || [];
     ratings = r || [];
+    skills = s || [];
     dbStatus='connected';
   }catch(e){
     console.error(e);
@@ -170,6 +200,17 @@ async function loadAll(){
 
 function saveOwned(){
   localStorage.setItem(OWNED_KEY, JSON.stringify(Array.from(owned)));
+}
+function saveSlots(){
+  localStorage.setItem(SLOTS_KEY, String(fcSlots));
+}
+function typeClass(t){
+  if(!t) return 'dock';
+  const tl = t.toLowerCase();
+  if(tl.includes('always on')) return 'always';
+  if(tl.includes('selectable')) return 'selectable';
+  if(tl.includes('active ability')) return 'active';
+  return 'dock';
 }
 
 function scoreForScenario(scenario){
@@ -204,6 +245,15 @@ function render(){
         <div class="sidebar-block">
           <div class="sidebar-label">Activity / Goal</div>
           <div id="scenarioList"></div>
+        </div>
+        <div class="sidebar-block">
+          <div class="sidebar-label">My FC Slots</div>
+          <div class="slots-row">
+            <select id="slotsSelect">
+              ${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===fcSlots?'selected':''}>${n} slot${n>1?'s':''}</option>`).join('')}
+            </select>
+          </div>
+          <div class="slots-note">Slot count grows with Command Center level — check your dock in-game. Docked FCs' "Always On" skills all apply at once, but only one can be On Duty per fleet at a time.</div>
         </div>
         <div class="sidebar-block">
           <div class="sidebar-label">My Fleet Commanders</div>
@@ -246,36 +296,59 @@ function render(){
     });
   });
 
+  const slotsSelect = document.getElementById('slotsSelect');
+  slotsSelect.addEventListener('change', ()=>{
+    fcSlots = parseInt(slotsSelect.value, 10);
+    saveSlots(); render();
+  });
+
   const scenario = SCENARIOS.find(s => s.id===selectedScenario);
   const ranked = scoreForScenario(scenario);
   const anyOwned = owned.size > 0;
+  const team = ranked.slice(0, fcSlots);
+  const rest = ranked.slice(fcSlots);
 
   main.innerHTML = `
     <div class="section-head"><h1>${escapeHtml(scenario.label)} <span class="accent">— Best FC</span></h1></div>
     <div class="section-desc">Ranked by how well each Fleet Commander's on-duty skills cover this goal. ${anyOwned ? 'Commanders you own are highlighted and prioritized on ties.' : 'Check off which Fleet Commanders you own in the sidebar to prioritize them.'}</div>
-    <div id="fcCards"></div>
+    <div class="team-divider"><span>Recommended team (${fcSlots} slot${fcSlots>1?'s':''})</span><div class="line"></div></div>
+    <div id="teamCards"></div>
+    ${rest.length ? `<div class="team-divider"><span>Other options</span><div class="line"></div></div><div id="restCards"></div>` : ''}
   `;
 
-  const cardsWrap = document.getElementById('fcCards');
-  if(ranked.length===0){
-    cardsWrap.innerHTML = `<div class="empty">No data yet.</div>`;
-    return;
-  }
-  cardsWrap.innerHTML = ranked.map((r, i) => {
-    const isTop = r.score > 0 && r.score === ranked[0].score;
+  function cardHtml(r, i, isOnDuty){
     const isOwned = owned.has(r.fc.id);
+    const fcSkills = skills.filter(s => s.fc_id === r.fc.id);
+    const trees = Array.from(new Set(fcSkills.map(s=>s.tree))).sort();
+    const isOpen = expandedFc.has(r.fc.id);
     return `
-      <div class="fc-card ${isTop?'top':''} ${isOwned?'owned':''}">
+      <div class="fc-card ${isOnDuty?'top':''} ${isOwned?'owned':''}">
         <div class="fc-rank">${i+1}</div>
         <div class="fc-body">
           <div class="fc-name-row">
             <span class="fc-name">${escapeHtml(r.fc.display_name)}</span>
+            ${isOnDuty ? '<span class="onduty-tag">Suggested on duty</span>' : ''}
             ${isOwned ? '<span class="fc-badge owned">Owned</span>' : ''}
             ${r.score > 0 ? `<span class="fc-badge hit">${r.hits.length}/${scenario.cats.length} match</span>` : ''}
           </div>
           ${r.fc.summary ? `<div class="fc-summary">${escapeHtml(r.fc.summary)}</div>` : ''}
           ${r.fc.f2p_access ? `<div class="fc-sub">F2P access: ${escapeHtml(r.fc.f2p_access)}</div>` : ''}
           ${(r.fc.key_features||[]).length ? `<div class="fc-features">Known for: ${(r.fc.key_features||[]).map(escapeHtml).join(' · ')}</div>` : ''}
+          ${fcSkills.length ? `<button class="skills-toggle" data-toggle="${r.fc.id}">${isOpen?'Hide':'Show'} full skill tree (${fcSkills.length})</button>` : ''}
+          <div class="skills-panel ${isOpen?'open':''}" data-panel="${r.fc.id}">
+            ${trees.map(tree => `
+              <div class="skills-tree-label">${escapeHtml(tree)}</div>
+              ${fcSkills.filter(s=>s.tree===tree).map(s => `
+                <div class="skill-row">
+                  <span class="skill-type ${typeClass(s.type)}">${escapeHtml(s.type||'Dock')}</span>
+                  <span class="sname">${escapeHtml(s.skill_name)}</span>
+                  ${s.effect ? `— ${escapeHtml(s.effect)}` : ''}
+                  ${(s.bonus_min!=null && s.bonus_max!=null) ? `<span class="skill-bonus">(${s.bonus_min}${s.bonus_max!==s.bonus_min?' – '+s.bonus_max:''})</span>` : ''}
+                  ${s.type_inferred ? `<span class="infer-mark">[type inferred]</span>` : ''}
+                </div>
+              `).join('')}
+            `).join('')}
+          </div>
         </div>
         <div class="fc-score">
           <div class="fc-score-n">${r.score}/${r.maxScore}</div>
@@ -283,7 +356,28 @@ function render(){
         </div>
       </div>
     `;
-  }).join('');
+  }
+
+  if(ranked.length===0){
+    main.querySelector('#teamCards').innerHTML = `<div class="empty">No data yet.</div>`;
+    return;
+  }
+
+  const teamWrap = document.getElementById('teamCards');
+  teamWrap.innerHTML = team.map((r,i) => cardHtml(r, i, i===0 && r.score>0)).join('');
+
+  const restWrap = document.getElementById('restCards');
+  if(restWrap){
+    restWrap.innerHTML = rest.map((r,i) => cardHtml(r, i+team.length, false)).join('');
+  }
+
+  document.querySelectorAll('[data-toggle]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.toggle;
+      if(expandedFc.has(id)) expandedFc.delete(id); else expandedFc.add(id);
+      render();
+    });
+  });
 }
 
 loadAll();
