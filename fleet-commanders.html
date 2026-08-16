@@ -57,6 +57,7 @@
   .fc-badge.owned{border-color:var(--mint);color:var(--mint);}
   .fc-badge.hit{border-color:var(--signal);color:var(--signal);}
   .fc-sub{font-size:11px;color:var(--text-dim);margin-top:3px;}
+  .fc-summary{font-size:11.5px;color:var(--mint);margin-top:5px;line-height:1.5;max-width:560px;}
   .fc-features{font-size:10.5px;color:var(--text-faint);margin-top:4px;}
   .fc-score{flex-shrink:0;text-align:right;}
   .fc-score-n{font-family:'Antonio',sans-serif;font-weight:700;font-size:18px;color:var(--periwinkle);}
@@ -272,6 +273,7 @@ function render(){
             ${isOwned ? '<span class="fc-badge owned">Owned</span>' : ''}
             ${r.score > 0 ? `<span class="fc-badge hit">${r.hits.length}/${scenario.cats.length} match</span>` : ''}
           </div>
+          ${r.fc.summary ? `<div class="fc-summary">${escapeHtml(r.fc.summary)}</div>` : ''}
           ${r.fc.f2p_access ? `<div class="fc-sub">F2P access: ${escapeHtml(r.fc.f2p_access)}</div>` : ''}
           ${(r.fc.key_features||[]).length ? `<div class="fc-features">Known for: ${(r.fc.key_features||[]).map(escapeHtml).join(' · ')}</div>` : ''}
         </div>
