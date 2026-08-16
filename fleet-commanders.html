@@ -95,9 +95,10 @@
   .skill-bonus{color:var(--text-faint);font-size:9.5px;}
   .infer-mark{color:var(--text-faint);font-size:9px;}
 
-  .wip-banner{display:flex;align-items:center;gap:12px;background:repeating-linear-gradient(135deg, #2a1a05, #2a1a05 10px, #241505 10px, #241505 20px);border-bottom:2px solid var(--gold);padding:10px 22px;font-size:12px;color:var(--gold);}
-  .wip-banner .wip-tag{font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:12px;flex-shrink:0;color:var(--alert);}
-  .wip-banner span.wip-txt{color:var(--text-dim);}
+  .wip-banner{display:flex;align-items:center;gap:16px;background:repeating-linear-gradient(135deg, #2a1a05, #2a1a05 12px, #241505 12px, #241505 24px);border-bottom:4px solid var(--gold);padding:20px 26px;font-size:16px;color:var(--gold);}
+  .wip-banner .wip-tag{font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:22px;flex-shrink:0;color:var(--alert);}
+  .wip-banner span.wip-txt{color:var(--text);font-size:15px;font-weight:600;line-height:1.5;}
+  #app{text-decoration:line-through; text-decoration-color:var(--alert); text-decoration-thickness:2px;}
 
 /* ===== PHX cross-page nav strip ===== */
 .phx-nav{
@@ -124,7 +125,7 @@
 </head>
 <body>
 <nav class="phx-nav"><span class="phx-nav-tag">PHX</span><a href="index.html">ALB Participation</a><a href="events-calendar.html">Events Calendar</a><a href="f2p-task-guide.html">F2P Task Guide</a><a href="idiq-hints-and-tips.html">IDIQ Hints &amp; Tips</a><a href="crewing.html">Crewing</a><a href="fleet-commanders.html" class="current">Fleet Commanders</a><a href="credits.html">Links &amp; Credits</a></nav>
-<div class="wip-banner"><span class="wip-tag">⚠ Work in progress</span><span class="wip-txt">Rankings are based on a rough cheat-sheet matrix, not full skill data. 4 of 9 commanders have no detail yet. Do not rely on this for real fleet decisions — treat it as a rough starting point only.</span></div>
+<div class="wip-banner"><span class="wip-tag">⚠ WORK IN PROGRESS</span><span class="wip-txt">Do not use this page for real fleet decisions yet. Rankings are based on a rough community cheat sheet, not a verified simulation — treat everything below as an early, unfinished starting point only.</span></div>
 
 <div id="app"><div class="loading">Loading fleet commander data…</div></div>
 
