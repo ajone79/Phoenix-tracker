@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix EU168 — Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{--void:#050507;--panel:#111116;--signal:#ff9142;--periwinkle:#8fa3ff;--gold:#ffc857;--text:#e8e6e1;--text-dim:#8a8a94;--hair:#2a2a34;}
+  html,body{margin:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;height:100%;}
+  .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .box{max-width:420px;width:100%;background:var(--panel);border:1px solid var(--hair);border-radius:14px;padding:40px 32px;text-align:center;}
+  .elbow-tag{display:inline-block;background:var(--signal);color:var(--void);font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.1em;font-size:12px;padding:4px 14px;border-radius:20px;margin-bottom:18px;}
+  .box h1{font-family:'Antonio',sans-serif;font-weight:700;font-size:24px;margin:0 0 10px;letter-spacing:.03em;}
+  .box p{font-size:12.5px;color:var(--text-dim);line-height:1.6;margin:0 0 26px;}
+  .discord-btn{display:inline-flex;align-items:center;gap:10px;background:#5865F2;color:#fff;font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:13px;padding:13px 28px;border-radius:8px;border:none;cursor:pointer;}
+  .discord-btn:hover{background:#4752c4;}
+  .err{color:#ff5a5f;font-size:11px;margin-top:14px;display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="box">
+    <span class="elbow-tag">PHX EU168</span>
+    <h1>Alliance Tracker</h1>
+    <p>This site is for Phoenix EU168 members. Sign in with Discord — an officer will need to approve your access the first time.</p>
+    <button class="discord-btn" id="discordBtn">🔒 Sign in with Discord</button>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+<script>
+const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const params = new URLSearchParams(location.search);
+const next = params.get('next') || 'index.html';
+
+document.getElementById('discordBtn').addEventListener('click', async ()=>{
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'discord',
+    options: { redirectTo: location.origin + '/' + next.replace(/^\//,'') }
+  });
+  if (error) {
+    const e = document.getElementById('err');
+    e.textContent = error.message;
+    e.style.display = 'block';
+  }
+});
+
+// if already logged in, bounce straight through
+sb.auth.getSession().then(({data:{session}}) => {
+  if (session) location.href = next;
+});
+</script>
+</body>
+</html>
