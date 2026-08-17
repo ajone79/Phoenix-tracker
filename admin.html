@@ -228,8 +228,23 @@ function importSectionHtml(){
           <option value="">— pick an event —</option>
           ${events.map(e=>`<option value="${e.id}">${escapeHtml(e.name)} (${e.date})</option>`).join('')}
         </select>
+        <button class="btn admin" id="newEventToggle" type="button">+ New event</button>
         <input type="file" id="importFiles" accept="image/*" multiple>
         <button class="btn extract" id="extractBtn">Extract from screenshot(s)</button>
+      </div>
+      <div class="import-row" id="newEventForm" style="display:none;background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:12px;">
+        <input type="text" id="newEventName" placeholder="Event name (e.g. Sector Strike - ALB)" style="min-width:220px;">
+        <input type="date" id="newEventDate">
+        <select id="newEventScoringType">
+          <option value="score">Score-based</option>
+          <option value="tasks">Task count</option>
+        </select>
+        <select id="newEventCompletionMode">
+          <option value="average">Average / percentile</option>
+          <option value="threshold">Threshold (pass/fail)</option>
+        </select>
+        <button class="btn save-all" id="createEventBtn" type="button">Create event</button>
+        <span id="newEventStatus" style="font-size:10.5px;color:var(--text-dim);"></span>
       </div>
       <div class="import-status ${extractStatus.kind}" id="importStatus">${escapeHtml(extractStatus.message)}</div>
       <div id="reviewWrap">${extractedRows.length ? reviewTableHtml() : ''}</div>
@@ -276,7 +291,47 @@ function reviewTableHtml(){
 function wireImportSection(){
   const extractBtn = document.getElementById('extractBtn');
   if (extractBtn) extractBtn.addEventListener('click', handleExtract);
+  const newEventToggle = document.getElementById('newEventToggle');
+  if (newEventToggle) newEventToggle.addEventListener('click', () => {
+    const form = document.getElementById('newEventForm');
+    form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+  });
+  const createEventBtn = document.getElementById('createEventBtn');
+  if (createEventBtn) createEventBtn.addEventListener('click', handleCreateEvent);
   wireReviewTableEvents();
+}
+
+function slugifyEventId(name, date){
+  const slug = String(name||'').toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+  const dateSuffix = date ? date.replace(/-/g, '').slice(4) : ''; // MMDD
+  return `ev_${slug}${dateSuffix ? '_' + dateSuffix : ''}`;
+}
+
+async function handleCreateEvent(){
+  const name = document.getElementById('newEventName').value.trim();
+  const date = document.getElementById('newEventDate').value;
+  const scoringType = document.getElementById('newEventScoringType').value;
+  const completionMode = document.getElementById('newEventCompletionMode').value;
+  const statusEl = document.getElementById('newEventStatus');
+
+  if (!name || !date) { statusEl.textContent = 'Name and date are required.'; statusEl.style.color = 'var(--alert)'; return; }
+
+  const id = slugifyEventId(name, date);
+  const { data, error } = await sb.from('events').insert({
+    id, name, date, scoring_type: scoringType, completion_mode: completionMode,
+    start_date: date
+  }).select().maybeSingle();
+
+  if (error) { statusEl.textContent = `Error: ${error.message}`; statusEl.style.color = 'var(--alert)'; return; }
+
+  events = [data, ...events];
+  statusEl.textContent = `Created "${name}".`;
+  statusEl.style.color = 'var(--mint)';
+  const sel = document.getElementById('importEventSelect');
+  sel.innerHTML = `<option value="">— pick an event —</option>` + events.map(e=>`<option value="${e.id}">${escapeHtml(e.name)} (${e.date})</option>`).join('');
+  sel.value = id;
+  document.getElementById('newEventForm').style.display = 'none';
 }
 
 function wireReviewTableEvents(){
