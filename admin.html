@@ -386,7 +386,8 @@ async function handleExtract(){
     });
     const data = await res.json();
     if (!res.ok) {
-      setImportStatus(`Error: ${data.error || res.statusText}`, 'err');
+      const rawSnippet = data.raw ? ` — model said: "${String(data.raw).slice(0,300)}${data.raw.length>300?'…':''}"` : '';
+      setImportStatus(`Error: ${data.error || res.statusText}${rawSnippet}`, 'err');
       return;
     }
     const rawRows = data.rows || [];
