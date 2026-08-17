@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/tracker-auth.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix EU168 Events</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-eu168.png">
+<link rel="apple-touch-icon" href="/icon-eu168.png">
+<meta name="theme-color" content="#ffffff">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#050507; --panel:#111116; --panel-2:#17171e; --hair:#2a2a34;
+    --signal:#ff9142; --periwinkle:#8fa3ff; --mint:#5fd068; --gold:#ffc857; --alert:#ff5a5f;
+    --text:#e8e6e1; --text-dim:#8a8a94; --text-faint:#55555f;
+    --tier-gold:#ffea00; --tier-amber:#d2601b; --tier-pink:#ff6ec7; --tier-lightred:#ff8a80; --tier-darkred:#8b1e1e;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;-webkit-font-smoothing:antialiased;}
+  #app{display:flex;min-height:100vh;flex-direction:column;}
+  .topbar{display:flex;align-items:stretch;height:64px;flex-shrink:0;}
+  .elbow{width:120px;background:var(--signal);border-bottom-left-radius:34px;display:flex;align-items:center;justify-content:flex-end;padding-right:14px;}
+  .elbow span{font-family:'Antonio',sans-serif;font-weight:700;color:var(--void);font-size:13px;letter-spacing:.08em;}
+  .topbar-bar{flex:1;background:var(--panel);display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:2px solid var(--hair);}
+  .topbar-title{font-family:'Antonio',sans-serif;font-weight:700;font-size:22px;letter-spacing:.06em;}
+  .topbar-title b{color:var(--signal);}
+  .topbar-sub{font-size:11px;color:var(--text-dim);}
+  .stardate{font-size:11px;color:var(--periwinkle);text-align:right;}
+  .body-row{display:flex;flex:1;min-height:0;}
+  .sidebar{width:190px;flex-shrink:0;background:var(--panel);padding:22px 0;display:flex;flex-direction:column;gap:6px;border-right:2px solid var(--hair);}
+  .navbtn{margin:0 14px;padding:12px 16px;border-radius:0 20px 20px 0;font-family:'Antonio',sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:14px;cursor:pointer;border:none;text-align:left;color:var(--void);transition:transform .12s ease,filter .12s ease;}
+  .navbtn:hover{filter:brightness(1.12);transform:translateX(3px);}
+  .navbtn.active{filter:brightness(1.2);box-shadow:0 0 0 2px rgba(255,255,255,.25) inset;}
+  .nav-1{background:var(--signal);} .nav-2{background:var(--periwinkle);} .nav-3{background:var(--mint);}
+  .nav-4{background:var(--gold);} .nav-5{background:#c9c9d4;} .nav-6{background:#b892ff;}
+  .sidebar-foot{margin-top:auto;padding:0 20px;font-size:10px;color:var(--text-faint);line-height:1.6;}
+  .support-link{
+    display:inline-flex;align-items:center;gap:7px;margin-top:14px;
+    padding:8px 14px;border-radius:20px;
+    background:var(--panel-2);border:1px solid var(--hair);
+    color:var(--text-dim);text-decoration:none;
+    font-family:'Antonio',sans-serif;font-weight:600;letter-spacing:.05em;
+    text-transform:uppercase;font-size:10.5px;
+    transition:border-color .15s ease,color .15s ease,background .15s ease;
+  }
+  .support-link:hover{border-color:var(--signal);color:var(--text);background:rgba(255,145,66,.08);}
+  main{flex:1;padding:26px 30px 40px;overflow-y:auto;}
+  .section-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;flex-wrap:wrap;}
+  .section-head h1{font-family:'Antonio',sans-serif;font-weight:700;font-size:26px;margin:0;letter-spacing:.03em;}
+  .section-head .accent{color:var(--signal);}
+  .section-desc{color:var(--text-dim);font-size:12px;max-width:620px;}
+  .panel{background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:18px 20px;margin-bottom:18px;}
+  .panel-title{font-family:'Antonio',sans-serif;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:0 0 12px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  select,button.btn{font-family:'Space Mono',monospace;font-size:13px;background:var(--panel-2);color:var(--text);border:1px solid var(--hair);border-radius:6px;padding:8px 10px;outline:none;}
+  button.btn{cursor:pointer;font-family:'Antonio',sans-serif;text-transform:uppercase;letter-spacing:.04em;font-weight:600;font-size:12px;border:none;transition:filter .12s ease;}
+  button.btn:hover{filter:brightness(1.15);}
+  /* NOTE: modifier selectors below use button.btn-x (element+class) to reliably out-specificity the base "select,button.btn" rule above */
+  button.btn-signal{background:var(--signal);color:var(--void);border-color:var(--signal);}
+  button.btn-peri{background:var(--periwinkle);color:var(--void);border-color:var(--periwinkle);}
+  button.btn-mint{background:var(--mint);color:var(--void);border-color:var(--mint);}
+  button.btn-ghost{background:transparent;border:1px solid var(--hair);color:var(--text-dim);}
+  button.btn-ghost:hover{color:var(--text);border-color:var(--text-dim);}
+  button.btn-danger{background:transparent;border:1px solid var(--alert);color:var(--alert);}
+  .btn-sm{padding:5px 9px;font-size:11px;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{text-align:left;font-family:'Antonio',sans-serif;letter-spacing:.05em;text-transform:uppercase;font-size:11px;color:var(--text-dim);padding:8px 10px;border-bottom:1px solid var(--hair);position:sticky;top:0;background:var(--panel);z-index:3;box-shadow:0 1px 0 var(--hair);}
+  td{padding:7px 10px;border-bottom:1px solid #1c1c22;}
+  tr:hover td{background:rgba(255,255,255,.02);}
+  /* Freeze panes: keep the player name column visible while scrolling horizontally */
+  .col-freeze{position:sticky;left:0;z-index:2;background:var(--panel);box-shadow:2px 0 6px -2px rgba(0,0,0,.6);}
+  thead .col-freeze{z-index:4;}
+  .col-freeze-rank{position:sticky;left:0;z-index:2;background:var(--panel);width:34px;min-width:34px;max-width:34px;}
+  thead .col-freeze-rank{z-index:4;}
+  .col-freeze-after-rank{position:sticky;left:34px;z-index:2;background:var(--panel);box-shadow:2px 0 6px -2px rgba(0,0,0,.6);}
+  thead .col-freeze-after-rank{z-index:4;}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10.5px;font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.04em;}
+  .pill-g1,.pill-g2,.pill-g3{background:#3a3a44;color:var(--text-dim);}
+  .pill-g4,.pill-g5{background:#39415a;color:var(--periwinkle);}
+  .pill-g6{background:#5a3a1e;color:var(--signal);}
+  .pill-g7{background:#5a2f2f;color:#ff8a8f;}
+  .pill-g8{background:#4a2f5a;color:#d19bff;}
+  .pill-arc{background:#1e3a3a;color:var(--mint);}
+  .pill-arc-archived{background:#2a2a30;color:var(--text-faint);}
+  .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
+  .dot-green{background:var(--mint);} .dot-amber{background:var(--gold);} .dot-red{background:var(--alert);} .dot-grey{background:var(--text-faint);}
+  .status-inactive{opacity:.4;}
+  .empty{color:var(--text-faint);font-size:12px;padding:20px 4px;text-align:center;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media (max-width:820px){.grid2{grid-template-columns:1fr;}.sidebar{width:64px;}.navbtn span.label{display:none;}.topbar-title{font-size:16px;}.elbow{width:64px;}}
+  .small{font-size:11px;color:var(--text-dim);}
+  .event-card{border:1px solid var(--hair);border-radius:8px;padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:border-color .12s ease;}
+  .event-card:hover{border-color:var(--signal);}
+  .event-card.selected{border-color:var(--signal);background:rgba(255,145,66,.05);}
+  .event-card .ev-name{font-family:'Antonio',sans-serif;font-weight:700;font-size:15px;}
+  .event-card .ev-meta{font-size:11px;color:var(--text-dim);margin-top:2px;}
+  textarea.copybox{width:100%;min-height:200px;background:var(--panel-2);color:var(--text);border:1px solid var(--hair);border-radius:6px;font-family:'Space Mono',monospace;font-size:11.5px;padding:10px;white-space:pre;}
+  ::-webkit-scrollbar{width:8px;height:8px;} ::-webkit-scrollbar-thumb{background:var(--hair);border-radius:4px;}
+  .loading{padding:40px;text-align:center;color:var(--text-dim);font-size:12px;}
+  .db-badge{font-size:10px;display:flex;align-items:center;gap:5px;justify-content:flex-end;margin-top:2px;}
+  .db-badge .status-dot{margin-right:0;}
+  .errbox{background:#2a1414;border:1px solid var(--alert);color:#ffb3b6;padding:14px 16px;border-radius:8px;font-size:11.5px;margin-bottom:18px;white-space:pre-wrap;word-break:break-word;}
+  .viewonly-badge{background:var(--panel-2);border:1px solid var(--hair);color:var(--text-dim);font-size:10px;padding:3px 9px;border-radius:20px;letter-spacing:.05em;text-transform:uppercase;}
+  .toast{position:fixed;bottom:20px;right:20px;background:var(--panel);border:1px solid var(--signal);color:var(--text);padding:10px 16px;border-radius:8px;font-size:12px;box-shadow:0 4px 20px rgba(0,0,0,.4);z-index:50;opacity:0;transform:translateY(8px);transition:all .2s ease;pointer-events:none;max-width:320px;}
+  .toast.show{opacity:1;transform:translateY(0);}
+  .arc-banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  th.sortable{cursor:pointer;user-select:none;}
+  th.sortable:hover{color:var(--text);}
+  th.sortable .arrow{color:var(--signal);margin-left:3px;}
+  .updated-line{font-size:10.5px;color:var(--text-faint);margin-bottom:10px;display:flex;align-items:center;gap:5px;}
+  th.ev-th{max-width:120px;white-space:normal;vertical-align:bottom;}
+  th.ev-th .ev-th-name{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.3;}
+  th.ev-th .ev-th-date{display:block;margin-top:3px;font-size:9.5px;color:var(--text-faint);font-weight:400;letter-spacing:.03em;text-transform:none;}
+
+/* ===== PHX cross-page nav strip ===== */
+.phx-nav{
+  position:sticky; top:0; z-index:9999;
+  display:flex; align-items:center; gap:4px;
+  background:#0a0a0d; border-bottom:2px solid #f2a93b;
+  padding:0 14px; height:36px;
+  font-family:ui-monospace,'SF Mono','Consolas',monospace;
+  overflow-x:auto; white-space:nowrap;
+}
+.phx-nav .phx-nav-tag{
+  color:#f2a93b; font-weight:700; letter-spacing:.12em; font-size:11px;
+  margin-right:12px; flex-shrink:0;
+}
+.phx-nav a{
+  color:#9a9aa4; text-decoration:none; font-size:11px; letter-spacing:.06em;
+  text-transform:uppercase; padding:8px 12px; border-radius:0 0 6px 6px;
+  transition:color .15s ease, background .15s ease; flex-shrink:0;
+}
+.phx-nav a:hover{ color:#e8e6e1; background:rgba(255,255,255,.06); }
+.phx-nav a.current{ color:#0a0a0d; background:#f2a93b; font-weight:700; }
+
+/* ===== header ticker: next 2 territory captures + next 2 upcoming events (shared across all pages) ===== */
+.phx-ticker{
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  background:#111116; border-bottom:2px solid #2a2a34;
+  padding:7px 22px; font-family:ui-monospace,'SF Mono','Consolas',monospace; font-size:11.5px;
+  color:#e8e6e1; flex-shrink:0;
+}
+.tc-group{ display:flex; align-items:center; gap:14px; flex-shrink:0; flex-wrap:wrap; }
+.tc-next{ display:flex; align-items:center; gap:7px; }
+.tc-next .tc-label{
+  color:#0a0a0d; background:#5fd068; font-weight:700; letter-spacing:.06em; text-transform:uppercase; font-size:10px;
+  padding:2px 7px; border-radius:4px; flex-shrink:0;
+}
+.tc-next.tc-then .tc-label{ background:#8fa3ff; }
+.tc-next .tc-name{ font-weight:700; }
+.tc-next .tc-countdown{ color:#5fd068; }
+.tc-next.tc-then .tc-countdown{ color:#8fa3ff; }
+.ev-ticker-wrap{
+  flex:1; min-width:200px; display:flex; align-items:center; gap:7px;
+  border-left:1px solid #2a2a34; padding-left:16px; overflow:hidden;
+}
+.ev-ticker-wrap .ev-label{
+  color:#8a8a94; font-weight:700; letter-spacing:.06em; text-transform:uppercase; font-size:10px; flex-shrink:0;
+}
+#evTicker{
+  color:#8fa3ff; opacity:1; transition:opacity .4s ease;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#evTicker .ev-sep{ color:#55555f; margin:0 8px; }
+#evTicker.fade{ opacity:0; }
+@media (max-width:820px){ .phx-ticker{ padding:7px 12px; font-size:10.5px; gap:10px;} .ev-ticker-wrap{ padding-left:10px; } .tc-group{ gap:8px; } }
+
+
+.hero-ticker{ display:flex; align-items:center; gap:10px; height:22px; overflow:hidden; background:rgba(242,169,59,.06); border-bottom:1px solid rgba(242,169,59,.25); padding:0 10px; }
+.hero-ticker-label{ flex:0 0 auto; color:#f2a93b; font-weight:700; font-size:10.5px; letter-spacing:.07em; font-family:'Share Tech Mono', 'Space Mono', monospace; white-space:nowrap; }
+.hero-ticker-scroll{ flex:1 1 auto; overflow:hidden; white-space:nowrap; height:100%; position:relative; }
+.hero-ticker .htrack{ display:inline-block; font-family:'Share Tech Mono', 'Space Mono', monospace; font-size:11px; line-height:22px; animation-name:heroTickerScroll; animation-timing-function:linear; animation-iteration-count:infinite; }
+.hero-ticker .hgrouphead{ color:#f2a93b; font-weight:700; letter-spacing:.05em; }
+.hero-ticker .hname{ color:#f2a93b; font-weight:700; }
+.hero-ticker .hscore{ color:#4fd1c5; }
+@keyframes heroTickerScroll{ 0%{transform:translateX(0);} 100%{transform:translateX(-50%);} }
+</style>
+</head>
+<body>
+<nav class="phx-nav"><span class="phx-nav-tag">PHX</span><a href="index.html">🏠 Home</a><a href="alb-participation.html" class="current">ALB Participation</a></nav>
+<div class="hero-ticker"><span class="hero-ticker-label">🏆 ALLIANCE HEROES</span><div class="hero-ticker-scroll" id="heroTicker"></div></div>
+
+<div id="app"><div class="loading">Establishing uplink to database…</div></div>
+<div class="toast" id="toast"></div>
+
+<script src="events-data.js"></script>
+<script>
+/* ================= SUPABASE CONFIG (read-only usage) ================= */
+const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+
+let roster = [];
+let events = [];
+let arcs = [];
+let view = 'events';
+let lbEventId = null;
+let lbGradeFilters = new Set();
+let selectedEventId = null;
+let dbStatus = 'connecting';
+let dbError = '';
+let compGradeFilters = new Set();
+let compIncludeTest = false;
+let arcFilterId = null; // 'ALL' or an arc id; initialized after load
+let lastLoadedAt = null;
+let dataUpdatedAt = null;
+let rosterSort = {key:'status', dir:'asc'};
+let lbSort = {key:'rank', dir:'asc'};
+let compSort = {key:'pct', dir:'desc'};
+
+const app = document.getElementById('app');
+const toastEl = document.getElementById('toast');
+function toast(msg){ toastEl.textContent=msg; toastEl.classList.add('show'); clearTimeout(toastEl._t); toastEl._t=setTimeout(()=>toastEl.classList.remove('show'),2400); }
+
+function gradeForLevel(level){ level=Number(level); if(level<=20) return 'G1'; return 'G'+(Math.floor((level-21)/10)+2); }
+function gradeClass(g){ return 'pill-'+g.toLowerCase(); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDDMM(dateStr){ if(!dateStr) return ''; const parts=String(dateStr).split('-'); if(parts.length<3) return ''; return parts[2]+'/'+parts[1]; }
+
+async function sb(path){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers:{ 'apikey':SUPABASE_KEY, 'Authorization':`Bearer ${SUPABASE_KEY}` }
+  });
+  if(!res.ok){
+    let msg=''; try{ const j=await res.json(); msg=j.message||JSON.stringify(j); }catch(e){ msg=res.statusText; }
+    throw new Error(`${res.status}: ${msg}`);
+  }
+  return res.json();
+}
+
+function setDbStatus(s,e){ dbStatus=s; dbError=e||''; updateDbBadge(); }
+function updateDbBadge(){
+  const el=document.getElementById('dbBadge'); if(!el) return;
+  const map={connecting:{text:'Connecting…',dot:'dot-grey'},connected:{text:'Connected · Supabase',dot:'dot-green'},error:{text:'Connection error',dot:'dot-red'}};
+  const s=map[dbStatus]||map.connecting;
+  el.innerHTML=`<span class="status-dot ${s.dot}"></span>${s.text}`;
+}
+
+async function loadAll(){
+  setDbStatus('connecting');
+  try{
+    const [rosterRows, eventRows, scoreRows, arcRows, latestScore, latestEvent] = await Promise.all([
+      sb('roster?select=*&order=name.asc'),
+      sb('events?select=*&order=date.desc'),
+      sb('scores?select=*'),
+      sb('arcs?select=*&order=end_date.desc'),
+      sb('scores?select=updated_at&order=updated_at.desc&limit=1'),
+      sb('events?select=updated_at&order=updated_at.desc&limit=1')
+    ]);
+    roster = rosterRows || [];
+    arcs = arcRows || [];
+    const arcById = {}; arcs.forEach(a=>{ arcById[a.id]=a; });
+    events = (eventRows||[]).map(e=>({...e, entries:{}, arc: arcById[e.arc_id]||null}));
+    (scoreRows||[]).forEach(s=>{
+      const ev = events.find(e=>e.id===s.event_id);
+      if(ev) ev.entries[s.player_id] = s.score;
+    });
+    if(arcFilterId === null){
+      const activeArc = arcs.find(a=>a.status==='active');
+      arcFilterId = activeArc ? activeArc.id : 'ALL';
+    }
+    const candidates = [];
+    if(latestScore && latestScore[0]) candidates.push(new Date(latestScore[0].updated_at));
+    if(latestEvent && latestEvent[0]) candidates.push(new Date(latestEvent[0].updated_at));
+    dataUpdatedAt = candidates.length ? new Date(Math.max(...candidates.map(d=>d.getTime()))) : null;
+    lastLoadedAt = new Date();
+    setDbStatus('connected');
+  }catch(e){
+    console.error(e);
+    setDbStatus('error', e.message);
+  }
+  render();
+}
+
+function allGrades(){ return Array.from(new Set(roster.map(p=>gradeForLevel(p.level)))).sort(); }
+function gradePercentiles(ev, grade){
+  const scorers = roster.filter(p=>p.status==='active' && gradeForLevel(p.level)===grade)
+                          .map(p=>({id:p.id, score:Number(ev.entries[p.id])||0}))
+                          .filter(x=>x.score>0);
+  const pctMap = {};
+  if(!scorers.length) return pctMap;
+  const maxScore = Math.max(...scorers.map(s=>s.score));
+  const topScorers = scorers.filter(s=>s.score===maxScore);
+  const rest = scorers.filter(s=>s.score!==maxScore);
+  topScorers.forEach(s=>{ pctMap[s.id] = 100; }); // guaranteed gold, excluded from the pool below
+  const n = rest.length;
+  rest.forEach(s=>{
+    const higherCount = rest.filter(x=>x.score > s.score).length;
+    pctMap[s.id] = n ? 100*(n-higherCount)/n : 0;
+  });
+  return pctMap;
+}
+function tierForPercentile(pct){
+  if(pct>=80) return {label:'Top 20%', color:'var(--tier-gold)', tier:'gold'};
+  if(pct>=60) return {label:'60-79%', color:'var(--mint)', tier:'green'};
+  if(pct>=40) return {label:'40-59%', color:'var(--tier-amber)', tier:'amber'};
+  if(pct>=20) return {label:'20-39%', color:'var(--tier-pink)', tier:'pink'};
+  if(pct>=5) return {label:'5-19%', color:'var(--tier-lightred)', tier:'lightred'};
+  return {label:'0-4%', color:'var(--tier-darkred)', tier:'darkred'};
+}
+function statusForPercentile(score, pctMap, playerId){
+  const s = Number(score)||0;
+  if(s<=0) return {label:'No score', dot:'dot-grey', color:'var(--text-faint)', tier:'none'};
+  const pct = pctMap[playerId] ?? 0;
+  const t = tierForPercentile(pct);
+  return {...t, pct};
+}
+const GOOD_TIERS = new Set(['gold','green']);
+function thresholdForGrade(ev, grade){
+  if(ev.grade_thresholds && ev.grade_thresholds[grade]!==undefined) return ev.grade_thresholds[grade];
+  return ev.threshold;
+}
+function scoringDisplay(ev){
+  if(ev.scoring_type==='tasks') return `threshold ${Number(ev.threshold).toLocaleString()}`;
+  if(ev.completion_mode==='threshold') return ev.grade_thresholds ? Object.entries(ev.grade_thresholds).map(([g,t])=>`${g}: ${Number(t).toLocaleString()}+`).join(' · ') : `threshold ${Number(ev.threshold).toLocaleString()}`;
+  return `Percentile rank within grade (top 20% gold)`;
+}
+function statusFor(score, threshold){
+  if(score===undefined||score===null||score==='') return {label:'No score',dot:'dot-grey',color:'var(--text-faint)'};
+  const s=Number(score);
+  if(s<=0) return {label:'0 pts',dot:'dot-red',color:'var(--alert)'};
+  if(s>=threshold) return {label:'Complete',dot:'dot-green',color:'var(--mint)'};
+  return {label:'In progress',dot:'dot-amber',color:'var(--gold)'};
+}
+function isEligible(ev, p){
+  if(!ev.eligible_grades || ev.eligible_grades.length===0) return true;
+  return ev.eligible_grades.includes(gradeForLevel(p.level));
+}
+function sortedArcs(){
+  const active = arcs.filter(a=>a.status==='active').sort((a,b)=>b.end_date.localeCompare(a.end_date));
+  const archived = arcs.filter(a=>a.status!=='active').sort((a,b)=>b.end_date.localeCompare(a.end_date));
+  return [...active, ...archived];
+}
+function arcSelectorHtml(idPrefix){
+  const list = sortedArcs();
+  const opts = [`<option value="ALL" ${arcFilterId==='ALL'?'selected':''}>All arcs (combined)</option>`]
+    .concat(list.map(a=>`<option value="${a.id}" ${arcFilterId===a.id?'selected':''}>${escapeHtml(a.name)}${a.status!=='active'?' (archived)':''} · ${a.start_date}→${a.end_date}</option>`));
+  return `<select id="${idPrefix}ArcSelect">${opts.join('')}</select>`;
+}
+function eventsInSelectedArc(){
+  if(arcFilterId==='ALL') return events;
+  return events.filter(e=>e.arc_id===arcFilterId);
+}
+function activeArc(){ return arcs.find(a=>a.status==='active') || null; }
+function eventsInActiveArc(){
+  const a = activeArc();
+  if(!a) return [];
+  return events.filter(e=>e.arc_id===a.id);
+}
+function updatedLine(){
+  if(!dataUpdatedAt) return '';
+  return `<div class="updated-line"><span class="status-dot dot-green"></span>Data last uploaded to Supabase: ${dataUpdatedAt.toLocaleString()}</div>`;
+}
+function sortArrow(state,key){ return state.key===key ? `<span class="arrow">${state.dir==='asc'?'▲':'▼'}</span>` : ''; }
+function bindSort(main, state, selector){
+  main.querySelectorAll(selector).forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const k = th.dataset.sort;
+      if(state.key===k) state.dir = state.dir==='asc'?'desc':'asc';
+      else { state.key = k; state.dir = 'asc'; }
+      render();
+    });
+  });
+}
+function cmp(a,b,dir){
+  let c;
+  if(typeof a==='number' && typeof b==='number') c = a-b;
+  else c = String(a).localeCompare(String(b));
+  return dir==='desc' ? -c : c;
+}
+
+/* =========================================================
+   HEADER TICKER — next 2 Territory Captures (persistent) +
+   next 2 upcoming events (rotating pair).
+   Pulls from EVENTS/nextOccurrenceUTC in events-data.js — shared
+   and identical across every page so the schedule always matches.
+   ========================================================= */
+let tickerNextTerritory = [];     // [{ev, utcDate}, {ev, utcDate}] soonest first
+let tickerOtherQueue = [];        // [{ev, utcDate, label}, ...] sorted, soonest first
+let tickerRotateIdx = 0;
+let tickerStarted = false;
+
+function fmtCountdown(utcDate){
+  const diffMs = utcDate - new Date();
+  if(diffMs <= 0) return 'underway now';
+  const mins = Math.round(diffMs/60000);
+  const d = Math.floor(mins/1440);
+  const h = Math.floor((mins%1440)/60);
+  const m = mins%60;
+  const parts = [];
+  if(d) parts.push(d+'d');
+  if(h) parts.push(h+'h');
+  if(!d && m) parts.push(m+'m');
+  if(!parts.length) parts.push('<1m');
+  return 'in ' + parts.join(' ');
+}
+
+function recomputeTickerData(){
+  if(typeof EVENTS === 'undefined') return; // events-data.js not loaded
+  const now = new Date();
+
+  const territoryHits = EVENTS
+    .filter(e => e.category === 'TERRITORY')
+    .map(ev => ({ev, occ: nextOccurrenceUTC(ev, now)}))
+    .filter(x => x.occ);
+  territoryHits.sort((a,b) => a.occ.utcDate - b.occ.utcDate);
+  tickerNextTerritory = territoryHits.slice(0, 2).map(x => ({ev: x.ev, utcDate: x.occ.utcDate}));
+
+  const otherHits = EVENTS
+    .filter(e => e.category !== 'TERRITORY')
+    .map(ev => ({ev, occ: nextOccurrenceUTC(ev, now)}))
+    .filter(x => x.occ);
+  otherHits.sort((a,b) => a.occ.utcDate - b.occ.utcDate);
+  tickerOtherQueue = otherHits.slice(0, 10).map(x => ({ev: x.ev, utcDate: x.occ.utcDate, label: x.occ.label}));
+  if(tickerRotateIdx >= tickerOtherQueue.length) tickerRotateIdx = 0;
+}
+
+function updateTickerDOM(){
+  const tcEl = document.getElementById('tcNext');
+  const tcEl2 = document.getElementById('tcThen');
+  const evEl = document.getElementById('evTicker');
+  if(!tcEl || !evEl) return; // ticker not in current DOM yet
+
+  const t0 = tickerNextTerritory[0], t1 = tickerNextTerritory[1];
+  if(t0){
+    tcEl.innerHTML = `<span class="tc-label">Next Capture</span><span class="tc-name">${escapeHtml(t0.ev.name.replace(' — Territory Capture',''))}</span><span class="tc-countdown">${fmtCountdown(t0.utcDate)}</span>`;
+  } else {
+    tcEl.innerHTML = `<span class="tc-label">Next Capture</span><span>None scheduled</span>`;
+  }
+  if(tcEl2){
+    if(t1){
+      tcEl2.innerHTML = `<span class="tc-label">Then</span><span class="tc-name">${escapeHtml(t1.ev.name.replace(' — Territory Capture',''))}</span><span class="tc-countdown">${fmtCountdown(t1.utcDate)}</span>`;
+      tcEl2.style.display = '';
+    } else {
+      tcEl2.style.display = 'none';
+    }
+  }
+
+  if(tickerOtherQueue.length){
+    const cur = tickerOtherQueue[tickerRotateIdx];
+    const next = tickerOtherQueue.length > 1 ? tickerOtherQueue[(tickerRotateIdx+1) % tickerOtherQueue.length] : null;
+    let html = `${escapeHtml(cur.ev.name)} — ${fmtCountdown(cur.utcDate)}`;
+    if(next && next !== cur){
+      html += `<span class="ev-sep">·</span>${escapeHtml(next.ev.name)} — ${fmtCountdown(next.utcDate)}`;
+    }
+    evEl.innerHTML = html;
+  } else {
+    evEl.textContent = 'Nothing else on the schedule right now';
+  }
+}
+
+function rotateTicker(){
+  const evEl = document.getElementById('evTicker');
+  if(!evEl || tickerOtherQueue.length < 3) { updateTickerDOM(); return; }
+  evEl.classList.add('fade');
+  setTimeout(() => {
+    tickerRotateIdx = (tickerRotateIdx + 1) % tickerOtherQueue.length;
+    updateTickerDOM();
+    evEl.classList.remove('fade');
+  }, 400);
+}
+
+function startHeaderTicker(){
+  if(tickerStarted) return;
+  tickerStarted = true;
+  recomputeTickerData();
+  updateTickerDOM();
+  setInterval(rotateTicker, 5500);          // slide the "also upcoming" pair
+  setInterval(() => { recomputeTickerData(); updateTickerDOM(); }, 60000); // refresh countdowns + reorder queue
+}
+
+function render(){
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="elbow"><span>PHX</span></div>
+      <div class="topbar-bar">
+        <div>
+          <div class="topbar-title"><b>PHOENIX</b> EU168 EVENTS <span class="viewonly-badge">View Only</span></div>
+          <div class="topbar-sub">${roster.filter(p=>p.status==='active').length} active members</div>
+        </div>
+        <div class="stardate"><div class="db-badge" id="dbBadge"></div></div>
+      </div>
+    </div>
+    <div class="phx-ticker">
+      <div class="tc-group">
+        <div class="tc-next" id="tcNext"><span class="tc-label">Next Capture</span><span>Loading…</span></div>
+        <div class="tc-next tc-then" id="tcThen"><span class="tc-label">Then</span><span>Loading…</span></div>
+      </div>
+      <div class="ev-ticker-wrap"><span class="ev-label">Also Upcoming</span><span id="evTicker">Loading…</span></div>
+    </div>
+    <div class="body-row">
+      <div class="sidebar">
+        <button class="navbtn nav-1 ${view==='events'?'active':''}" data-nav="events"><span class="label">${activeArc()?escapeHtml(activeArc().name):'Current Arc'} Events</span></button>
+        <button class="navbtn nav-4 ${view==='arcCompletion'?'active':''}" data-nav="arcCompletion"><span class="label">${activeArc()?escapeHtml(activeArc().name):'Current Arc'} Completion %</span></button>
+        <button class="navbtn nav-2 ${view==='overallCompletion'?'active':''}" data-nav="overallCompletion"><span class="label">Overall Completion</span></button>
+        <button class="navbtn nav-5 ${view==='members'?'active':''}" data-nav="members"><span class="label">Members</span></button>
+        <button class="navbtn nav-3 ${view==='history'?'active':''}" data-nav="history"><span class="label">History</span></button>
+        <button class="navbtn nav-6 ${view==='scoringMetrics'?'active':''}" data-nav="scoringMetrics"><span class="label">Scoring Metrics</span></button>
+        <div class="sidebar-foot">Read-only view of the live alliance database. "${activeArc()?escapeHtml(activeArc().name):'Current arc'}" tabs auto-update whenever a new arc goes active. To log scores, edit members, or manage arcs, use the interactive tracker in Claude.
+          <a class="support-link" href="https://www.buymeacoffee.com/ajaykhoulo7" target="_blank" rel="noopener">🍺 Buy me a beer</a>
+        </div>
+      </div>
+      <main id="main"></main>
+    </div>
+  `;
+  app.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>{view=b.dataset.nav;render();}));
+  updateDbBadge();
+  updateTickerDOM();
+  const main = document.getElementById('main');
+  if(dbStatus==='error'){
+    main.innerHTML = `<div class="errbox"><b>Could not reach the database.</b>\n${escapeHtml(dbError)}\n\n<button class="btn btn-signal btn-sm" id="retryBtn" style="margin-top:8px;">Retry</button></div>`;
+    main.querySelector('#retryBtn').addEventListener('click', loadAll);
+    return;
+  }
+  if(view==='events') renderEvents(main);
+  else if(view==='history') renderHistory(main);
+  else if(view==='scoringMetrics') renderScoringMetrics(main);
+  else if(view==='arcCompletion') renderArcCompletion(main);
+  else if(view==='overallCompletion') renderOverallCompletion(main);
+  else if(view==='members') renderRoster(main);
+}
+
+/* ---------------- ARC COMPLETION (locked to current active arc) ---------------- */
+function renderArcCompletion(main){
+  const arc = activeArc();
+  const grades = allGrades();
+  const arcEvents = eventsInActiveArc();
+  const relevantEvents = arcEvents.filter(e => compIncludeTest || !e.is_test).slice().sort((a,b)=> a.date.localeCompare(b.date));
+  const title = arc ? escapeHtml(arc.name) : 'Current Arc';
+
+  main.innerHTML = `
+    <div class="section-head"><h1>${title} <span class="accent">Completion %</span></h1></div>
+    <div class="section-desc" style="margin-bottom:16px;">Every active member against every event in the current arc (${arc?escapeHtml(arc.name)+' · '+arc.start_date+' → '+arc.end_date:'no active arc set'}). Green check/number = hit that event's threshold. N/A = not eligible (excluded from their rate). This tab always tracks whichever arc is currently active — see Overall Completion for all-time stats.</div>
+    <div class="panel">
+      <div class="row">
+        <div class="row" id="compGradePills">
+          ${grades.map(g=>`<button class="btn btn-sm ${compGradeFilters.has(g)?'btn-signal':'btn-ghost'}" data-grade="${g}">${g}</button>`).join('')}
+          <button class="btn btn-sm ${compGradeFilters.size===0?'btn-peri':'btn-ghost'}" id="compGradeClear">All grades</button>
+        </div>
+        <label class="small" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="compIncTest" ${compIncludeTest?'checked':''}> Include test events
+        </label>
+      </div>
+    </div>
+    <div id="compTableWrap"></div>
+  `;
+
+  main.querySelectorAll('#compGradePills [data-grade]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const g = btn.dataset.grade;
+      if(compGradeFilters.has(g)) compGradeFilters.delete(g); else compGradeFilters.add(g);
+      render();
+    });
+  });
+  main.querySelector('#compGradeClear').addEventListener('click', ()=>{ compGradeFilters.clear(); render(); });
+  main.querySelector('#compIncTest').addEventListener('change', e=>{ compIncludeTest=e.target.checked; render(); });
+
+  const wrap = main.querySelector('#compTableWrap');
+  if(!arc){ wrap.innerHTML = `<div class="empty">No active arc is set right now.</div>`; return; }
+  if(relevantEvents.length===0){ wrap.innerHTML = `<div class="empty">No events in ${escapeHtml(arc.name)} yet.</div>`; return; }
+  renderCompletionTable(wrap, relevantEvents, grades);
+}
+
+/* ---------------- OVERALL COMPLETION (all arcs, all time) ---------------- */
+function renderOverallCompletion(main){
+  const grades = allGrades();
+  const relevantEvents = events.filter(e => compIncludeTest || !e.is_test).slice().sort((a,b)=> a.date.localeCompare(b.date));
+
+  main.innerHTML = `
+    <div class="section-head"><h1>Overall <span class="accent">Completion</span></h1></div>
+    <div class="section-desc" style="margin-bottom:16px;">Every active member against every event ever logged, across all arcs (active and archived). Use this for long-term participation tracking rather than a single arc's snapshot.</div>
+    <div class="panel">
+      <div class="row">
+        <div class="row" id="compGradePills">
+          ${grades.map(g=>`<button class="btn btn-sm ${compGradeFilters.has(g)?'btn-signal':'btn-ghost'}" data-grade="${g}">${g}</button>`).join('')}
+          <button class="btn btn-sm ${compGradeFilters.size===0?'btn-peri':'btn-ghost'}" id="compGradeClear">All grades</button>
+        </div>
+        <label class="small" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="compIncTest" ${compIncludeTest?'checked':''}> Include test events
+        </label>
+      </div>
+    </div>
+    <div id="compTableWrap"></div>
+  `;
+
+  main.querySelectorAll('#compGradePills [data-grade]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const g = btn.dataset.grade;
+      if(compGradeFilters.has(g)) compGradeFilters.delete(g); else compGradeFilters.add(g);
+      render();
+    });
+  });
+  main.querySelector('#compGradeClear').addEventListener('click', ()=>{ compGradeFilters.clear(); render(); });
+  main.querySelector('#compIncTest').addEventListener('change', e=>{ compIncludeTest=e.target.checked; render(); });
+
+  const wrap = main.querySelector('#compTableWrap');
+  if(relevantEvents.length===0){ wrap.innerHTML = `<div class="empty">No events logged yet.</div>`; return; }
+  renderCompletionTable(wrap, relevantEvents, grades);
+}
+
+/* Shared table renderer used by both completion tabs */
+function renderCompletionTable(wrap, relevantEvents, grades){
+  let members = roster.filter(p=>p.status==='active');
+  if(compGradeFilters.size>0) members = members.filter(p=>compGradeFilters.has(gradeForLevel(p.level)));
+
+  const mainMembers = members.filter(p=>parseInt(gradeForLevel(p.level).slice(1),10)>=6);
+  const subMembers = members.filter(p=>parseInt(gradeForLevel(p.level).slice(1),10)<6);
+
+  const pctCache = {};
+  relevantEvents.forEach(ev=>{
+    if(ev.scoring_type==='tasks' || ev.completion_mode==='threshold') return;
+    pctCache[ev.id] = {};
+    allGrades().forEach(g=> pctCache[ev.id][g] = gradePercentiles(ev, g));
+  });
+
+  function buildRow(p){
+    const grade = gradeForLevel(p.level);
+    const cells = relevantEvents.map(ev=>{
+      if(!isEligible(ev,p)) return {type:'bye', ev};
+      const score = ev.entries[p.id];
+      if(ev.scoring_type==='tasks'){
+        const complete = score!==undefined && score >= ev.threshold;
+        return {type:'normal', ev, score, complete, hasScore: score!==undefined && score>0, mode:'tasks'};
+      }
+      if(ev.completion_mode==='threshold'){
+        const complete = score!==undefined && score >= thresholdForGrade(ev, grade);
+        return {type:'normal', ev, score, complete, hasScore: score!==undefined && score>0, mode:'threshold'};
+      }
+      const st = statusForPercentile(score, pctCache[ev.id][grade], p.id);
+      return {type:'normal', ev, score, st, complete: GOOD_TIERS.has(st.tier), hasScore: st.tier!=='none', mode:'percentile'};
+    });
+    const eligibleCells = cells.filter(c=>c.type!=='bye');
+    const completedCount = eligibleCells.filter(c=>c.complete).length;
+    const pct = eligibleCells.length ? Math.round(100*completedCount/eligibleCells.length) : 0;
+    return {name:p.name, grade, cells, completedCount, totalEligible: eligibleCells.length, pct};
+  }
+
+  function sortRows(rows){
+    return rows.sort((a,b)=>{
+      let av,bv;
+      if(compSort.key==='name'){ av=a.name.toLowerCase(); bv=b.name.toLowerCase(); }
+      else if(compSort.key==='grade'){ av=parseInt(a.grade.slice(1)); bv=parseInt(b.grade.slice(1)); }
+      else if(compSort.key==='completed'){ av=a.completedCount; bv=b.completedCount; }
+      else { av=a.pct; bv=b.pct; }
+      const c = cmp(av,bv,compSort.dir);
+      return c!==0 ? c : a.name.localeCompare(b.name);
+    });
+  }
+
+  const mainRows = sortRows(mainMembers.map(buildRow));
+  const subRows = sortRows(subMembers.map(buildRow));
+
+  const headerCells = relevantEvents.map(ev=>{
+    const endDate = ev.end_date || ev.date;
+    const dateLabel = fmtDDMM(endDate);
+    return `<th class="ev-th" title="${ev.arc?escapeHtml(ev.arc.name)+' · ':''}${escapeHtml(ev.name)} · ${ev.date}"><span class="ev-th-name">${escapeHtml(ev.name)}</span>${dateLabel?`<span class="ev-th-date">${dateLabel}</span>`:''}</th>`;
+  }).join('');
+
+  function taskColor(score){
+    if(score>=15) return 'var(--tier-gold, #ffea00)';
+    if(score>=12) return 'var(--mint)';
+    if(score>=9) return 'var(--tier-amber)';
+    if(score>=6) return 'var(--tier-pink, #ff6ec7)';
+    if(score>=3) return 'var(--tier-lightred, #ff8a80)';
+    return 'var(--tier-darkred, #8b1e1e)';
+  }
+
+  function cellHtml(c){
+    if(c.type==='bye') return `<td style="text-align:center;color:var(--text-faint);" title="Not eligible for this event">N/A</td>`;
+    if(c.ev.scoring_type==='tasks'){
+      if(c.score===undefined) return `<td style="text-align:center;color:var(--text-faint);">✗</td>`;
+      const max = c.ev.max_tasks || c.ev.threshold || 15;
+      return `<td style="text-align:center;color:${taskColor(c.score)};font-weight:bold;">${c.score}/${max}</td>`;
+    }
+    if(c.mode==='threshold'){
+      if(!c.hasScore) return `<td style="text-align:center;color:var(--text-faint);">✗</td>`;
+      return `<td style="text-align:center;color:${c.complete?'var(--mint)':'var(--gold)'};font-weight:bold;">${Number(c.score).toLocaleString()}</td>`;
+    }
+    if(c.st.tier==='none') return `<td style="text-align:center;color:var(--text-faint);">✗</td>`;
+    return `<td style="text-align:center;color:${c.st.color};font-weight:bold;">${Number(c.score).toLocaleString()}</td>`;
+  }
+
+  function mainTableHtml(rows){
+    return `
+    <div class="panel" style="padding:0;overflow:auto;max-height:65vh;">
+      <table>
+        <thead><tr>
+          <th class="sortable col-freeze" data-sort="name">Name${sortArrow(compSort,'name')}</th>
+          <th class="sortable" data-sort="grade">Grade${sortArrow(compSort,'grade')}</th>
+          ${headerCells}
+          <th class="sortable" data-sort="completed">Completed${sortArrow(compSort,'completed')}</th>
+          <th class="sortable" data-sort="pct">Rate${sortArrow(compSort,'pct')}</th>
+        </tr></thead>
+        <tbody>
+        ${rows.map(r=>{
+          const rowCells = r.cells.map(cellHtml).join('');
+          const rateColor = r.pct>=75?'var(--mint)':r.pct>=40?'var(--gold)':'var(--alert)';
+          return `<tr><td class="col-freeze">${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td>${rowCells}<td>${r.completedCount}/${r.totalEligible}</td><td style="color:${rateColor};font-weight:bold;">${r.pct}%</td></tr>`;
+        }).join('') || `<tr><td colspan="${4+relevantEvents.length}" class="empty">No matching members.</td></tr>`}
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  function subTableHtml(rows){
+    return `
+    <div class="panel" style="padding:0;overflow:auto;max-height:65vh;">
+      <table>
+        <thead><tr>
+          <th class="sortable col-freeze" data-sort="name">Name${sortArrow(compSort,'name')}</th>
+          <th class="sortable" data-sort="grade">Grade${sortArrow(compSort,'grade')}</th>
+          ${headerCells}
+          <th>Completed</th>
+        </tr></thead>
+        <tbody>
+        ${rows.map(r=>{
+          const rowCells = r.cells.map(cellHtml).join('');
+          return `<tr><td class="col-freeze">${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td>${rowCells}<td style="color:var(--text-faint);">n/a</td></tr>`;
+        }).join('') || `<tr><td colspan="${3+relevantEvents.length}" class="empty">No matching members.</td></tr>`}
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  wrap.innerHTML += `
+    ${updatedLine()}
+    ${mainTableHtml(mainRows)}
+    <div class="small" style="margin-top:6px;">Percentile-scored events, ranked within your grade (top scorer always gold, excluded from the rest of the ranking so they don't crowd out everyone else): <span style="color:var(--tier-gold)">Gold</span> = top 20% &nbsp;·&nbsp; <span style="color:var(--mint)">Green</span> = 60–79% &nbsp;·&nbsp; <span style="color:var(--tier-amber)">Amber</span> = 40–59% &nbsp;·&nbsp; <span style="color:var(--tier-pink)">Pink</span> = 20–39% &nbsp;·&nbsp; <span style="color:var(--tier-lightred)">Light red</span> = 5–19% &nbsp;·&nbsp; <span style="color:var(--tier-darkred)">Dark red</span> = bottom 4% &nbsp;·&nbsp; ✗ = no score logged &nbsp;·&nbsp; N/A = not eligible (doesn't count against rate) &nbsp;·&nbsp; Tournament (task) cells: <span style="color:var(--tier-gold)">Gold</span> 15/15 &nbsp;·&nbsp; <span style="color:var(--mint)">Green</span> 12–14 &nbsp;·&nbsp; <span style="color:var(--tier-amber)">Amber</span> 9–11 &nbsp;·&nbsp; <span style="color:var(--tier-pink)">Pink</span> 6–8 &nbsp;·&nbsp; <span style="color:var(--tier-lightred)">Light red</span> 3–5 &nbsp;·&nbsp; <span style="color:var(--tier-darkred)">Dark red</span> 0–2</div>
+    ${subMembers.length ? `
+    <div class="section-desc" style="margin:22px 0 8px;">
+      <strong>G1–G5 members</strong> — shown separately. These grades play a different real-world event set that this tracker doesn't have visibility into, so a Completed/Rate column here would be misleading (it would show 100% for anyone with zero tracked events, which isn't a fair reflection of participation). Cells below show whatever's actually logged for them, with no summary rate attached.
+    </div>
+    ${subTableHtml(subRows)}
+    ` : ''}
+  `;
+  bindSort(wrap, compSort, 'th[data-sort]');
+}
+
+/* ---------------- ROSTER ---------------- */
+function renderRoster(main){
+  const sorted = roster.slice().sort((a,b)=>{
+    let av,bv;
+    if(rosterSort.key==='name'){ av=a.name.toLowerCase(); bv=b.name.toLowerCase(); }
+    else if(rosterSort.key==='level'){ av=a.level; bv=b.level; }
+    else if(rosterSort.key==='grade'){ av=parseInt(gradeForLevel(a.level).slice(1)); bv=parseInt(gradeForLevel(b.level).slice(1)); }
+    else { av=a.status; bv=b.status; }
+    const c = cmp(av,bv,rosterSort.dir);
+    return c!==0 ? c : a.name.localeCompare(b.name);
+  });
+  main.innerHTML = `
+    <div class="section-head"><h1>Alliance <span class="accent">Members</span></h1></div>
+    <div class="section-desc" style="margin-bottom:16px;">Grade is calculated from level (G1 spans 1–20; every band after that is 10 levels wide). Click a column header to sort.</div>
+    ${updatedLine()}
+    <div class="panel" style="padding:0;overflow:auto;max-height:65vh;">
+      <table>
+        <thead><tr>
+          <th class="sortable col-freeze" data-sort="name">Name${sortArrow(rosterSort,'name')}</th>
+          <th class="sortable" data-sort="level">Level${sortArrow(rosterSort,'level')}</th>
+          <th class="sortable" data-sort="grade">Grade${sortArrow(rosterSort,'grade')}</th>
+          <th class="sortable" data-sort="status">Status${sortArrow(rosterSort,'status')}</th>
+        </tr></thead>
+        <tbody>
+        ${sorted.map(p=>{
+          const g=gradeForLevel(p.level); const inactive=p.status!=='active';
+          return `<tr class="${inactive?'status-inactive':''}"><td class="col-freeze">${escapeHtml(p.name)}</td><td>${p.level}</td><td><span class="pill ${gradeClass(g)}">${g}</span></td><td>${p.status==='active'?'Active':'Inactive'}</td></tr>`;
+        }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  bindSort(main, rosterSort, 'th[data-sort]');
+}
+
+/* ---------------- EVENTS (locked to current active arc) ---------------- */
+function renderEvents(main){
+  const arc = activeArc();
+  const arcEvents = eventsInActiveArc();
+  if(arcEvents.length && (!lbEventId || !arcEvents.find(e=>e.id===lbEventId))) lbEventId = arcEvents[0].id;
+  const grades = allGrades();
+  const title = arc ? escapeHtml(arc.name) : 'Current Arc';
+  main.innerHTML = `
+    <div class="section-head"><h1>${title} <span class="accent">Events</span></h1></div>
+    <div class="section-desc" style="margin-bottom:16px;">Events logged in the currently active arc${arc?' ('+arc.start_date+' → '+arc.end_date+')':''}. This tab automatically follows whichever arc is active — check History to browse archived arcs.</div>
+    <div class="panel">
+      <div class="row">
+        <select id="lbEvent" style="width:320px;">
+          ${arcEvents.length===0?'<option>No events in this arc</option>':arcEvents.map(ev=>`<option value="${ev.id}" ${ev.id===lbEventId?'selected':''}>${escapeHtml(ev.name)} · ${ev.date}</option>`).join('')}
+        </select>
+        <div class="row" id="lbGradePills">
+          ${grades.map(g=>`<button class="btn btn-sm ${lbGradeFilters.has(g)?'btn-signal':'btn-ghost'}" data-grade="${g}">${g}</button>`).join('')}
+          <button class="btn btn-sm ${lbGradeFilters.size===0?'btn-peri':'btn-ghost'}" id="lbGradeClear">All grades</button>
+        </div>
+      </div>
+    </div>
+    <div id="lbTableWrap"></div>
+  `;
+  if(!arc){ main.querySelector('#lbTableWrap').innerHTML = `<div class="empty">No active arc is set right now.</div>`; return; }
+  main.querySelector('#lbEvent').addEventListener('change',e=>{lbEventId=e.target.value;render();});
+  main.querySelectorAll('#lbGradePills [data-grade]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const g = btn.dataset.grade;
+      if(lbGradeFilters.has(g)) lbGradeFilters.delete(g); else lbGradeFilters.add(g);
+      render();
+    });
+  });
+  main.querySelector('#lbGradeClear').addEventListener('click', ()=>{ lbGradeFilters.clear(); render(); });
+
+  const ev = arcEvents.find(e=>e.id===lbEventId);
+  const wrap = main.querySelector('#lbTableWrap');
+  if(!ev){ wrap.innerHTML = `<div class="empty">No events logged in this arc yet.</div>`; return; }
+
+  let members = roster.filter(p=>p.status==='active');
+  if(lbGradeFilters.size>0) members = members.filter(p=>lbGradeFilters.has(gradeForLevel(p.level)));
+  if(ev.eligible_grades && ev.eligible_grades.length>0) members = members.filter(p=>ev.eligible_grades.includes(gradeForLevel(p.level)));
+  const isTasks = ev.scoring_type === 'tasks';
+  const statusRank = {'Top 20%':6,'60-79%':5,'40-59%':4,'20-39%':3,'5-19%':2,'0-4%':1,'No score':0,'Complete':4,'In progress':2,'0 pts':1};
+  const gradePctCache = {};
+  allGrades().forEach(g=> gradePctCache[g] = gradePercentiles(ev, g));
+  let rowsData = members.map(p=>{
+    const score = ev.entries[p.id]!==undefined?ev.entries[p.id]:0;
+    const grade = gradeForLevel(p.level);
+    const st = isTasks ? statusFor(ev.entries[p.id], ev.threshold)
+              : ev.completion_mode==='threshold' ? statusFor(ev.entries[p.id], thresholdForGrade(ev, grade))
+              : statusForPercentile(ev.entries[p.id], gradePctCache[grade], p.id);
+    return {name:p.name, grade, score, st};
+  }).sort((a,b)=>b.score-a.score);
+  rowsData.forEach((r,i)=>{ r.rank = i+1; });
+  rowsData = rowsData.slice().sort((a,b)=>{
+    let av,bv;
+    if(lbSort.key==='rank'||lbSort.key==='score'){ av=a.score; bv=b.score; }
+    else if(lbSort.key==='name'){ av=a.name.toLowerCase(); bv=b.name.toLowerCase(); }
+    else if(lbSort.key==='grade'){ av=parseInt(a.grade.slice(1)); bv=parseInt(b.grade.slice(1)); }
+    else { av=statusRank[a.st.label]??0; bv=statusRank[b.st.label]??0; }
+    const c = cmp(av,bv,lbSort.dir);
+    return c!==0 ? c : a.rank-b.rank;
+  });
+  const scoreColLabel = isTasks ? 'Tasks' : 'Score';
+  function fmtScore(s){ return isTasks ? `${s}/${ev.max_tasks||ev.threshold}` : s.toLocaleString(); }
+
+  wrap.innerHTML = `
+    <div class="arc-banner">
+      ${ev.arc ? `<span class="pill ${ev.arc.status==='active'?'pill-arc':'pill-arc-archived'}">${escapeHtml(ev.arc.name)}${ev.arc.status!=='active'?' · archived':''}</span>` : ''}
+      ${ev.eligible_grades && ev.eligible_grades.length ? `<span class="small">Eligible: ${ev.eligible_grades.join(', ')}</span>` : ''}
+      ${ev.start_date && ev.end_date ? `<span class="small">Ran ${ev.start_date} → ${ev.end_date}</span>` : ''}
+    </div>
+    ${updatedLine()}
+    <div class="panel" style="padding:0;overflow:auto;max-height:65vh;">
+      <table>
+        <thead><tr>
+          <th class="sortable col-freeze-rank" data-sort="rank">#${sortArrow(lbSort,'rank')}</th>
+          <th class="sortable col-freeze-after-rank" data-sort="name">Name${sortArrow(lbSort,'name')}</th>
+          <th class="sortable" data-sort="grade">Grade${sortArrow(lbSort,'grade')}</th>
+          <th class="sortable" data-sort="score">${scoreColLabel}${sortArrow(lbSort,'score')}</th>
+          <th class="sortable" data-sort="status">Status${sortArrow(lbSort,'status')}</th>
+        </tr></thead>
+        <tbody>
+        ${rowsData.map((r)=>{
+          return `<tr><td class="col-freeze-rank">${r.rank}</td><td class="col-freeze-after-rank">${escapeHtml(r.name)}</td><td><span class="pill ${gradeClass(r.grade)}">${r.grade}</span></td><td>${fmtScore(r.score)}</td><td><span class="status-dot ${r.st.dot}"></span><span style="color:${r.st.color}">${r.st.label}</span></td></tr>`;
+        }).join('') || `<tr><td colspan="5" class="empty">No matching members.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Copy for Discord</div>
+      <div class="row" style="margin-bottom:10px;">
+        <button class="btn btn-peri btn-sm" id="copyAllBtn">Copy full list</button>
+        <button class="btn btn-ghost btn-sm" id="copyIncBtn">Copy incomplete only</button>
+      </div>
+      <textarea class="copybox" id="copyBox" readonly></textarea>
+    </div>
+  `;
+  bindSort(main, lbSort, 'th[data-sort]');
+  function buildText(rows){ const w=Math.max(4,...rows.map(r=>r.name.length))+2; let out='```text\n'; rows.forEach(r=>{out+=r.name.padEnd(w,' ')+String(r.score).padStart(9,' ')+'\n';}); return out+'```'; }
+  const copyBox = wrap.querySelector('#copyBox'); copyBox.value = buildText(rowsData);
+  wrap.querySelector('#copyAllBtn').addEventListener('click',()=>{copyBox.value=buildText(rowsData); copyBox.select(); document.execCommand('copy'); toast('Full list copied');});
+  wrap.querySelector('#copyIncBtn').addEventListener('click',()=>{const inc=rowsData.filter(r=>!GOOD_TIERS.has(r.st.tier) && r.st.label!=='Complete'); copyBox.value=buildText(inc); copyBox.select(); document.execCommand('copy'); toast('Incomplete list copied');});
+}
+
+/* ---------------- SCORING METRICS ---------------- */
+function renderScoringMetrics(main){
+  main.innerHTML = `
+    <div class="section-head"><h1>Scoring <span class="accent">Metrics</span></h1></div>
+    <div class="section-desc" style="margin-bottom:16px;">How the colors, ranks, and completion rates on this tracker are actually worked out.</div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-title">Ranked against your own grade</div>
+      <p class="small">Each event, you're compared only against people in your <b>same grade</b> — not the whole alliance. That way a G3 player isn't judged against a G7 player's numbers.</p>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-title">The color tiers</div>
+      <p class="small">Whoever scores highest in your grade for that event automatically gets <b style="color:var(--tier-gold, #ffea00);">gold</b>, no matter what. Everyone else is then ranked by where they land percentile-wise among the rest of the grade:</p>
+      <table style="margin-top:8px;">
+        <thead><tr><th>Tier</th><th>Percentile</th></tr></thead>
+        <tbody>
+          <tr><td style="color:var(--tier-gold, #ffea00);font-weight:bold;">Gold</td><td>Top 20%</td></tr>
+          <tr><td style="color:var(--mint);font-weight:bold;">Green</td><td>60–79%</td></tr>
+          <tr><td style="color:var(--tier-amber, #d2601b);font-weight:bold;">Amber</td><td>40–59%</td></tr>
+          <tr><td style="color:var(--tier-pink, #ff6ec7);font-weight:bold;">Pink</td><td>20–39%</td></tr>
+          <tr><td style="color:var(--tier-lightred, #ff8a80);font-weight:bold;">Light red</td><td>5–19%</td></tr>
+          <tr><td style="color:var(--tier-darkred, #8b1e1e);font-weight:bold;">Dark red</td><td>Bottom 4%</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;">If two people tie exactly, they always get the same color — never split by chance.</p>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-title">"Complete" and your Rate %</div>
+      <p class="small">"Complete" means <b style="color:var(--tier-gold, #ffea00);">gold</b> or <b style="color:var(--mint);">green</b>. Your Rate % on the Completion tabs is just how many events you completed out of how many you were eligible for.</p>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-title">Fixed-threshold events</div>
+      <p class="small">A few events use a fixed point target instead of this percentile system — you'll see the number directly on that event's page if so.</p>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-title">Alliance Tournament (task-count) events</div>
+      <p class="small">These use the same gold-to-dark-red palette, but based on how many of the 15 tasks you completed rather than a percentile — everyone has the same 15 tasks available, so it's not graded on a curve:</p>
+      <table style="margin-top:8px;">
+        <thead><tr><th>Tier</th><th>Tasks</th></tr></thead>
+        <tbody>
+          <tr><td style="color:var(--tier-gold, #ffea00);font-weight:bold;">Gold</td><td>15/15</td></tr>
+          <tr><td style="color:var(--mint);font-weight:bold;">Green</td><td>12–14</td></tr>
+          <tr><td style="color:var(--tier-amber, #d2601b);font-weight:bold;">Amber</td><td>9–11</td></tr>
+          <tr><td style="color:var(--tier-pink, #ff6ec7);font-weight:bold;">Pink</td><td>6–8</td></tr>
+          <tr><td style="color:var(--tier-lightred, #ff8a80);font-weight:bold;">Light red</td><td>3–5</td></tr>
+          <tr><td style="color:var(--tier-darkred, #8b1e1e);font-weight:bold;">Dark red</td><td>0–2</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-title">G1–G5</div>
+      <p class="small">These grades get their own table with no Rate/% column, since this tracker doesn't have visibility into the different real-world events those grades actually play — showing a percentage there would be misleading.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">The "Alliance Heroes" ticker</div>
+      <p class="small">Separate from all of the above — it just shows the top 5 total scorers per grade across every real event ever logged (test data never counts).</p>
+    </div>
+  `;
+}
+
+/* ---------------- HISTORY ---------------- */
+function renderHistory(main){
+  const arcEvents = eventsInSelectedArc();
+  main.innerHTML = `
+    <div class="section-head"><h1>Event <span class="accent">History</span></h1></div>
+    <div class="section-desc" style="margin-bottom:16px;">Filter by arc, click an event to see grade-by-grade completion.</div>
+    <div class="panel"><div class="row">${arcSelectorHtml('hist')}</div></div>
+    <div class="grid2"><div id="evList"></div><div id="evDetail"></div></div>
+  `;
+  main.querySelector('#histArcSelect').addEventListener('change', e=>{ arcFilterId=e.target.value; selectedEventId=null; render(); });
+
+  const list = main.querySelector('#evList');
+  if(arcEvents.length===0){ list.innerHTML=`<div class="empty">No events in this arc yet.</div>`; }
+  else{
+    list.innerHTML = arcEvents.map(ev=>{ const n=Object.keys(ev.entries).length;
+      return `<div class="event-card ${ev.id===selectedEventId?'selected':''}" data-id="${ev.id}"><div class="ev-name">${escapeHtml(ev.name)}</div><div class="ev-meta">${ev.date} · ${n} score${n===1?'':'s'} · ${scoringDisplay(ev)}${ev.scoring_type==='tasks'?' (tasks)':''}${ev.eligible_grades&&ev.eligible_grades.length?' · '+ev.eligible_grades.join('/')+' only':''}</div></div>`;
+    }).join('');
+    list.querySelectorAll('.event-card').forEach(c=>c.addEventListener('click',()=>{selectedEventId=c.dataset.id;render();}));
+  }
+  const detail = main.querySelector('#evDetail');
+  const ev = arcEvents.find(e=>e.id===selectedEventId);
+  if(!ev){ detail.innerHTML=`<div class="empty">Select an event to view breakdown.</div>`; return; }
+  const grades = allGrades(); let rows='';
+  grades.forEach(g=>{
+    if(ev.eligible_grades && ev.eligible_grades.length && !ev.eligible_grades.includes(g)) return;
+    const members = roster.filter(p=>gradeForLevel(p.level)===g);
+    const scored = members.filter(p=>ev.entries[p.id]!==undefined);
+    let complete;
+    if(ev.scoring_type==='tasks'){
+      complete = scored.filter(p=>ev.entries[p.id]>=ev.threshold).length;
+    } else if(ev.completion_mode==='threshold'){
+      complete = scored.filter(p=>ev.entries[p.id]>=thresholdForGrade(ev, g)).length;
+    } else {
+      const pctMap = gradePercentiles(ev, g);
+      complete = scored.filter(p=>GOOD_TIERS.has(statusForPercentile(ev.entries[p.id], pctMap, p.id).tier)).length;
+    }
+    rows += `<tr><td><span class="pill ${gradeClass(g)}">${g}</span></td><td>${members.length}</td><td>${scored.length}</td><td style="color:var(--mint)">${complete}</td></tr>`;
+  });
+  detail.innerHTML = `<div class="panel">${updatedLine()}<div class="panel-title">${escapeHtml(ev.name)}</div><div class="small" style="margin-bottom:12px;">${ev.date} · ${scoringDisplay(ev)}${ev.eligible_grades&&ev.eligible_grades.length?' · Eligible: '+ev.eligible_grades.join(', '):''}</div><table><thead><tr><th>Grade</th><th>Members</th><th>Scored</th><th>Complete</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+loadAll();
+startHeaderTicker(); // independent of Supabase load — runs off events-data.js
+</script>
+<script>
+(function(){
+  try{
+    fetch('https://mmzizgsanwqjpiumpqay.supabase.co/rest/v1/page_views', {
+      method: 'POST',
+      headers: {
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        site: 'phoenix-tracker',
+        path: location.pathname,
+        referrer: document.referrer || null
+      })
+    });
+  }catch(e){}
+})();
+</script>
+
+<script>
+(function(){
+  const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+
+  async function sb(path){
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    if(!res.ok) throw new Error('fetch failed ' + res.status);
+    return res.json();
+  }
+
+  function escapeHtmlHero(s){
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function gradeForLevelHero(level){
+    level = Number(level);
+    if(level <= 20) return 'G1';
+    return 'G' + (Math.floor((level - 21) / 10) + 2);
+  }
+
+  async function loadHeroes(){
+    const el = document.getElementById('heroTicker');
+    if(!el) return;
+    try{
+      const [scores, roster, eventsList] = await Promise.all([
+        sb('scores?select=player_id,score,event_id'),
+        sb('roster?select=id,name,status,level'),
+        sb('events?select=id,is_test')
+      ]);
+      const nameMap = {};
+      roster.forEach(r => { nameMap[r.id] = r; });
+      const testEventIds = new Set(eventsList.filter(e => e.is_test).map(e => e.id));
+      const totals = {};
+      scores.forEach(s => {
+        if(testEventIds.has(s.event_id)) return; // never count test/demo events
+        totals[s.player_id] = (totals[s.player_id] || 0) + Number(s.score || 0);
+      });
+      const list = Object.keys(totals)
+        .map(id => ({
+          id,
+          name: nameMap[id] ? nameMap[id].name : id,
+          status: nameMap[id] ? nameMap[id].status : 'active',
+          grade: nameMap[id] ? gradeForLevelHero(nameMap[id].level) : null,
+          total: totals[id]
+        }))
+        .filter(x => x.status === 'active' && x.grade && x.total > 0); // zero-scorers never shown, no padding
+
+      if(!list.length){ el.innerHTML = ''; return; }
+
+      const byGrade = {};
+      list.forEach(x => { (byGrade[x.grade] = byGrade[x.grade] || []).push(x); });
+      const grades = Object.keys(byGrade).sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
+
+      let segments = '';
+      let entryCount = 0;
+      grades.forEach(g => {
+        const top5 = byGrade[g].sort((a, b) => b.total - a.total).slice(0, 5); // fewer than 5 real scorers = fewer entries, never padded
+        if(!top5.length) return;
+        const items = top5.map((h, i) => `<span class="hname">#${i+1} ${escapeHtmlHero(h.name)}</span> <span class="hscore">${h.total.toLocaleString()} pts</span>`).join('&nbsp;&nbsp;\u00b7&nbsp;&nbsp;');
+        segments += `<span class="hgrouphead">${g}</span>&nbsp;&nbsp;${items}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`;
+        entryCount += top5.length;
+      });
+
+      const duration = Math.max(18, entryCount * 3);
+      el.innerHTML = `<div class="htrack" style="animation-duration:${duration}s;">${segments}${segments}</div>`;
+    }catch(e){
+      console.error(e);
+      el.innerHTML = '';
+    }
+  }
+  loadHeroes();
+})();
+</script>
+</body>
+</html>
