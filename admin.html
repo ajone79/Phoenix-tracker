@@ -62,6 +62,23 @@
   .empty{color:var(--text-faint);font-size:12px;padding:20px 0;}
   .gate{min-height:100vh;display:flex;align-items:center;justify-content:center;}
   .gate-box{max-width:400px;text-align:center;padding:30px;}
+  .import-box{background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:18px 20px;margin-bottom:10px;}
+  .import-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+  select, input[type=file]{background:var(--panel-2);border:1px solid var(--hair);color:var(--text);font-family:'Space Mono',monospace;font-size:12px;padding:7px 10px;border-radius:6px;}
+  .btn.extract{background:var(--signal);color:var(--void);}
+  .btn.save-all{background:var(--mint);color:var(--void);}
+  .btn.force{background:transparent;border:1px solid var(--alert);color:var(--alert);padding:4px 10px;font-size:9.5px;}
+  .review-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:11.5px;}
+  .review-table th{text-align:left;color:var(--text-faint);font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;padding:6px 8px;border-bottom:1px solid var(--hair);}
+  .review-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;}
+  .review-table tr.flagged{background:rgba(255,90,95,.07);}
+  .review-table tr.nomatch{background:rgba(255,200,87,.07);}
+  .review-table input[type=text], .review-table input[type=number]{width:100%;min-width:80px;}
+  .review-table select{width:100%;min-width:150px;}
+  .flag-note{font-size:9.5px;color:var(--alert);margin-top:2px;}
+  .import-status{font-size:11px;color:var(--text-dim);margin-top:8px;}
+  .import-status.err{color:var(--alert);}
+  .import-status.ok{color:var(--mint);}
 </style>
 </head>
 <body>
@@ -77,11 +94,17 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':
 let profiles = [];
 let roster = [];
 let allowlist = [];
+let events = [];
 let me = null;
+let mySession = null;
+
+let extractedRows = []; // {name, score, playerId, existingScore}
+let extractStatus = { loading: false, message: '', kind: '' };
 
 async function init(){
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { location.href = 'login.html?next=admin.html'; return; }
+  mySession = session;
 
   let { data: myProfile } = await sb.from('tracker_profiles').select('*').eq('id', session.user.id).maybeSingle();
   if (!myProfile || !myProfile.is_admin) {
@@ -94,14 +117,16 @@ async function init(){
 }
 
 async function loadData(){
-  const [{data:p}, {data:r}, {data:a}] = await Promise.all([
+  const [{data:p}, {data:r}, {data:a}, {data:e}] = await Promise.all([
     sb.from('tracker_profiles').select('*').order('approved', {ascending:true}).order('created_at', {ascending:false}),
     sb.from('roster').select('id,name,level').order('name'),
-    sb.from('tracker_admin_allowlist').select('*').order('in_game_name')
+    sb.from('tracker_admin_allowlist').select('*').order('in_game_name'),
+    sb.from('events').select('id,name,date').order('date', {ascending:false})
   ]);
   profiles = p || [];
   roster = r || [];
   allowlist = a || [];
+  events = e || [];
 }
 
 function render(){
@@ -124,6 +149,10 @@ function render(){
     <main>
       <p style="font-size:11.5px;color:#8a8a94;">Signed in as <b>${escapeHtml(me.discord_username)}</b>. Approve pending Discord logins below and, since Discord names rarely match in-game names, type the correct in-game name next to each person yourself — matching this list against the roster.</p>
       <div class="allowlist-banner"><b>Intended admins:</b><br>${allowChips}</div>
+
+      <h2>Import scores from screenshot</h2>
+      ${importSectionHtml()}
+
       <h2>Pending approval (${pending.length})</h2>
       <div id="pendingList">${pending.length ? pending.map(rowHtml).join('') : '<div class="empty">Nobody waiting.</div>'}</div>
       <h2>Approved members (${approved.length})</h2>
@@ -135,6 +164,8 @@ function render(){
   document.querySelectorAll('[data-revoke]').forEach(b=>b.addEventListener('click', ()=>setApproved(b.dataset.revoke, false)));
   document.querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click', ()=>saveName(b.dataset.save)));
   document.querySelectorAll('[data-admintoggle]').forEach(b=>b.addEventListener('click', ()=>toggleAdmin(b.dataset.admintoggle, b.dataset.current==='true')));
+
+  wireImportSection();
 
   if (window.__phxInitNavMenu) window.__phxInitNavMenu();
 }
@@ -171,6 +202,203 @@ async function saveName(id){
   await sb.from('tracker_profiles').update({in_game_name: input.value, updated_at: new Date().toISOString()}).eq('id', id);
   await loadData(); render();
 }
+
+// ==================== Score import from screenshot ====================
+
+function normalizeName(s){
+  return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+
+function bestRosterMatch(extractedName){
+  const norm = normalizeName(extractedName);
+  if (!norm) return null;
+  let exact = roster.find(r => normalizeName(r.name) === norm);
+  if (exact) return exact.id;
+  let contains = roster.find(r => normalizeName(r.name).includes(norm) || norm.includes(normalizeName(r.name)));
+  if (contains) return contains.id;
+  return null;
+}
+
+function importSectionHtml(){
+  return `
+    <div class="import-box">
+      <div class="import-row">
+        <label style="font-size:11px;color:#8a8a94;">Event:</label>
+        <select id="importEventSelect">
+          <option value="">— pick an event —</option>
+          ${events.map(e=>`<option value="${e.id}">${escapeHtml(e.name)} (${e.date})</option>`).join('')}
+        </select>
+        <input type="file" id="importFiles" accept="image/*" multiple>
+        <button class="btn extract" id="extractBtn">Extract from screenshot(s)</button>
+      </div>
+      <div class="import-status ${extractStatus.kind}" id="importStatus">${escapeHtml(extractStatus.message)}</div>
+      <div id="reviewWrap">${extractedRows.length ? reviewTableHtml() : ''}</div>
+    </div>
+  `;
+}
+
+function reviewTableHtml(){
+  const rows = extractedRows.map((r, i) => {
+    const isFlagged = r.existingScore != null && r.score < r.existingScore;
+    const noMatch = !r.playerId;
+    const rowClass = isFlagged ? 'flagged' : (noMatch ? 'nomatch' : '');
+    return `
+      <tr class="${rowClass}" data-row="${i}">
+        <td><input type="checkbox" data-include="${i}" ${r.include ? 'checked' : ''}></td>
+        <td>${escapeHtml(r.name)}</td>
+        <td>
+          <select data-matchselect="${i}">
+            <option value="">— no match, pick manually —</option>
+            ${roster.map(p=>`<option value="${p.id}" ${p.id===r.playerId?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}
+          </select>
+        </td>
+        <td><input type="number" data-scoreinput="${i}" value="${r.score}"></td>
+        <td>
+          ${r.existingScore != null ? `current: ${r.existingScore}` : '<span style="color:var(--text-faint)">no existing score</span>'}
+          ${isFlagged ? `<div class="flag-note">⚠ new score is lower — won't auto-save</div>` : ''}
+        </td>
+        <td>${isFlagged ? `<button class="btn force" data-forcesave="${i}">Save anyway</button>` : ''}</td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <table class="review-table">
+      <thead><tr><th>Use</th><th>Extracted name</th><th>Matched player</th><th>Score</th><th>Existing</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="import-row" style="margin-top:12px;">
+      <button class="btn save-all" id="saveAllBtn">Save all checked (non-flagged)</button>
+    </div>
+  `;
+}
+
+function wireImportSection(){
+  const extractBtn = document.getElementById('extractBtn');
+  if (extractBtn) extractBtn.addEventListener('click', handleExtract);
+  wireReviewTableEvents();
+}
+
+function wireReviewTableEvents(){
+  document.querySelectorAll('[data-include]').forEach(cb => cb.addEventListener('change', () => {
+    extractedRows[parseInt(cb.dataset.include)].include = cb.checked;
+  }));
+  document.querySelectorAll('[data-matchselect]').forEach(sel => sel.addEventListener('change', () => {
+    extractedRows[parseInt(sel.dataset.matchselect)].playerId = sel.value || null;
+  }));
+  document.querySelectorAll('[data-scoreinput]').forEach(inp => inp.addEventListener('input', () => {
+    const idx = parseInt(inp.dataset.scoreinput);
+    extractedRows[idx].score = parseInt(inp.value) || 0;
+    refreshReviewTableOnly();
+  }));
+  const saveAllBtn = document.getElementById('saveAllBtn');
+  if (saveAllBtn) saveAllBtn.addEventListener('click', handleSaveAll);
+  document.querySelectorAll('[data-forcesave]').forEach(b => b.addEventListener('click', () => handleForceSave(parseInt(b.dataset.forcesave))));
+}
+
+function refreshReviewTableOnly(){
+  document.getElementById('reviewWrap').innerHTML = extractedRows.length ? reviewTableHtml() : '';
+  wireReviewTableEvents();
+}
+
+function setImportStatus(message, kind){
+  extractStatus = { loading: false, message, kind: kind||'' };
+  const el = document.getElementById('importStatus');
+  if (el) { el.textContent = message; el.className = `import-status ${kind||''}`; }
+}
+
+async function handleExtract(){
+  const eventId = document.getElementById('importEventSelect').value;
+  const fileInput = document.getElementById('importFiles');
+  const files = fileInput.files;
+  if (!eventId) { setImportStatus('Pick an event first.', 'err'); return; }
+  if (!files || files.length === 0) { setImportStatus('Choose at least one screenshot.', 'err'); return; }
+  if (files.length > 5) { setImportStatus('Groq allows a max of 5 images per request — split into batches.', 'err'); return; }
+
+  setImportStatus('Reading images…', '');
+  const dataUrls = await Promise.all(Array.from(files).map(fileToDataUrl));
+
+  setImportStatus('Asking Groq to read the screenshot(s)… this can take a few seconds.', '');
+  try {
+    const res = await fetch('https://mmzizgsanwqjpiumpqay.supabase.co/functions/v1/parse-event-screenshot', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${mySession.access_token}`,
+        'apikey': SUPABASE_KEY,
+      },
+      body: JSON.stringify({ images: dataUrls })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setImportStatus(`Error: ${data.error || res.statusText}`, 'err');
+      return;
+    }
+    const rawRows = data.rows || [];
+    if (rawRows.length === 0) {
+      setImportStatus('No rows were extracted — try a clearer screenshot.', 'err');
+      return;
+    }
+
+    // fetch existing scores for this event so we can flag lower-than-current rows
+    const { data: existing } = await sb.from('scores').select('player_id,score').eq('event_id', eventId);
+    const existingMap = {};
+    (existing||[]).forEach(s => existingMap[s.player_id] = s.score);
+
+    extractedRows = rawRows.map(r => {
+      const playerId = bestRosterMatch(r.name);
+      return {
+        name: r.name,
+        score: parseInt(r.score) || 0,
+        playerId,
+        existingScore: playerId ? (existingMap[playerId] ?? null) : null,
+        include: true,
+        eventId
+      };
+    });
+
+    setImportStatus(`Extracted ${extractedRows.length} row(s). Review matches below before saving.`, 'ok');
+    document.getElementById('reviewWrap').innerHTML = reviewTableHtml();
+    wireReviewTableEvents();
+  } catch (e) {
+    setImportStatus(`Request failed: ${e.message}`, 'err');
+  }
+}
+
+function fileToDataUrl(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleSaveAll(){
+  const eventId = document.getElementById('importEventSelect').value;
+  const toSave = extractedRows.filter(r => r.include && r.playerId && !(r.existingScore != null && r.score < r.existingScore));
+  if (toSave.length === 0) { setImportStatus('Nothing eligible to save — check matches and flags above.', 'err'); return; }
+
+  const upserts = toSave.map(r => ({ event_id: eventId, player_id: r.playerId, score: r.score, updated_at: new Date().toISOString() }));
+  const { error } = await sb.from('scores').upsert(upserts, { onConflict: 'event_id,player_id' });
+  if (error) { setImportStatus(`Save failed: ${error.message}`, 'err'); return; }
+  setImportStatus(`Saved ${toSave.length} score(s). Flagged/unmatched rows were skipped.`, 'ok');
+}
+
+async function handleForceSave(idx){
+  const r = extractedRows[idx];
+  if (!r || !r.playerId) return;
+  const { error } = await sb.from('scores').upsert(
+    [{ event_id: r.eventId, player_id: r.playerId, score: r.score, updated_at: new Date().toISOString() }],
+    { onConflict: 'event_id,player_id' }
+  );
+  if (error) { setImportStatus(`Save failed: ${error.message}`, 'err'); return; }
+  r.existingScore = r.score;
+  setImportStatus(`Saved ${r.name}'s score (overwrote a higher stored value).`, 'ok');
+  refreshReviewTableOnly();
+}
+
+// ==================== end score import ====================
 
 init();
 </script>
