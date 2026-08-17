@@ -78,7 +78,9 @@
 
     // approved — inject a small identity/logout badge and let the page render normally
     clearTimeout(__failSafe);
+    window.__trackerProfile = profile;
     document.documentElement.style.visibility = 'visible';
+    document.dispatchEvent(new CustomEvent('tracker-auth-ready', { detail: profile }));
     document.addEventListener('DOMContentLoaded', injectBadge, { once: true });
     if (document.readyState !== 'loading') injectBadge();
 
