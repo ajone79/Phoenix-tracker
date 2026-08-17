@@ -1,4 +1,10 @@
 (function(){
+  document.documentElement.style.visibility = 'hidden';
+  const __failSafe = setTimeout(function(){
+    console.error('tracker-auth: timed out, revealing page to avoid a permanently blank screen');
+    document.documentElement.style.visibility = 'visible';
+  }, 8000);
+
   const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
 
@@ -10,6 +16,8 @@
   }
 
   function renderScreen(innerHtml){
+    clearTimeout(__failSafe);
+    document.documentElement.style.visibility = 'visible';
     document.documentElement.innerHTML = `
       <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Phoenix EU168</title>
@@ -69,6 +77,8 @@
     }
 
     // approved — inject a small identity/logout badge and let the page render normally
+    clearTimeout(__failSafe);
+    document.documentElement.style.visibility = 'visible';
     document.addEventListener('DOMContentLoaded', injectBadge, { once: true });
     if (document.readyState !== 'loading') injectBadge();
 
