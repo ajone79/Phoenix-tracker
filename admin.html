@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix EU168 — Access Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{--void:#050507;--panel:#111116;--panel-2:#17171e;--hair:#2a2a34;--signal:#ff9142;--periwinkle:#8fa3ff;--mint:#5fd068;--gold:#ffc857;--alert:#ff5a5f;--text:#e8e6e1;--text-dim:#8a8a94;--text-faint:#55555f;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;}
+  .topbar{display:flex;align-items:stretch;height:60px;}
+  .elbow{width:110px;background:var(--signal);border-bottom-left-radius:30px;display:flex;align-items:center;justify-content:flex-end;padding-right:14px;}
+  .elbow span{font-family:'Antonio',sans-serif;font-weight:700;color:var(--void);font-size:12px;letter-spacing:.08em;}
+  .topbar-bar{flex:1;background:var(--panel);display:flex;align-items:center;padding:0 22px;border-bottom:2px solid var(--hair);}
+  .topbar-title{font-family:'Antonio',sans-serif;font-weight:700;font-size:20px;letter-spacing:.05em;}
+  .topbar-title b{color:var(--signal);}
+  main{padding:26px 30px 60px;max-width:980px;margin:0 auto;}
+  h2{font-family:'Antonio',sans-serif;font-size:16px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim);margin:28px 0 12px;}
+  .row{background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .row.pending{border-color:var(--gold);}
+  .avatar{width:32px;height:32px;border-radius:50%;background:var(--panel-2);flex-shrink:0;object-fit:cover;}
+  .who{min-width:160px;}
+  .dname{font-weight:700;font-size:13px;}
+  .did{font-size:9.5px;color:var(--text-faint);}
+  input[type=text]{background:var(--panel-2);border:1px solid var(--hair);color:var(--text);font-family:'Space Mono',monospace;font-size:12px;padding:7px 10px;border-radius:6px;flex:1;min-width:160px;}
+  .btn{font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:11px;padding:8px 14px;border-radius:6px;border:none;cursor:pointer;}
+  .btn.approve{background:var(--mint);color:var(--void);}
+  .btn.revoke{background:transparent;border:1px solid var(--alert);color:var(--alert);}
+  .btn.save{background:var(--periwinkle);color:var(--void);}
+  .btn.admin{background:transparent;border:1px solid var(--gold);color:var(--gold);}
+  .tag{font-size:9px;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;}
+  .tag.approved{background:rgba(95,208,104,.15);color:var(--mint);}
+  .tag.pending{background:rgba(255,200,87,.15);color:var(--gold);}
+  .tag.admintag{background:rgba(255,200,87,.2);color:var(--gold);border:1px solid var(--gold);}
+  .empty{color:var(--text-faint);font-size:12px;padding:20px 0;}
+  .gate{min-height:100vh;display:flex;align-items:center;justify-content:center;}
+  .gate-box{max-width:400px;text-align:center;padding:30px;}
+</style>
+</head>
+<body>
+<div id="app"><div class="gate"><div class="gate-box">Loading…</div></div></div>
+
+<script>
+const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+let profiles = [];
+let roster = [];
+let me = null;
+
+async function init(){
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { location.href = 'login.html?next=admin.html'; return; }
+
+  let { data: myProfile } = await sb.from('tracker_profiles').select('*').eq('id', session.user.id).maybeSingle();
+  if (!myProfile || !myProfile.is_admin) {
+    document.getElementById('app').innerHTML = `<div class="gate"><div class="gate-box"><h2 style="color:#ff5a5f">Not authorized</h2><p style="color:#8a8a94;font-size:12px;">This page is for alliance admins only.</p><a href="index.html" style="color:#ff9142;">← Back to tracker</a></div></div>`;
+    return;
+  }
+  me = myProfile;
+  await loadData();
+  render();
+}
+
+async function loadData(){
+  const [{data:p}, {data:r}] = await Promise.all([
+    sb.from('tracker_profiles').select('*').order('approved', {ascending:true}).order('created_at', {ascending:false}),
+    sb.from('roster').select('id,name,level').order('name')
+  ]);
+  profiles = p || [];
+  roster = r || [];
+}
+
+function render(){
+  const pending = profiles.filter(p=>!p.approved);
+  const approved = profiles.filter(p=>p.approved);
+
+  document.getElementById('app').innerHTML = `
+    <div class="topbar">
+      <div class="elbow"><span>PHX</span></div>
+      <div class="topbar-bar"><div class="topbar-title"><b>PHOENIX</b> EU168 — ACCESS ADMIN</div></div>
+    </div>
+    <main>
+      <p style="font-size:11.5px;color:#8a8a94;">Signed in as <b>${escapeHtml(me.discord_username)}</b>. Approve pending Discord logins below and, since Discord names rarely match in-game names, type the correct in-game name next to each person yourself — matching this list against the roster.</p>
+      <h2>Pending approval (${pending.length})</h2>
+      <div id="pendingList">${pending.length ? pending.map(rowHtml).join('') : '<div class="empty">Nobody waiting.</div>'}</div>
+      <h2>Approved members (${approved.length})</h2>
+      <div id="approvedList">${approved.length ? approved.map(rowHtml).join('') : '<div class="empty">No approved members yet.</div>'}</div>
+    </main>
+  `;
+
+  document.querySelectorAll('[data-approve]').forEach(b=>b.addEventListener('click', ()=>setApproved(b.dataset.approve, true)));
+  document.querySelectorAll('[data-revoke]').forEach(b=>b.addEventListener('click', ()=>setApproved(b.dataset.revoke, false)));
+  document.querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click', ()=>saveName(b.dataset.save)));
+  document.querySelectorAll('[data-admintoggle]').forEach(b=>b.addEventListener('click', ()=>toggleAdmin(b.dataset.admintoggle, b.dataset.current==='true')));
+}
+
+function rowHtml(p){
+  return `
+    <div class="row ${p.approved?'':'pending'}">
+      ${p.avatar_url ? `<img class="avatar" src="${escapeHtml(p.avatar_url)}">` : '<div class="avatar"></div>'}
+      <div class="who">
+        <div class="dname">${escapeHtml(p.discord_username||'Unknown')}</div>
+        <div class="did">${escapeHtml(p.discord_id||'')}</div>
+      </div>
+      <input type="text" placeholder="In-game name" value="${escapeHtml(p.in_game_name||'')}" data-nameinput="${p.id}">
+      <button class="btn save" data-save="${p.id}">Save</button>
+      ${p.approved
+        ? `<span class="tag approved">Approved</span><button class="btn revoke" data-revoke="${p.id}">Revoke</button>`
+        : `<span class="tag pending">Pending</span><button class="btn approve" data-approve="${p.id}">Approve</button>`}
+      ${p.is_admin ? '<span class="tag admintag">Admin</span>' : ''}
+      <button class="btn admin" data-admintoggle="${p.id}" data-current="${!!p.is_admin}">${p.is_admin?'Remove admin':'Make admin'}</button>
+    </div>
+  `;
+}
+
+async function setApproved(id, val){
+  await sb.from('tracker_profiles').update({approved: val, updated_at: new Date().toISOString()}).eq('id', id);
+  await loadData(); render();
+}
+async function toggleAdmin(id, current){
+  await sb.from('tracker_profiles').update({is_admin: !current, updated_at: new Date().toISOString()}).eq('id', id);
+  await loadData(); render();
+}
+async function saveName(id){
+  const input = document.querySelector(`[data-nameinput="${id}"]`);
+  await sb.from('tracker_profiles').update({in_game_name: input.value, updated_at: new Date().toISOString()}).eq('id', id);
+  await loadData(); render();
+}
+
+init();
+</script>
+</body>
+</html>
