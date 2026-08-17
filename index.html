@@ -6,6 +6,7 @@
 <title>Phoenix EU168</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/tracker-auth.js"></script>
+<script src="assets/phx-nav-menu.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -26,6 +27,25 @@
     z-index:0;
   }
   .topbar, main{position:relative; z-index:1;}
+  .phx-nav{
+    position:sticky; top:0; z-index:9999;
+    display:flex; align-items:center; gap:4px;
+    background:#0a0a0d; border-bottom:2px solid #f2a93b;
+    padding:0 14px; height:36px;
+    font-family:ui-monospace,'SF Mono','Consolas',monospace;
+    overflow-x:auto; white-space:nowrap;
+  }
+  .phx-nav .phx-nav-tag{
+    color:#f2a93b; font-weight:700; letter-spacing:.12em; font-size:11px;
+    margin-right:12px; flex-shrink:0;
+  }
+  .phx-nav a{
+    color:#9a9aa4; text-decoration:none; font-size:11px; letter-spacing:.06em;
+    text-transform:uppercase; padding:8px 12px; border-radius:0 0 6px 6px;
+    transition:color .15s ease, background .15s ease; flex-shrink:0;
+  }
+  .phx-nav a:hover{ color:#e8e6e1; background:rgba(255,255,255,.06); }
+  .phx-nav a.current{ color:#0a0a0d; background:#f2a93b; font-weight:700; }
   .topbar{display:flex;align-items:stretch;height:70px;}
   .elbow{width:130px;background:var(--signal);border-bottom-left-radius:36px;display:flex;align-items:center;justify-content:flex-end;padding-right:16px;}
   .elbow span{font-family:'Antonio',sans-serif;font-weight:700;color:var(--void);font-size:14px;letter-spacing:.08em;}
@@ -35,8 +55,8 @@
   .topbar-sub{font-size:11px;color:var(--text-dim);margin-top:2px;}
   main{padding:34px 30px 60px;max-width:960px;margin:0 auto;}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:10px;}
-  .tile{display:block;background:var(--panel);border:1px solid var(--hair);border-radius:14px;padding:22px 20px;text-decoration:none;color:var(--text);transition:border-color .15s ease, transform .1s ease;position:relative;overflow:hidden;}
-  .tile:hover{border-color:var(--signal);transform:translateY(-2px);}
+  .tile{display:block;background:rgba(17,17,22,.5);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);border:1px solid var(--hair);border-radius:14px;padding:22px 20px;text-decoration:none;color:var(--text);transition:border-color .15s ease, transform .1s ease, background .15s ease;position:relative;overflow:hidden;}
+  .tile:hover{border-color:var(--signal);transform:translateY(-2px);background:rgba(17,17,22,.68);}
   .tile-icon{font-size:26px;margin-bottom:10px;display:block;}
   .tile-name{font-family:'Antonio',sans-serif;font-weight:700;font-size:16px;letter-spacing:.03em;margin-bottom:6px;}
   .tile-desc{font-size:11px;color:var(--text-dim);line-height:1.5;}
@@ -47,6 +67,7 @@
 </style>
 </head>
 <body>
+<nav class="phx-nav"><span class="phx-nav-tag">PHX</span><a href="index.html" class="current">🏠 Home</a></nav>
 <div class="topbar">
   <div class="elbow"><span>PHX</span></div>
   <div class="topbar-bar">
@@ -54,7 +75,6 @@
       <div class="topbar-title"><b>PHOENIX</b> EU168</div>
       <div class="topbar-sub">Alliance tools &amp; resources</div>
     </div>
-    <nav class="phx-nav" style="background:transparent;border:none;height:auto;padding:0;position:static;margin-left:auto;"></nav>
   </div>
 </div>
 <main>
