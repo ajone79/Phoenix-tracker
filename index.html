@@ -14,7 +14,19 @@
     --text:#e8e6e1; --text-dim:#8a8a94; --text-faint:#55555f;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;-webkit-font-smoothing:antialiased;}
+  html,body{margin:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;-webkit-font-smoothing:antialiased;min-height:100vh;}
+  body{position:relative;}
+  body::before{
+    content:'';
+    position:fixed; inset:0;
+    background:url('icon-eu168.png') no-repeat center 60%;
+    background-size:min(70vw,640px);
+    opacity:.05;
+    filter:grayscale(1);
+    pointer-events:none;
+    z-index:0;
+  }
+  .topbar, main{position:relative; z-index:1;}
   .topbar{display:flex;align-items:stretch;height:70px;}
   .elbow{width:130px;background:var(--signal);border-bottom-left-radius:36px;display:flex;align-items:center;justify-content:flex-end;padding-right:16px;}
   .elbow span{font-family:'Antonio',sans-serif;font-weight:700;color:var(--void);font-size:14px;letter-spacing:.08em;}
@@ -91,6 +103,26 @@
       <div class="tile-desc">Find the best FC for your goal — solo armadas, research, PVP and more.</div>
     </a>
   </div>
+
+  <div id="adminSection" style="display:none;">
+    <h2 class="sec">Admin</h2>
+    <div class="grid">
+      <a class="tile" href="admin.html" style="border-color:var(--gold);">
+        <span class="tile-icon">🛠️</span>
+        <div class="tile-name">Access Admin</div>
+        <div class="tile-desc">Approve pending logins, map Discord names to in-game names, manage admins.</div>
+      </a>
+    </div>
+  </div>
 </main>
+<script>
+  function showAdminTileIfAdmin(profile){
+    if (profile && profile.is_admin) {
+      document.getElementById('adminSection').style.display = '';
+    }
+  }
+  document.addEventListener('tracker-auth-ready', (e) => showAdminTileIfAdmin(e.detail));
+  if (window.__trackerProfile) showAdminTileIfAdmin(window.__trackerProfile);
+</script>
 </body>
 </html>
