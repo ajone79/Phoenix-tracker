@@ -79,6 +79,11 @@
   .import-status{font-size:11px;color:var(--text-dim);margin-top:8px;}
   .import-status.err{color:var(--alert);}
   .import-status.ok{color:var(--mint);}
+  .stitch-gallery{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
+  .stitch-thumb{position:relative;width:130px;border:1px solid var(--hair);border-radius:8px;overflow:hidden;background:var(--panel-2);}
+  .stitch-thumb img{width:100%;display:block;max-height:220px;object-fit:cover;object-position:top;}
+  .stitch-thumb .lbl{font-size:9px;color:var(--text-faint);padding:3px 6px;}
+  .stitch-thumb .rm{position:absolute;top:4px;right:4px;background:rgba(10,10,13,.85);border:1px solid var(--alert);color:var(--alert);width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:11px;line-height:1;}
 </style>
 </head>
 <body>
@@ -101,6 +106,8 @@ let mySession = null;
 let extractedRows = []; // {name, score, playerId, existingScore}
 let extractStatus = { loading: false, message: '', kind: '' };
 let guideOpen = false;
+let stitchedPreviews = []; // {id, dataUrl, sourceCount}
+let screensPerStitch = 6;
 
 async function init(){
   const { data: { session } } = await sb.auth.getSession();
@@ -177,7 +184,7 @@ function render(){
       <div class="allowlist-banner"><b>Intended admins:</b><br>${allowChips}</div>
 
       <h2>Import scores from screenshot</h2>
-      ${importSectionHtml()}
+      <div id="importBoxWrap">${importSectionHtml()}</div>
 
       <h2>Manage event thresholds</h2>
       <div class="import-box">
@@ -292,7 +299,11 @@ function importSectionHtml(){
         </select>
         <button class="btn admin" id="newEventToggle" type="button">+ New event</button>
         <input type="file" id="importFiles" accept="image/*" multiple>
-        <button class="btn extract" id="extractBtn">Extract from screenshot(s)</button>
+      </div>
+      <div class="import-row" style="font-size:11px;color:#8a8a94;">
+        <label>Screens per stitched image:</label>
+        <input type="number" id="screensPerStitchInput" value="${screensPerStitch}" min="1" max="15" style="width:60px;">
+        <button class="btn extract" id="previewBtn">Preview stitched image(s)</button>
       </div>
       <div class="import-row" id="newEventForm" style="display:none;background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:12px;">
         <input type="text" id="newEventName" placeholder="Event name (e.g. Sector Strike - ALB)" style="min-width:220px;">
@@ -311,7 +322,9 @@ function importSectionHtml(){
         <div style="width:100%;font-size:9.5px;color:var(--text-faint);">Threshold is the score/task-count line used for pass/fail (threshold mode) or the green/amber/red coloring on the tracker. Leave blank to use the site default.</div>
       </div>
       <div class="import-status ${extractStatus.kind}" id="importStatus">${escapeHtml(extractStatus.message)}</div>
-      <div style="font-size:9.5px;color:var(--text-faint);margin-top:2px;">More than 5 screenshots? They'll be auto-combined into a handful of stitched images so Groq's 5-image limit is never hit. Running Extract multiple times adds to the same review table below instead of replacing it.</div>
+      <div style="font-size:9.5px;color:var(--text-faint);margin-top:2px;">Preview builds stitched images locally first — nothing is sent to Groq until you confirm. Remove any stitched image that looks bad, or change the screens-per-stitch count and re-preview.</div>
+      <div class="stitch-gallery" id="stitchGallery">${stitchedPreviews.length ? stitchGalleryHtml() : ''}</div>
+      ${stitchedPreviews.length ? `<div class="import-row" style="margin-top:10px;"><button class="btn save-all" id="sendToGroqBtn">Send ${stitchedPreviews.length} image(s) to Groq</button><button class="btn force" id="clearPreviewBtn">Discard previews</button></div>` : ''}
       <div id="reviewWrap">${extractedRows.length ? reviewTableHtml() : ''}</div>
     </div>
   `;
@@ -354,9 +367,30 @@ function reviewTableHtml(){
   `;
 }
 
+function stitchGalleryHtml(){
+  return stitchedPreviews.map(p => `
+    <div class="stitch-thumb" data-thumb="${p.id}">
+      <button class="rm" data-removepreview="${p.id}" title="Remove">✕</button>
+      <img src="${p.dataUrl}">
+      <div class="lbl">${p.sourceCount} screen${p.sourceCount>1?'s':''} combined</div>
+    </div>
+  `).join('');
+}
+
 function wireImportSection(){
-  const extractBtn = document.getElementById('extractBtn');
-  if (extractBtn) extractBtn.addEventListener('click', handleExtract);
+  const previewBtn = document.getElementById('previewBtn');
+  if (previewBtn) previewBtn.addEventListener('click', handlePreviewStitch);
+  const sendBtn = document.getElementById('sendToGroqBtn');
+  if (sendBtn) sendBtn.addEventListener('click', handleSendToGroq);
+  const clearPreviewBtn = document.getElementById('clearPreviewBtn');
+  if (clearPreviewBtn) clearPreviewBtn.addEventListener('click', () => {
+    stitchedPreviews = [];
+    refreshImportSectionOnly();
+  });
+  document.querySelectorAll('[data-removepreview]').forEach(b => b.addEventListener('click', () => {
+    stitchedPreviews = stitchedPreviews.filter(p => p.id !== b.dataset.removepreview);
+    refreshImportSectionOnly();
+  }));
   const newEventToggle = document.getElementById('newEventToggle');
   if (newEventToggle) newEventToggle.addEventListener('click', () => {
     const form = document.getElementById('newEventForm');
@@ -365,6 +399,82 @@ function wireImportSection(){
   const createEventBtn = document.getElementById('createEventBtn');
   if (createEventBtn) createEventBtn.addEventListener('click', handleCreateEvent);
   wireReviewTableEvents();
+}
+
+function refreshImportSectionOnly(){
+  document.getElementById('importBoxWrap').innerHTML = importSectionHtml();
+  wireImportSection();
+}
+
+async function handlePreviewStitch(){
+  const fileInput = document.getElementById('importFiles');
+  const files = fileInput.files;
+  if (!files || files.length === 0) { setImportStatus('Choose at least one screenshot.', 'err'); return; }
+
+  screensPerStitch = Math.max(1, parseInt(document.getElementById('screensPerStitchInput').value) || 6);
+  setImportStatus(`Building preview from ${files.length} screenshot(s)…`, '');
+  try {
+    stitchedPreviews = await buildStitchedPreviews(files, screensPerStitch);
+    setImportStatus(`${stitchedPreviews.length} stitched image(s) ready — check them below, then send to Groq.`, 'ok');
+  } catch (e) {
+    setImportStatus(`Couldn't build preview: ${e.message}`, 'err');
+  }
+  refreshImportSectionOnly();
+}
+
+async function handleSendToGroq(){
+  const eventId = document.getElementById('importEventSelect').value;
+  if (!eventId) { setImportStatus('Pick an event first.', 'err'); return; }
+  if (stitchedPreviews.length === 0) { setImportStatus('Nothing to send — build a preview first.', 'err'); return; }
+
+  const { data: existing } = await sb.from('scores').select('player_id,score').eq('event_id', eventId);
+  const existingMap = {};
+  (existing||[]).forEach(s => existingMap[s.player_id] = s.score);
+
+  // Groq accepts up to 5 images per request -- batch the stitched previews if there are more.
+  const chunks = [];
+  for (let i = 0; i < stitchedPreviews.length; i += 5) chunks.push(stitchedPreviews.slice(i, i+5));
+
+  let totalExtracted = 0;
+  for (let c = 0; c < chunks.length; c++) {
+    setImportStatus(`Asking Groq to read batch ${c+1}/${chunks.length}…`, '');
+    try {
+      const res = await fetch('https://mmzizgsanwqjpiumpqay.supabase.co/functions/v1/parse-event-screenshot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${mySession.access_token}`,
+          'apikey': SUPABASE_KEY,
+        },
+        body: JSON.stringify({ images: chunks[c].map(p => p.dataUrl) })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const rawSnippet = data.raw ? ` — model said: "${String(data.raw).slice(0,300)}${data.raw.length>300?'…':''}"` : '';
+        setImportStatus(`Error on batch ${c+1}: ${data.error || res.statusText}${rawSnippet}`, 'err');
+        continue;
+      }
+      const rawRows = data.rows || [];
+      totalExtracted += rawRows.length;
+      extractedRows = extractedRows.concat(rawRows.map(r => {
+        const playerId = bestRosterMatch(r.name);
+        return {
+          name: r.name,
+          score: parseInt(r.score) || 0,
+          playerId,
+          existingScore: playerId ? (existingMap[playerId] ?? null) : null,
+          include: true,
+          eventId
+        };
+      }));
+    } catch (e) {
+      setImportStatus(`Batch ${c+1} request failed: ${e.message}`, 'err');
+    }
+  }
+
+  stitchedPreviews = [];
+  setImportStatus(`Extracted ${totalExtracted} row(s) (${extractedRows.length} total in review). Review matches below before saving.`, totalExtracted > 0 ? 'ok' : 'err');
+  refreshImportSectionOnly();
 }
 
 function slugifyEventId(name, date){
@@ -436,69 +546,6 @@ function setImportStatus(message, kind){
   if (el) { el.textContent = message; el.className = `import-status ${kind||''}`; }
 }
 
-async function handleExtract(){
-  const eventId = document.getElementById('importEventSelect').value;
-  const fileInput = document.getElementById('importFiles');
-  const files = fileInput.files;
-  if (!eventId) { setImportStatus('Pick an event first.', 'err'); return; }
-  if (!files || files.length === 0) { setImportStatus('Choose at least one screenshot.', 'err'); return; }
-
-  setImportStatus(
-    files.length > 5
-      ? `Combining ${files.length} screenshots into fewer images for Groq…`
-      : 'Reading images…',
-    ''
-  );
-  const dataUrls = await stitchIntoBatches(files, 5);
-
-  setImportStatus(`Asking Groq to read ${dataUrls.length} image(s)… this can take a few seconds.`, '');
-  try {
-    const res = await fetch('https://mmzizgsanwqjpiumpqay.supabase.co/functions/v1/parse-event-screenshot', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${mySession.access_token}`,
-        'apikey': SUPABASE_KEY,
-      },
-      body: JSON.stringify({ images: dataUrls })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      const rawSnippet = data.raw ? ` — model said: "${String(data.raw).slice(0,300)}${data.raw.length>300?'…':''}"` : '';
-      setImportStatus(`Error: ${data.error || res.statusText}${rawSnippet}`, 'err');
-      return;
-    }
-    const rawRows = data.rows || [];
-    if (rawRows.length === 0) {
-      setImportStatus('No rows were extracted — try a clearer screenshot.', 'err');
-      return;
-    }
-
-    // fetch existing scores for this event so we can flag lower-than-current rows
-    const { data: existing } = await sb.from('scores').select('player_id,score').eq('event_id', eventId);
-    const existingMap = {};
-    (existing||[]).forEach(s => existingMap[s.player_id] = s.score);
-
-    extractedRows = extractedRows.concat(rawRows.map(r => {
-      const playerId = bestRosterMatch(r.name);
-      return {
-        name: r.name,
-        score: parseInt(r.score) || 0,
-        playerId,
-        existingScore: playerId ? (existingMap[playerId] ?? null) : null,
-        include: true,
-        eventId
-      };
-    }));
-
-    setImportStatus(`Extracted ${rawRows.length} row(s) (${extractedRows.length} total in review). Review matches below before saving.`, 'ok');
-    document.getElementById('reviewWrap').innerHTML = reviewTableHtml();
-    wireReviewTableEvents();
-  } catch (e) {
-    setImportStatus(`Request failed: ${e.message}`, 'err');
-  }
-}
-
 function fileToDataUrl(file){
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -517,42 +564,46 @@ function loadImageFromDataUrl(dataUrl){
   });
 }
 
-// Stitches an arbitrary number of screenshots into at most `maxImages` tall images
-// (stacked vertically), so we always stay under Groq's per-request image limit
-// no matter how many screenshots someone selects.
-async function stitchIntoBatches(files, maxImages){
+async function stitchGroupIntoImage(dataUrls){
+  const imgs = await Promise.all(dataUrls.map(loadImageFromDataUrl));
+  const width = Math.max(...imgs.map(im => im.naturalWidth));
+  const scaledHeights = imgs.map(im => im.naturalHeight * (width / im.naturalWidth));
+  const totalHeight = Math.round(scaledHeights.reduce((a,b) => a+b, 0));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = totalHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  let y = 0;
+  imgs.forEach((im, i) => {
+    ctx.drawImage(im, 0, y, width, scaledHeights[i]);
+    y += scaledHeights[i];
+  });
+
+  return canvas.toDataURL('image/jpeg', 0.9);
+}
+
+// Groups files into fixed-size chunks (screensPerStitch each) and stitches each
+// chunk into one tall image. Returns preview objects the admin can inspect and
+// remove before anything is sent to Groq.
+async function buildStitchedPreviews(files, perStitch){
   const dataUrls = await Promise.all(Array.from(files).map(fileToDataUrl));
-  if (dataUrls.length <= maxImages) return dataUrls;
-
-  const batchSize = Math.ceil(dataUrls.length / maxImages);
-  const batches = [];
-  for (let i = 0; i < dataUrls.length; i += batchSize) {
-    batches.push(dataUrls.slice(i, i + batchSize));
+  if (dataUrls.length <= 1) {
+    return dataUrls.map((d,i) => ({ id: `p${i}`, dataUrl: d, sourceCount: 1 }));
   }
-
-  const stitched = [];
-  for (const batch of batches) {
-    const imgs = await Promise.all(batch.map(loadImageFromDataUrl));
-    const width = Math.max(...imgs.map(im => im.naturalWidth));
-    const scaledHeights = imgs.map(im => im.naturalHeight * (width / im.naturalWidth));
-    const totalHeight = Math.round(scaledHeights.reduce((a,b) => a+b, 0));
-
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = totalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    let y = 0;
-    imgs.forEach((im, i) => {
-      ctx.drawImage(im, 0, y, width, scaledHeights[i]);
-      y += scaledHeights[i];
-    });
-
-    stitched.push(canvas.toDataURL('image/jpeg', 0.9));
+  const groups = [];
+  for (let i = 0; i < dataUrls.length; i += perStitch) {
+    groups.push(dataUrls.slice(i, i + perStitch));
   }
-  return stitched;
+  const previews = [];
+  for (let i = 0; i < groups.length; i++) {
+    const stitched = groups[i].length > 1 ? await stitchGroupIntoImage(groups[i]) : groups[i][0];
+    previews.push({ id: `p${i}`, dataUrl: stitched, sourceCount: groups[i].length });
+  }
+  return previews;
 }
 
 async function handleSaveAll(){
