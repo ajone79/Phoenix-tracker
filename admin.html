@@ -487,7 +487,14 @@ async function handlePreviewStitch(){
 
 function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
-async function callGroqBatch(images, attempt){
+// Groq's 429 body includes "Please try again in 33.7s." -- parse that out so we
+// wait exactly as long as it says, rather than guessing with a fixed backoff.
+function parseRetryAfterSeconds(errorText){
+  const m = String(errorText||'').match(/try again in\s+([\d.]+)s/i);
+  return m ? parseFloat(m[1]) : null;
+}
+
+async function callGroqBatch(images, attempt, onWait){
   const res = await fetch('https://mmzizgsanwqjpiumpqay.supabase.co/functions/v1/parse-event-screenshot', {
     method: 'POST',
     headers: {
@@ -499,11 +506,12 @@ async function callGroqBatch(images, attempt){
   });
   const data = await res.json();
   const isRateLimited = res.status === 429 || res.status === 413 || (data.error && /rate_limit|too large|tokens per minute/i.test(data.error));
-  if (!res.ok && isRateLimited && attempt < 3) {
-    const waitMs = 4000 * attempt; // 4s, 8s, 12s
-    setImportStatus(`Groq rate limit hit — waiting ${waitMs/1000}s and retrying (attempt ${attempt+1}/3)…`, '');
-    await sleep(waitMs);
-    return callGroqBatch(images, attempt + 1);
+  if (!res.ok && isRateLimited && attempt < 4) {
+    const parsedWait = parseRetryAfterSeconds(data.error);
+    const waitS = Math.min(75, parsedWait ? Math.ceil(parsedWait) + 2 : 20 * attempt); // Groq's own reported wait + buffer, or a growing fallback
+    if (onWait) await onWait(waitS, attempt);
+    else await sleep(waitS * 1000);
+    return callGroqBatch(images, attempt + 1, onWait);
   }
   return { res, data };
 }
@@ -518,18 +526,21 @@ async function handleSendToGroq(){
   (existing||[]).forEach(s => existingMap[s.player_id] = s.score);
 
   const previews = stitchedPreviews;
-  const DELAY_S = 4;
+  // Groq's limit is per-minute (8000 tokens), and one stitched batch can already use most of
+  // that budget -- so batches need to be spaced close to a full minute apart, not seconds.
+  const DELAY_S = 65;
   batchStatuses = previews.map((p,i) => ({ label: `Batch ${i+1}`, state: 'pending', message: `Queued (${p.sourceCount} screens)` }));
   renderBatchStatuses();
-  setImportStatus(`Sending ${previews.length} batch(es) to Groq, one at a time…`, '');
+  setImportStatus(`Sending ${previews.length} batch(es) to Groq, spaced ~${DELAY_S}s apart so we stay under the per-minute limit…`, '');
 
   const newRowsThisSend = [];
+  let anyBatchFailed = false;
 
   for (let i = 0; i < previews.length; i++) {
     if (i > 0) {
       for (let s = DELAY_S; s > 0; s--) {
         batchStatuses[i].state = 'waiting';
-        batchStatuses[i].message = `Sending in ${s}s…`;
+        batchStatuses[i].message = `Sending in ${s}s… (pacing to stay under Groq's per-minute limit)`;
         renderBatchStatuses();
         await sleep(1000);
       }
@@ -538,12 +549,22 @@ async function handleSendToGroq(){
     batchStatuses[i].message = 'Sending to Groq…';
     renderBatchStatuses();
 
+    const onWait = async (waitS, attempt) => {
+      for (let s = waitS; s > 0; s--) {
+        batchStatuses[i].state = 'waiting';
+        batchStatuses[i].message = `Rate limited — retrying in ${s}s (attempt ${attempt+1}/4)…`;
+        renderBatchStatuses();
+        await sleep(1000);
+      }
+    };
+
     try {
-      const { res, data } = await callGroqBatch([previews[i].dataUrl], 1);
+      const { res, data } = await callGroqBatch([previews[i].dataUrl], 1, onWait);
       if (!res.ok) {
         const rawSnippet = data.raw ? ` — "${String(data.raw).slice(0,200)}${data.raw.length>200?'…':''}"` : '';
         batchStatuses[i].state = 'error';
-        batchStatuses[i].message = `Error: ${data.error || res.statusText}${rawSnippet}`;
+        batchStatuses[i].message = `Failed after retries: ${data.error || res.statusText}${rawSnippet}`;
+        anyBatchFailed = true;
       } else {
         const rawRows = data.rows || [];
         newRowsThisSend.push(...rawRows);
@@ -553,8 +574,21 @@ async function handleSendToGroq(){
     } catch (e) {
       batchStatuses[i].state = 'error';
       batchStatuses[i].message = `Request failed — ${e.message}`;
+      anyBatchFailed = true;
     }
     renderBatchStatuses();
+  }
+
+  if (anyBatchFailed) {
+    // Don't touch the review table at all if any batch didn't come back clean --
+    // partial results could mean missing players nobody notices. Keep the stitched
+    // previews so the admin can just hit Send again rather than rebuilding everything.
+    setImportStatus(
+      `One or more batches failed — nothing was added to the review table so we don't end up with incomplete scores. Fix the issue above if needed, then press "Send" again to retry all batches.`,
+      'err'
+    );
+    refreshImportSectionOnly();
+    return;
   }
 
   // Same player often appears on every screenshot (their own row stays pinned/highlighted
@@ -583,8 +617,8 @@ async function handleSendToGroq(){
   const dupCount = newRowsThisSend.length - deduped.length;
   stitchedPreviews = [];
   setImportStatus(
-    `Extracted ${deduped.length} unique row(s)${dupCount ? ` (${dupCount} duplicate(s) removed)` : ''} — ${extractedRows.length} total in review.`,
-    deduped.length > 0 ? 'ok' : 'err'
+    `All ${previews.length} batch(es) succeeded. Extracted ${deduped.length} unique row(s)${dupCount ? ` (${dupCount} duplicate(s) removed)` : ''} — ${extractedRows.length} total in review.`,
+    'ok'
   );
   refreshImportSectionOnly();
 }
