@@ -247,6 +247,7 @@ function importSectionHtml(){
         <span id="newEventStatus" style="font-size:10.5px;color:var(--text-dim);"></span>
       </div>
       <div class="import-status ${extractStatus.kind}" id="importStatus">${escapeHtml(extractStatus.message)}</div>
+      <div style="font-size:9.5px;color:var(--text-faint);margin-top:2px;">More than 5 screenshots? They'll be auto-combined into a handful of stitched images so Groq's 5-image limit is never hit. Running Extract multiple times adds to the same review table below instead of replacing it.</div>
       <div id="reviewWrap">${extractedRows.length ? reviewTableHtml() : ''}</div>
     </div>
   `;
@@ -284,6 +285,7 @@ function reviewTableHtml(){
     </table>
     <div class="import-row" style="margin-top:12px;">
       <button class="btn save-all" id="saveAllBtn">Save all checked (non-flagged)</button>
+      <button class="btn force" id="clearRowsBtn">Clear all rows</button>
     </div>
   `;
 }
@@ -348,6 +350,8 @@ function wireReviewTableEvents(){
   }));
   const saveAllBtn = document.getElementById('saveAllBtn');
   if (saveAllBtn) saveAllBtn.addEventListener('click', handleSaveAll);
+  const clearRowsBtn = document.getElementById('clearRowsBtn');
+  if (clearRowsBtn) clearRowsBtn.addEventListener('click', handleClearRows);
   document.querySelectorAll('[data-forcesave]').forEach(b => b.addEventListener('click', () => handleForceSave(parseInt(b.dataset.forcesave))));
 }
 
@@ -368,12 +372,16 @@ async function handleExtract(){
   const files = fileInput.files;
   if (!eventId) { setImportStatus('Pick an event first.', 'err'); return; }
   if (!files || files.length === 0) { setImportStatus('Choose at least one screenshot.', 'err'); return; }
-  if (files.length > 5) { setImportStatus('Groq allows a max of 5 images per request — split into batches.', 'err'); return; }
 
-  setImportStatus('Reading images…', '');
-  const dataUrls = await Promise.all(Array.from(files).map(fileToDataUrl));
+  setImportStatus(
+    files.length > 5
+      ? `Combining ${files.length} screenshots into fewer images for Groq…`
+      : 'Reading images…',
+    ''
+  );
+  const dataUrls = await stitchIntoBatches(files, 5);
 
-  setImportStatus('Asking Groq to read the screenshot(s)… this can take a few seconds.', '');
+  setImportStatus(`Asking Groq to read ${dataUrls.length} image(s)… this can take a few seconds.`, '');
   try {
     const res = await fetch('https://mmzizgsanwqjpiumpqay.supabase.co/functions/v1/parse-event-screenshot', {
       method: 'POST',
@@ -401,7 +409,7 @@ async function handleExtract(){
     const existingMap = {};
     (existing||[]).forEach(s => existingMap[s.player_id] = s.score);
 
-    extractedRows = rawRows.map(r => {
+    extractedRows = extractedRows.concat(rawRows.map(r => {
       const playerId = bestRosterMatch(r.name);
       return {
         name: r.name,
@@ -411,9 +419,9 @@ async function handleExtract(){
         include: true,
         eventId
       };
-    });
+    }));
 
-    setImportStatus(`Extracted ${extractedRows.length} row(s). Review matches below before saving.`, 'ok');
+    setImportStatus(`Extracted ${rawRows.length} row(s) (${extractedRows.length} total in review). Review matches below before saving.`, 'ok');
     document.getElementById('reviewWrap').innerHTML = reviewTableHtml();
     wireReviewTableEvents();
   } catch (e) {
@@ -430,15 +438,72 @@ function fileToDataUrl(file){
   });
 }
 
+function loadImageFromDataUrl(dataUrl){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+// Stitches an arbitrary number of screenshots into at most `maxImages` tall images
+// (stacked vertically), so we always stay under Groq's per-request image limit
+// no matter how many screenshots someone selects.
+async function stitchIntoBatches(files, maxImages){
+  const dataUrls = await Promise.all(Array.from(files).map(fileToDataUrl));
+  if (dataUrls.length <= maxImages) return dataUrls;
+
+  const batchSize = Math.ceil(dataUrls.length / maxImages);
+  const batches = [];
+  for (let i = 0; i < dataUrls.length; i += batchSize) {
+    batches.push(dataUrls.slice(i, i + batchSize));
+  }
+
+  const stitched = [];
+  for (const batch of batches) {
+    const imgs = await Promise.all(batch.map(loadImageFromDataUrl));
+    const width = Math.max(...imgs.map(im => im.naturalWidth));
+    const scaledHeights = imgs.map(im => im.naturalHeight * (width / im.naturalWidth));
+    const totalHeight = Math.round(scaledHeights.reduce((a,b) => a+b, 0));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = totalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    let y = 0;
+    imgs.forEach((im, i) => {
+      ctx.drawImage(im, 0, y, width, scaledHeights[i]);
+      y += scaledHeights[i];
+    });
+
+    stitched.push(canvas.toDataURL('image/jpeg', 0.9));
+  }
+  return stitched;
+}
+
 async function handleSaveAll(){
   const eventId = document.getElementById('importEventSelect').value;
-  const toSave = extractedRows.filter(r => r.include && r.playerId && !(r.existingScore != null && r.score < r.existingScore));
+  const eligible = extractedRows.filter(r => r.include && r.playerId && !(r.existingScore != null && r.score < r.existingScore));
+  // if the same player was extracted twice (e.g. across stitched batches), keep the last one
+  const byPlayer = {};
+  eligible.forEach(r => { byPlayer[r.playerId] = r; });
+  const toSave = Object.values(byPlayer);
   if (toSave.length === 0) { setImportStatus('Nothing eligible to save — check matches and flags above.', 'err'); return; }
 
   const upserts = toSave.map(r => ({ event_id: eventId, player_id: r.playerId, score: r.score, updated_at: new Date().toISOString() }));
   const { error } = await sb.from('scores').upsert(upserts, { onConflict: 'event_id,player_id' });
   if (error) { setImportStatus(`Save failed: ${error.message}`, 'err'); return; }
-  setImportStatus(`Saved ${toSave.length} score(s). Flagged/unmatched rows were skipped.`, 'ok');
+  setImportStatus(`Saved ${toSave.length} score(s). Flagged/unmatched/duplicate rows were skipped.`, 'ok');
+}
+
+function handleClearRows(){
+  extractedRows = [];
+  document.getElementById('reviewWrap').innerHTML = '';
+  setImportStatus('Cleared.', '');
 }
 
 async function handleForceSave(idx){
