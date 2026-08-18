@@ -415,6 +415,7 @@ function importSectionHtml(){
       <div class="stitch-gallery" id="stitchGallery">${stitchedPreviews.length ? stitchGalleryHtml() : ''}</div>
       ${stitchedPreviews.length ? `<div class="import-row" style="margin-top:10px;"><button class="btn save-all" id="sendToGroqBtn">Send ${stitchedPreviews.length} batch(es) to Groq</button><button class="btn force" id="clearPreviewBtn">Discard previews</button></div>` : ''}
       <div id="batchStatusList">${batchStatusListHtml()}</div>
+      <div id="saveSuccessBanner" style="display:none;align-items:flex-start;gap:12px;background:rgba(95,208,104,.1);border:1px solid var(--mint);border-radius:10px;padding:14px 16px;margin-top:10px;"></div>
       <div id="reviewWrap">${extractedRows.length ? reviewTableHtml() : ''}</div>
     </div>
   `;
@@ -824,7 +825,31 @@ async function handleSaveAll(){
   const upserts = toSave.map(r => ({ event_id: eventId, player_id: r.playerId, score: r.score, updated_at: new Date().toISOString() }));
   const { error } = await sb.from('scores').upsert(upserts, { onConflict: 'event_id,player_id' });
   if (error) { setImportStatus(`Save failed: ${error.message}`, 'err'); return; }
-  setImportStatus(`Saved ${toSave.length} score(s). Flagged/unmatched/duplicate rows were skipped.`, 'ok');
+
+  // Remove exactly the rows that were just saved -- leave behind anything skipped
+  // (unchecked, flagged, unmatched) so it's still visible and doesn't get silently lost.
+  const savedSet = new Set(toSave);
+  extractedRows = extractedRows.filter(r => !savedSet.has(r));
+
+  const eventName = (events.find(e => e.id === eventId) || {}).name || eventId;
+  const skippedCount = extractedRows.length;
+  refreshImportSectionOnly();
+  showSaveSuccessBanner(toSave.length, eventName, skippedCount);
+}
+
+function showSaveSuccessBanner(count, eventName, skippedCount){
+  const el = document.getElementById('saveSuccessBanner');
+  if (!el) return;
+  el.style.display = 'flex';
+  el.innerHTML = `
+    <span style="font-size:20px;">✅</span>
+    <div>
+      <div style="font-weight:700;color:var(--mint);">Saved ${count} score${count===1?'':'s'} to "${escapeHtml(eventName)}"</div>
+      ${skippedCount ? `<div style="font-size:10.5px;color:var(--text-dim);margin-top:2px;">${skippedCount} row(s) still waiting below (unchecked, flagged, or unmatched) — nothing was lost.</div>` : `<div style="font-size:10.5px;color:var(--text-dim);margin-top:2px;">Review table is clear — ready for the next upload.</div>`}
+    </div>
+  `;
+  clearTimeout(showSaveSuccessBanner._t);
+  showSaveSuccessBanner._t = setTimeout(() => { el.style.display = 'none'; }, 8000);
 }
 
 function handleClearRows(){
