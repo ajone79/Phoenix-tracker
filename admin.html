@@ -436,6 +436,7 @@ async function handleSendToGroq(){
   for (let i = 0; i < stitchedPreviews.length; i += 5) chunks.push(stitchedPreviews.slice(i, i+5));
 
   let totalExtracted = 0;
+  const batchErrors = [];
   for (let c = 0; c < chunks.length; c++) {
     setImportStatus(`Asking Groq to read batch ${c+1}/${chunks.length}…`, '');
     try {
@@ -451,10 +452,13 @@ async function handleSendToGroq(){
       const data = await res.json();
       if (!res.ok) {
         const rawSnippet = data.raw ? ` — model said: "${String(data.raw).slice(0,300)}${data.raw.length>300?'…':''}"` : '';
-        setImportStatus(`Error on batch ${c+1}: ${data.error || res.statusText}${rawSnippet}`, 'err');
+        batchErrors.push(`Batch ${c+1}: ${data.error || res.statusText}${rawSnippet}`);
         continue;
       }
       const rawRows = data.rows || [];
+      if (rawRows.length === 0) {
+        batchErrors.push(`Batch ${c+1}: Groq returned no rows for this image — it may be too blurry/small, or the stitched image didn't come through correctly.`);
+      }
       totalExtracted += rawRows.length;
       extractedRows = extractedRows.concat(rawRows.map(r => {
         const playerId = bestRosterMatch(r.name);
@@ -468,12 +472,22 @@ async function handleSendToGroq(){
         };
       }));
     } catch (e) {
-      setImportStatus(`Batch ${c+1} request failed: ${e.message}`, 'err');
+      batchErrors.push(`Batch ${c+1}: request failed — ${e.message}`);
     }
   }
 
   stitchedPreviews = [];
-  setImportStatus(`Extracted ${totalExtracted} row(s) (${extractedRows.length} total in review). Review matches below before saving.`, totalExtracted > 0 ? 'ok' : 'err');
+  if (totalExtracted === 0) {
+    setImportStatus(
+      batchErrors.length
+        ? `Extracted 0 rows. ${batchErrors.join(' | ')}`
+        : 'Extracted 0 rows and no error was reported — try a clearer screenshot.',
+      'err'
+    );
+  } else {
+    const suffix = batchErrors.length ? ` (some batches had issues: ${batchErrors.join(' | ')})` : '';
+    setImportStatus(`Extracted ${totalExtracted} row(s) (${extractedRows.length} total in review)${suffix}. Review matches below before saving.`, batchErrors.length ? 'err' : 'ok');
+  }
   refreshImportSectionOnly();
 }
 
