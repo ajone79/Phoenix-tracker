@@ -100,6 +100,7 @@ let mySession = null;
 
 let extractedRows = []; // {name, score, playerId, existingScore}
 let extractStatus = { loading: false, message: '', kind: '' };
+let guideOpen = false;
 
 async function init(){
   const { data: { session } } = await sb.auth.getSession();
@@ -148,10 +149,52 @@ function render(){
     </div>
     <main>
       <p style="font-size:11.5px;color:#8a8a94;">Signed in as <b>${escapeHtml(me.discord_username)}</b>. Approve pending Discord logins below and, since Discord names rarely match in-game names, type the correct in-game name next to each person yourself — matching this list against the roster.</p>
+
+      <button class="btn admin" id="guideToggle" style="margin-bottom:10px;">📖 How to use this page ${guideOpen ? '(hide)' : '(show)'}</button>
+      <div id="guideBox" style="${guideOpen ? '' : 'display:none;'}background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:16px 20px;margin-bottom:18px;font-size:11.5px;color:var(--text-dim);line-height:1.7;">
+        <b style="color:var(--signal);">Approving new members</b><br>
+        When someone signs in with Discord for the first time, they show up under "Pending approval" with just a Discord name. Type their real in-game name into the box next to their row (check it against the roster if unsure), then hit <b>Approve</b>. They don't need to log in again — access takes effect immediately.<br><br>
+
+        <b style="color:var(--signal);">Making someone an admin</b><br>
+        The "Intended admins" banner near the top lists who's supposed to get admin rights. Once one of them has logged in and you've filled in their in-game name, a "Make admin" button appears next to their name in that banner — click it. You can also promote/demote anyone from the Approved members list below using the Admin / Remove admin buttons.<br><br>
+
+        <b style="color:var(--signal);">Creating a new event</b><br>
+        Click <b>+ New event</b> next to the event dropdown in the import panel. Fill in a name and date, pick whether it's scored by points or task-count, and choose the completion mode:
+        <ul style="margin:6px 0 6px 18px;padding:0;">
+          <li><b>Average / percentile</b> — players are ranked and colour-coded against each other (gold/green/amber/pink/red tiers).</li>
+          <li><b>Threshold (pass/fail)</b> — there's a single score/task-count line; hitting it is green, below is red or amber.</li>
+        </ul>
+        Set the <b>Threshold</b> field if it's a threshold-mode event, or if you want a specific pass line for the tracker's colour coding. You can also edit the threshold later in the "Manage event thresholds" table further down — handy for events already created without one, or if a target needs adjusting.<br><br>
+
+        <b style="color:var(--signal);">Importing scores from a screenshot</b><br>
+        1. Pick the event, then choose one or more screenshots of the in-game leaderboard.<br>
+        2. Click <b>Extract from screenshot(s)</b>. This sends the image(s) to Groq's vision model, which reads out each player's name and score. More than 5 screenshots are automatically stitched together first, since Groq only accepts 5 images per request — you can also just click Extract multiple times in a row and everything piles up in one review table.<br>
+        3. <b>Always check the review table before saving.</b> Every extracted name is auto-matched to a roster player where possible — anything shown with an empty dropdown couldn't be matched and needs picking manually. Scores are editable if anything looks misread.<br>
+        4. Rows highlighted <span style="color:var(--alert)">red</span> have a new score lower than what's already stored for that player — these are excluded from the bulk save on purpose (protects against accidentally overwriting a correct score with a bad screenshot read). If the new value is genuinely correct, use that row's <b>Save anyway</b> button.<br>
+        5. <b>Save all checked (non-flagged)</b> writes everything else straight into the scores table. <b>Clear all rows</b> resets the review table when you're starting fresh on a new event.
+      </div>
+
       <div class="allowlist-banner"><b>Intended admins:</b><br>${allowChips}</div>
 
       <h2>Import scores from screenshot</h2>
       ${importSectionHtml()}
+
+      <h2>Manage event thresholds</h2>
+      <div class="import-box">
+        <table class="review-table">
+          <thead><tr><th>Event</th><th>Mode</th><th>Threshold</th><th></th></tr></thead>
+          <tbody>
+            ${events.map(e => `
+              <tr data-eventrow="${e.id}">
+                <td>${escapeHtml(e.name)} <span style="color:var(--text-faint)">(${e.date})</span></td>
+                <td>${escapeHtml(e.completion_mode || 'average')}</td>
+                <td><input type="number" data-thresholdinput="${e.id}" value="${e.threshold ?? ''}"></td>
+                <td><button class="btn save" data-savethreshold="${e.id}">Save</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
 
       <h2>Pending approval (${pending.length})</h2>
       <div id="pendingList">${pending.length ? pending.map(rowHtml).join('') : '<div class="empty">Nobody waiting.</div>'}</div>
@@ -166,6 +209,25 @@ function render(){
   document.querySelectorAll('[data-admintoggle]').forEach(b=>b.addEventListener('click', ()=>toggleAdmin(b.dataset.admintoggle, b.dataset.current==='true')));
 
   wireImportSection();
+
+  const guideToggle = document.getElementById('guideToggle');
+  if (guideToggle) guideToggle.addEventListener('click', () => {
+    guideOpen = !guideOpen;
+    const box = document.getElementById('guideBox');
+    box.style.display = guideOpen ? '' : 'none';
+    guideToggle.textContent = `📖 How to use this page ${guideOpen ? '(hide)' : '(show)'}`;
+  });
+
+  document.querySelectorAll('[data-savethreshold]').forEach(b => b.addEventListener('click', async () => {    const eventId = b.dataset.savethreshold;
+    const input = document.querySelector(`[data-thresholdinput="${eventId}"]`);
+    const val = input.value === '' ? null : parseInt(input.value);
+    const { error } = await sb.from('events').update({ threshold: val, updated_at: new Date().toISOString() }).eq('id', eventId);
+    if (error) { alert(`Error saving threshold: ${error.message}`); return; }
+    const ev = events.find(e => e.id === eventId);
+    if (ev) ev.threshold = val;
+    b.textContent = 'Saved ✓';
+    setTimeout(() => { b.textContent = 'Save'; }, 1500);
+  }));
 
   if (window.__phxInitNavMenu) window.__phxInitNavMenu();
 }
@@ -243,8 +305,10 @@ function importSectionHtml(){
           <option value="average">Average / percentile</option>
           <option value="threshold">Threshold (pass/fail)</option>
         </select>
+        <input type="number" id="newEventThreshold" placeholder="Threshold (e.g. 10000)" style="min-width:160px;">
         <button class="btn save-all" id="createEventBtn" type="button">Create event</button>
         <span id="newEventStatus" style="font-size:10.5px;color:var(--text-dim);"></span>
+        <div style="width:100%;font-size:9.5px;color:var(--text-faint);">Threshold is the score/task-count line used for pass/fail (threshold mode) or the green/amber/red coloring on the tracker. Leave blank to use the site default.</div>
       </div>
       <div class="import-status ${extractStatus.kind}" id="importStatus">${escapeHtml(extractStatus.message)}</div>
       <div style="font-size:9.5px;color:var(--text-faint);margin-top:2px;">More than 5 screenshots? They'll be auto-combined into a handful of stitched images so Groq's 5-image limit is never hit. Running Extract multiple times adds to the same review table below instead of replacing it.</div>
@@ -315,15 +379,19 @@ async function handleCreateEvent(){
   const date = document.getElementById('newEventDate').value;
   const scoringType = document.getElementById('newEventScoringType').value;
   const completionMode = document.getElementById('newEventCompletionMode').value;
+  const thresholdRaw = document.getElementById('newEventThreshold').value;
   const statusEl = document.getElementById('newEventStatus');
 
   if (!name || !date) { statusEl.textContent = 'Name and date are required.'; statusEl.style.color = 'var(--alert)'; return; }
 
   const id = slugifyEventId(name, date);
-  const { data, error } = await sb.from('events').insert({
+  const insertBody = {
     id, name, date, scoring_type: scoringType, completion_mode: completionMode,
     start_date: date
-  }).select().maybeSingle();
+  };
+  if (thresholdRaw !== '') insertBody.threshold = parseInt(thresholdRaw);
+
+  const { data, error } = await sb.from('events').insert(insertBody).select().maybeSingle();
 
   if (error) { statusEl.textContent = `Error: ${error.message}`; statusEl.style.color = 'var(--alert)'; return; }
 
@@ -334,6 +402,8 @@ async function handleCreateEvent(){
   sel.innerHTML = `<option value="">— pick an event —</option>` + events.map(e=>`<option value="${e.id}">${escapeHtml(e.name)} (${e.date})</option>`).join('');
   sel.value = id;
   document.getElementById('newEventForm').style.display = 'none';
+  document.getElementById('newEventName').value = '';
+  document.getElementById('newEventThreshold').value = '';
 }
 
 function wireReviewTableEvents(){
