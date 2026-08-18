@@ -17,8 +17,15 @@
   .elbow-tag{display:inline-block;background:var(--signal);color:var(--void);font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.1em;font-size:12px;padding:4px 14px;border-radius:20px;margin-bottom:18px;}
   .box h1{font-family:'Antonio',sans-serif;font-weight:700;font-size:24px;margin:0 0 10px;letter-spacing:.03em;}
   .box p{font-size:12.5px;color:var(--text-dim);line-height:1.6;margin:0 0 26px;}
-  .discord-btn{display:inline-flex;align-items:center;gap:10px;background:#5865F2;color:#fff;font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:13px;padding:13px 28px;border-radius:8px;border:none;cursor:pointer;}
+  .discord-btn{display:inline-flex;align-items:center;gap:10px;background:#5865F2;color:#fff;font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:13px;padding:13px 28px;border-radius:8px;border:none;cursor:pointer;width:100%;justify-content:center;}
   .discord-btn:hover{background:#4752c4;}
+  .divider{display:flex;align-items:center;gap:10px;margin:20px 0;color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.08em;}
+  .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--hair);}
+  .email-row{display:flex;gap:8px;}
+  .email-row input{flex:1;background:#17171e;border:1px solid var(--hair);color:var(--text);font-family:'Space Mono',monospace;font-size:13px;padding:12px;border-radius:8px;}
+  .email-btn{background:var(--periwinkle);color:var(--void);font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:12px;padding:0 18px;border-radius:8px;border:none;cursor:pointer;white-space:nowrap;}
+  .email-btn:hover{opacity:.9;}
+  .ok{color:#5fd068;font-size:11.5px;margin-top:14px;display:none;line-height:1.5;}
   .err{color:#ff5a5f;font-size:11px;margin-top:14px;display:none;}
 </style>
 </head>
@@ -27,8 +34,14 @@
   <div class="box">
     <span class="elbow-tag">PHX EU168</span>
     <h1>Alliance Tracker</h1>
-    <p>This site is for Phoenix EU168 members. Sign in with Discord — an officer will need to approve your access the first time.</p>
+    <p>This site is for Phoenix EU168 members. Sign in with Discord, or use your email if you're not on Discord — an officer will need to approve your access the first time either way.</p>
     <button class="discord-btn" id="discordBtn">🔒 Sign in with Discord</button>
+    <div class="divider">or</div>
+    <div class="email-row">
+      <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email">
+      <button class="email-btn" id="emailBtn">Send link</button>
+    </div>
+    <div class="ok" id="ok"></div>
     <div class="err" id="err"></div>
   </div>
 </div>
@@ -40,16 +53,41 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const params = new URLSearchParams(location.search);
 const next = params.get('next') || 'index.html';
 
+function showErr(msg){
+  const e = document.getElementById('err');
+  e.textContent = msg;
+  e.style.display = 'block';
+  document.getElementById('ok').style.display = 'none';
+}
+function showOk(msg){
+  const o = document.getElementById('ok');
+  o.textContent = msg;
+  o.style.display = 'block';
+  document.getElementById('err').style.display = 'none';
+}
+
 document.getElementById('discordBtn').addEventListener('click', async ()=>{
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'discord',
     options: { redirectTo: location.origin + '/' + next.replace(/^\//,'') }
   });
-  if (error) {
-    const e = document.getElementById('err');
-    e.textContent = error.message;
-    e.style.display = 'block';
-  }
+  if (error) showErr(error.message);
+});
+
+document.getElementById('emailBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('emailInput').value.trim();
+  if (!email) { showErr('Enter your email address first.'); return; }
+  const btn = document.getElementById('emailBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: location.origin + '/' + next.replace(/^\//,'') }
+  });
+  btn.disabled = false;
+  btn.textContent = 'Send link';
+  if (error) { showErr(error.message); return; }
+  showOk('Check your email — click the link we sent to sign in. (It can take a minute or two, and is worth checking spam.)');
 });
 
 // if already logged in, bounce straight through
