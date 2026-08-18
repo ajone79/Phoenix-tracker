@@ -108,6 +108,7 @@ let mySession = null;
 let extractedRows = []; // {name, score, playerId, existingScore}
 let extractStatus = { loading: false, message: '', kind: '' };
 let guideOpen = false;
+let thresholdsOpen = false;
 let stitchedPreviews = []; // {id, dataUrl, sourceCount}
 let screensPerStitch = 5;
 let selectedEventId = '';
@@ -223,7 +224,7 @@ function render(){
         When someone signs in with Discord for the first time, they show up under "Pending approval" with just a Discord name. Type their real in-game name into the box next to their row (check it against the roster if unsure), then hit <b>Approve</b>. They don't need to log in again — access takes effect immediately.<br><br>
 
         <b style="color:var(--signal);">Making someone an admin</b><br>
-        The "Intended admins" banner near the top lists who's supposed to get admin rights. Once one of them has logged in and you've filled in their in-game name, a "Make admin" button appears next to their name in that banner — click it. You can also promote/demote anyone from the Approved members list below using the Admin / Remove admin buttons.<br><br>
+        The "Intended admins" banner lists who's supposed to get admin rights. Once one of them has logged in and you've filled in their in-game name, a "Make admin" button appears next to their name in that banner — click it. You can also promote/demote anyone from the Approved members list using the Admin / Remove admin buttons.<br><br>
 
         <b style="color:var(--signal);">Creating a new event</b><br>
         Click <b>+ New event</b> next to the event dropdown in the import panel. Fill in a name and date, pick whether it's scored by points or task-count, and choose the completion mode:
@@ -231,33 +232,39 @@ function render(){
           <li><b>Average / percentile</b> — players are ranked and colour-coded against each other (gold/green/amber/pink/red tiers).</li>
           <li><b>Threshold (pass/fail)</b> — there's a single score/task-count line; hitting it is green, below is red or amber.</li>
         </ul>
-        Set the <b>Threshold</b> field if it's a threshold-mode event, or if you want a specific pass line for the tracker's colour coding. You can also edit the threshold later in the "Manage event thresholds" table further down — handy for events already created without one, or if a target needs adjusting.<br><br>
+        Set the <b>Threshold</b> field if it's a threshold-mode event, or if you want a specific pass line for the tracker's colour coding. You can also edit — or delete — an event later in the "Manage event thresholds" table (click to expand it). Deleting an event asks for a second confirmation click before it actually happens, and automatically removes any scores logged against it too.<br><br>
 
         <b style="color:var(--signal);">Importing scores from a screenshot</b><br>
-        1. Pick the event, then choose one or more screenshots of the in-game leaderboard.<br>
-        2. Click <b>Extract from screenshot(s)</b>. This sends the image(s) to Groq's vision model, which reads out each player's name and score. More than 5 screenshots are automatically stitched together first, since Groq only accepts 5 images per request — you can also just click Extract multiple times in a row and everything piles up in one review table.<br>
-        3. <b>Always check the review table before saving.</b> Every extracted name is auto-matched to a roster player where possible — anything shown with an empty dropdown couldn't be matched and needs picking manually. Scores are editable if anything looks misread.<br>
-        4. Rows highlighted <span style="color:var(--alert)">red</span> have a new score lower than what's already stored for that player — these are excluded from the bulk save on purpose (protects against accidentally overwriting a correct score with a bad screenshot read). If the new value is genuinely correct, use that row's <b>Save anyway</b> button.<br>
-        5. <b>Save all checked (non-flagged)</b> writes everything else straight into the scores table. <b>Clear all rows</b> resets the review table when you're starting fresh on a new event.
+        1. Pick the event, then choose your screenshots of the in-game leaderboard — any number at once.<br>
+        2. Set <b>"Screens per stitched image"</b> if you want (defaults to 5 — the most Groq can reliably read in one go). Click <b>Preview stitched image(s)</b>. This builds the combined images entirely in your browser first — nothing is sent anywhere yet. You'll see a thumbnail per batch ("Batch 1", "Batch 2"...); remove any that look bad with the ✕, or change the screens-per-image number and preview again.<br>
+        3. When it looks right, click <b>Send to Groq</b>. Each batch is sent as its own separate request, one at a time, with a status line showing exactly what's happening ("Sending in 42s…", "Sending to Groq…", "Done — 14 rows"). This is deliberately paced (~65 seconds between batches) because Groq's free tier resets its usage allowance once a minute, and a single stitched image can already use most of that allowance — going faster just causes rate-limit errors. If a batch gets rate-limited it retries automatically using Groq's own suggested wait time.<br>
+        4. <b>If any batch fails even after retrying, nothing is added to the review table</b> — this is intentional, so you never end up with an incomplete set of scores without realising it. The stitched previews are kept so you can just press Send again to retry everything, without rebuilding from scratch.<br>
+        5. The same player often shows up twice in one screenshot (their own row usually stays pinned on screen regardless of scroll position) — these duplicates are automatically detected and removed, both by Groq itself and again as a backup check on this page.<br>
+        6. <b>Always check the review table before saving.</b> Every extracted name is matched against the roster automatically: an exact or clearly-contained match needs no attention, but a <span style="color:var(--periwinkle)">blue-tinted row with an "⚠ auto-matched — please verify" note</span> means the name didn't match exactly and the closest-sounding roster name was picked automatically — double check these, they're usually right but worth a glance. An amber row with an empty dropdown means no match was found at all and needs picking manually. Scores are editable if anything looks misread.<br>
+        7. Rows highlighted <span style="color:var(--alert)">red</span> have a new score lower than what's already stored for that player — these are excluded from the bulk save on purpose (protects against accidentally overwriting a correct score with a bad screenshot read). If the new value is genuinely correct, use that row's <b>Save anyway</b> button.<br>
+        8. <b>Save all checked (non-flagged)</b> writes everything else straight into the scores table. <b>Clear all rows</b> resets the review table when you're starting fresh on a new event.
       </div>
 
       <div class="allowlist-banner"><b>Intended admins:</b><br>${allowChips}</div>
 
+      <h2>Pending approval (${pending.length})</h2>
+      <div id="pendingList">${pending.length ? pending.map(rowHtml).join('') : '<div class="empty">Nobody waiting.</div>'}</div>
+
       <h2>Import scores from screenshot</h2>
       <div id="importBoxWrap">${importSectionHtml()}</div>
 
-      <h2>Manage event thresholds</h2>
-      <div class="import-box">
-        <table class="review-table" id="eventThresholdsTable">
-          <thead><tr><th>Event</th><th>Mode</th><th>Threshold</th><th></th><th></th></tr></thead>
-          <tbody>
-            ${events.map(e => eventThresholdRowHtml(e)).join('')}
-          </tbody>
-        </table>
+      <button class="btn admin" id="thresholdsToggle" style="margin:18px 0 4px;">Manage event thresholds ${thresholdsOpen ? '▲ (hide)' : '▼ (show)'}</button>
+      <div id="thresholdsBox" style="${thresholdsOpen ? '' : 'display:none;'}">
+        <div class="import-box">
+          <table class="review-table" id="eventThresholdsTable">
+            <thead><tr><th>Event</th><th>Mode</th><th>Threshold</th><th></th><th></th></tr></thead>
+            <tbody>
+              ${events.map(e => eventThresholdRowHtml(e)).join('')}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <h2>Pending approval (${pending.length})</h2>
-      <div id="pendingList">${pending.length ? pending.map(rowHtml).join('') : '<div class="empty">Nobody waiting.</div>'}</div>
       <h2>Approved members (${approved.length})</h2>
       <div id="approvedList">${approved.length ? approved.map(rowHtml).join('') : '<div class="empty">No approved members yet.</div>'}</div>
     </main>
@@ -276,6 +283,14 @@ function render(){
     const box = document.getElementById('guideBox');
     box.style.display = guideOpen ? '' : 'none';
     guideToggle.textContent = `📖 How to use this page ${guideOpen ? '(hide)' : '(show)'}`;
+  });
+
+  const thresholdsToggle = document.getElementById('thresholdsToggle');
+  if (thresholdsToggle) thresholdsToggle.addEventListener('click', () => {
+    thresholdsOpen = !thresholdsOpen;
+    const box = document.getElementById('thresholdsBox');
+    box.style.display = thresholdsOpen ? '' : 'none';
+    thresholdsToggle.textContent = `Manage event thresholds ${thresholdsOpen ? '▲ (hide)' : '▼ (show)'}`;
   });
 
   wireThresholdsTable();
