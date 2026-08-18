@@ -108,6 +108,63 @@ let extractStatus = { loading: false, message: '', kind: '' };
 let guideOpen = false;
 let stitchedPreviews = []; // {id, dataUrl, sourceCount}
 let screensPerStitch = 6;
+let selectedEventId = '';
+let pendingDeleteEventId = null;
+
+function eventThresholdRowHtml(e){
+  const isPendingDelete = pendingDeleteEventId === e.id;
+  return `
+    <tr data-eventrow="${e.id}">
+      <td>${escapeHtml(e.name)} <span style="color:var(--text-faint)">(${e.date})</span></td>
+      <td>${escapeHtml(e.completion_mode || 'average')}</td>
+      <td><input type="number" data-thresholdinput="${e.id}" value="${e.threshold ?? ''}"></td>
+      <td><button class="btn save" data-savethreshold="${e.id}">Save</button></td>
+      <td>${isPendingDelete
+        ? `<button class="btn force" data-confirmdelete="${e.id}" style="background:var(--alert);color:var(--void);">⚠ Confirm delete?</button> <button class="btn admin" data-canceldelete="${e.id}">Cancel</button>`
+        : `<button class="btn force" data-deleteevent="${e.id}">Delete</button>`}
+      </td>
+    </tr>
+  `;
+}
+
+function rerenderThresholdsTable(){
+  document.querySelector('#eventThresholdsTable tbody').innerHTML = events.map(e => eventThresholdRowHtml(e)).join('');
+  wireThresholdsTable();
+}
+
+function wireThresholdsTable(){
+  document.querySelectorAll('[data-savethreshold]').forEach(b => b.addEventListener('click', async () => {
+    const eventId = b.dataset.savethreshold;
+    const input = document.querySelector(`[data-thresholdinput="${eventId}"]`);
+    const val = input.value === '' ? null : parseInt(input.value);
+    const { error } = await sb.from('events').update({ threshold: val, updated_at: new Date().toISOString() }).eq('id', eventId);
+    if (error) { alert(`Error saving threshold: ${error.message}`); return; }
+    const ev = events.find(e => e.id === eventId);
+    if (ev) ev.threshold = val;
+    b.textContent = 'Saved ✓';
+    setTimeout(() => { b.textContent = 'Save'; }, 1500);
+  }));
+  document.querySelectorAll('[data-deleteevent]').forEach(b => b.addEventListener('click', () => {
+    pendingDeleteEventId = b.dataset.deleteevent;
+    rerenderThresholdsTable();
+  }));
+  document.querySelectorAll('[data-canceldelete]').forEach(b => b.addEventListener('click', () => {
+    pendingDeleteEventId = null;
+    rerenderThresholdsTable();
+  }));
+  document.querySelectorAll('[data-confirmdelete]').forEach(b => b.addEventListener('click', async () => {
+    const eventId = b.dataset.confirmdelete;
+    b.textContent = 'Deleting…';
+    b.disabled = true;
+    const { error } = await sb.from('events').delete().eq('id', eventId);
+    if (error) { alert(`Delete failed: ${error.message}`); pendingDeleteEventId = null; rerenderThresholdsTable(); return; }
+    events = events.filter(e => e.id !== eventId);
+    if (selectedEventId === eventId) selectedEventId = '';
+    pendingDeleteEventId = null;
+    rerenderThresholdsTable();
+    refreshImportSectionOnly();
+  }));
+}
 
 async function init(){
   const { data: { session } } = await sb.auth.getSession();
@@ -188,17 +245,10 @@ function render(){
 
       <h2>Manage event thresholds</h2>
       <div class="import-box">
-        <table class="review-table">
-          <thead><tr><th>Event</th><th>Mode</th><th>Threshold</th><th></th></tr></thead>
+        <table class="review-table" id="eventThresholdsTable">
+          <thead><tr><th>Event</th><th>Mode</th><th>Threshold</th><th></th><th></th></tr></thead>
           <tbody>
-            ${events.map(e => `
-              <tr data-eventrow="${e.id}">
-                <td>${escapeHtml(e.name)} <span style="color:var(--text-faint)">(${e.date})</span></td>
-                <td>${escapeHtml(e.completion_mode || 'average')}</td>
-                <td><input type="number" data-thresholdinput="${e.id}" value="${e.threshold ?? ''}"></td>
-                <td><button class="btn save" data-savethreshold="${e.id}">Save</button></td>
-              </tr>
-            `).join('')}
+            ${events.map(e => eventThresholdRowHtml(e)).join('')}
           </tbody>
         </table>
       </div>
@@ -225,16 +275,7 @@ function render(){
     guideToggle.textContent = `📖 How to use this page ${guideOpen ? '(hide)' : '(show)'}`;
   });
 
-  document.querySelectorAll('[data-savethreshold]').forEach(b => b.addEventListener('click', async () => {    const eventId = b.dataset.savethreshold;
-    const input = document.querySelector(`[data-thresholdinput="${eventId}"]`);
-    const val = input.value === '' ? null : parseInt(input.value);
-    const { error } = await sb.from('events').update({ threshold: val, updated_at: new Date().toISOString() }).eq('id', eventId);
-    if (error) { alert(`Error saving threshold: ${error.message}`); return; }
-    const ev = events.find(e => e.id === eventId);
-    if (ev) ev.threshold = val;
-    b.textContent = 'Saved ✓';
-    setTimeout(() => { b.textContent = 'Save'; }, 1500);
-  }));
+  wireThresholdsTable();
 
   if (window.__phxInitNavMenu) window.__phxInitNavMenu();
 }
@@ -295,7 +336,7 @@ function importSectionHtml(){
         <label style="font-size:11px;color:#8a8a94;">Event:</label>
         <select id="importEventSelect">
           <option value="">— pick an event —</option>
-          ${events.map(e=>`<option value="${e.id}">${escapeHtml(e.name)} (${e.date})</option>`).join('')}
+          ${events.map(e=>`<option value="${e.id}" ${e.id===selectedEventId?'selected':''}>${escapeHtml(e.name)} (${e.date})</option>`).join('')}
         </select>
         <button class="btn admin" id="newEventToggle" type="button">+ New event</button>
         <input type="file" id="importFiles" accept="image/*" multiple>
@@ -380,6 +421,8 @@ function stitchGalleryHtml(){
 function wireImportSection(){
   const previewBtn = document.getElementById('previewBtn');
   if (previewBtn) previewBtn.addEventListener('click', handlePreviewStitch);
+  const eventSelect = document.getElementById('importEventSelect');
+  if (eventSelect) eventSelect.addEventListener('change', () => { selectedEventId = eventSelect.value; });
   const sendBtn = document.getElementById('sendToGroqBtn');
   if (sendBtn) sendBtn.addEventListener('click', handleSendToGroq);
   const clearPreviewBtn = document.getElementById('clearPreviewBtn');
@@ -422,6 +465,29 @@ async function handlePreviewStitch(){
   refreshImportSectionOnly();
 }
 
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+async function callGroqBatch(images, attempt){
+  const res = await fetch('https://mmzizgsanwqjpiumpqay.supabase.co/functions/v1/parse-event-screenshot', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${mySession.access_token}`,
+      'apikey': SUPABASE_KEY,
+    },
+    body: JSON.stringify({ images })
+  });
+  const data = await res.json();
+  const isRateLimited = res.status === 429 || res.status === 413 || (data.error && /rate_limit|too large|tokens per minute/i.test(data.error));
+  if (!res.ok && isRateLimited && attempt < 3) {
+    const waitMs = 4000 * attempt; // 4s, 8s, 12s
+    setImportStatus(`Groq rate limit hit — waiting ${waitMs/1000}s and retrying (attempt ${attempt+1}/3)…`, '');
+    await sleep(waitMs);
+    return callGroqBatch(images, attempt + 1);
+  }
+  return { res, data };
+}
+
 async function handleSendToGroq(){
   const eventId = document.getElementById('importEventSelect').value;
   if (!eventId) { setImportStatus('Pick an event first.', 'err'); return; }
@@ -440,16 +506,7 @@ async function handleSendToGroq(){
   for (let c = 0; c < chunks.length; c++) {
     setImportStatus(`Asking Groq to read batch ${c+1}/${chunks.length}…`, '');
     try {
-      const res = await fetch('https://mmzizgsanwqjpiumpqay.supabase.co/functions/v1/parse-event-screenshot', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${mySession.access_token}`,
-          'apikey': SUPABASE_KEY,
-        },
-        body: JSON.stringify({ images: chunks[c].map(p => p.dataUrl) })
-      });
-      const data = await res.json();
+      const { res, data } = await callGroqBatch(chunks[c].map(p => p.dataUrl), 1);
       if (!res.ok) {
         const rawSnippet = data.raw ? ` — model said: "${String(data.raw).slice(0,300)}${data.raw.length>300?'…':''}"` : '';
         batchErrors.push(`Batch ${c+1}: ${data.error || res.statusText}${rawSnippet}`);
@@ -474,6 +531,9 @@ async function handleSendToGroq(){
     } catch (e) {
       batchErrors.push(`Batch ${c+1}: request failed — ${e.message}`);
     }
+    // pace requests -- Groq's limit is per-minute, so back-to-back batches can
+    // cumulatively exceed it even if each one individually fits.
+    if (c < chunks.length - 1) await sleep(3000);
   }
 
   stitchedPreviews = [];
@@ -525,6 +585,7 @@ async function handleCreateEvent(){
   const sel = document.getElementById('importEventSelect');
   sel.innerHTML = `<option value="">— pick an event —</option>` + events.map(e=>`<option value="${e.id}">${escapeHtml(e.name)} (${e.date})</option>`).join('');
   sel.value = id;
+  selectedEventId = id;
   document.getElementById('newEventForm').style.display = 'none';
   document.getElementById('newEventName').value = '';
   document.getElementById('newEventThreshold').value = '';
@@ -578,26 +639,35 @@ function loadImageFromDataUrl(dataUrl){
   });
 }
 
+// Cap the assembled image's overall size so token cost stays bounded no matter
+// how many screenshots (or how high-res) go into one stitch.
+const STITCH_MAX_TOTAL_HEIGHT = 2200;
+
 async function stitchGroupIntoImage(dataUrls){
   const imgs = await Promise.all(dataUrls.map(loadImageFromDataUrl));
   const width = Math.max(...imgs.map(im => im.naturalWidth));
   const scaledHeights = imgs.map(im => im.naturalHeight * (width / im.naturalWidth));
   const totalHeight = Math.round(scaledHeights.reduce((a,b) => a+b, 0));
 
+  const shrink = totalHeight > STITCH_MAX_TOTAL_HEIGHT ? (STITCH_MAX_TOTAL_HEIGHT / totalHeight) : 1;
+  const finalWidth = Math.round(width * shrink);
+  const finalHeights = scaledHeights.map(h => Math.round(h * shrink));
+  const finalTotalHeight = finalHeights.reduce((a,b) => a+b, 0);
+
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = totalHeight;
+  canvas.width = finalWidth;
+  canvas.height = finalTotalHeight;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   let y = 0;
   imgs.forEach((im, i) => {
-    ctx.drawImage(im, 0, y, width, scaledHeights[i]);
-    y += scaledHeights[i];
+    ctx.drawImage(im, 0, y, finalWidth, finalHeights[i]);
+    y += finalHeights[i];
   });
 
-  return canvas.toDataURL('image/jpeg', 0.9);
+  return canvas.toDataURL('image/jpeg', 0.85);
 }
 
 // Groups files into fixed-size chunks (screensPerStitch each) and stitches each
@@ -605,16 +675,13 @@ async function stitchGroupIntoImage(dataUrls){
 // remove before anything is sent to Groq.
 async function buildStitchedPreviews(files, perStitch){
   const dataUrls = await Promise.all(Array.from(files).map(fileToDataUrl));
-  if (dataUrls.length <= 1) {
-    return dataUrls.map((d,i) => ({ id: `p${i}`, dataUrl: d, sourceCount: 1 }));
-  }
   const groups = [];
   for (let i = 0; i < dataUrls.length; i += perStitch) {
     groups.push(dataUrls.slice(i, i + perStitch));
   }
   const previews = [];
   for (let i = 0; i < groups.length; i++) {
-    const stitched = groups[i].length > 1 ? await stitchGroupIntoImage(groups[i]) : groups[i][0];
+    const stitched = await stitchGroupIntoImage(groups[i]);
     previews.push({ id: `p${i}`, dataUrl: stitched, sourceCount: groups[i].length });
   }
   return previews;
