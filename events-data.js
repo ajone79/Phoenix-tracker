@@ -143,17 +143,17 @@ const EVENTS = [
   {name:'Disrupted Energy Shields (T4) / Technological Advancement (T3)', variant:'', category:'ANOMALY', heroic:false, opsMin:1, opsMax:999, time:{h:0,m:0},
     occ:{kind:'ranges', ranges:[{start:'2026-08-16', end:'2026-08-18'}]}, note:'Both anomaly types active simultaneously.'},
 
-  // --- Territory capture (weekly recurring, PHX / Server 168 EU, London time) ---
+  // --- Territory capture (weekly recurring, PHX / Server 168 EU, London time — ongoing, not tied to any arc) ---
   {name:'Nujord — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:15,m:0},
-    occ:{kind:'weekly', dayOfWeek:5, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 1*'},
+    occ:{kind:'weekly', dayOfWeek:5, start:'2026-07-20', end:'2027-12-31'}, note:'PHX conquest window · 1*'},
   {name:'Duportas — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:14,m:0},
-    occ:{kind:'weekly', dayOfWeek:6, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 2*'},
+    occ:{kind:'weekly', dayOfWeek:6, start:'2026-07-20', end:'2027-12-31'}, note:'PHX conquest window · 2*'},
   {name:'Brellan — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:19,m:0},
-    occ:{kind:'weekly', dayOfWeek:0, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 3*'},
+    occ:{kind:'weekly', dayOfWeek:0, start:'2026-07-20', end:'2027-12-31'}, note:'PHX conquest window · 3*'},
   {name:'Bimasa — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:17,m:0},
-    occ:{kind:'weekly', dayOfWeek:2, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 2*'},
+    occ:{kind:'weekly', dayOfWeek:2, start:'2026-07-20', end:'2027-12-31'}, note:'PHX conquest window · 2*'},
   {name:'Qoda — Territory Capture', variant:'', category:'TERRITORY', heroic:false, opsMin:1, opsMax:999, time:{h:20,m:0},
-    occ:{kind:'weekly', dayOfWeek:1, start:'2026-07-20', end:'2026-08-19'}, note:'PHX conquest window · 4*'},
+    occ:{kind:'weekly', dayOfWeek:1, start:'2026-07-20', end:'2027-12-31'}, note:'PHX conquest window · 4*'},
 
   // --- Federation Day 2026 (Level 20-80 Solo Milestones) ---
   {name:'Federation Day (Meta)', variant:'AMS', category:'FEDDAY', heroic:false, opsMin:20, opsMax:80, time:{h:17,m:0},
