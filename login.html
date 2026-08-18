@@ -25,6 +25,7 @@
   .email-row input{flex:1;background:#17171e;border:1px solid var(--hair);color:var(--text);font-family:'Space Mono',monospace;font-size:13px;padding:12px;border-radius:8px;}
   .email-btn{background:var(--periwinkle);color:var(--void);font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:12px;padding:0 18px;border-radius:8px;border:none;cursor:pointer;white-space:nowrap;}
   .email-btn:hover{opacity:.9;}
+  .email-note{font-size:10.5px;color:var(--text-dim);line-height:1.5;margin-top:12px;text-align:left;}
   .ok{color:#5fd068;font-size:11.5px;margin-top:14px;display:none;line-height:1.5;}
   .err{color:#ff5a5f;font-size:11px;margin-top:14px;display:none;}
 </style>
@@ -41,6 +42,7 @@
       <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email">
       <button class="email-btn" id="emailBtn">Send link</button>
     </div>
+    <div class="email-note">Signing up with email? Send an in-game message to <b>ajone</b>, <b>Lenders</b>, <b>Spies</b>, or <b>Volley</b> so we can match your email to your in-game name and approve you.</div>
     <div class="ok" id="ok"></div>
     <div class="err" id="err"></div>
   </div>
