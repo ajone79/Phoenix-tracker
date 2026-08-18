@@ -64,6 +64,8 @@
   .gate-box{max-width:400px;text-align:center;padding:30px;}
   .import-box{background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:18px 20px;margin-bottom:10px;}
   .import-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+  .field-group{display:flex;flex-direction:column;gap:3px;}
+  .field-label{font-size:9.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;}
   select, input[type=file]{background:var(--panel-2);border:1px solid var(--hair);color:var(--text);font-family:'Space Mono',monospace;font-size:12px;padding:7px 10px;border-radius:6px;}
   .btn.extract{background:var(--signal);color:var(--void);}
   .btn.save-all{background:var(--mint);color:var(--void);}
@@ -404,31 +406,56 @@ function importSectionHtml(){
       <div class="import-row">
         <label style="font-size:11px;color:#8a8a94;">Event:</label>
         <select id="importEventSelect">
-          <option value="">— pick an event —</option>
+          <option value="">— pick an event to update existing scores —</option>
           ${events.map(e=>`<option value="${e.id}" ${e.id===selectedEventId?'selected':''}>${escapeHtml(e.name)} (${e.date})</option>`).join('')}
         </select>
         <button class="btn admin" id="newEventToggle" type="button">+ New event</button>
       </div>
       <div class="import-row" id="newEventForm" style="display:none;background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:12px;">
-        <input type="text" id="newEventName" placeholder="Event name (e.g. Sector Strike - ALB)" style="min-width:220px;">
-        <input type="date" id="newEventDate">
-        <select id="newEventArc">
-          ${arcs.map(a=>`<option value="${a.id}" ${a.status==='active'?'selected':''}>${escapeHtml(a.name)}${a.status==='active'?' (active)':''}</option>`).join('')}
-          <option value="">— no arc (won't show in IDIQ tabs) —</option>
-        </select>
-        <select id="newEventScoringType">
-          <option value="score">Score-based</option>
-          <option value="tasks">Task count</option>
-        </select>
-        <select id="newEventCompletionMode">
-          <option value="average">Average / percentile</option>
-          <option value="threshold">Threshold (pass/fail)</option>
-        </select>
-        <input type="number" id="newEventThreshold" placeholder="Threshold (e.g. 10000)" style="min-width:160px;">
-        <label style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:5px;"><input type="checkbox" id="newEventIsTest"> Test event (excluded from Overall Completion too)</label>
-        <button class="btn save-all" id="createEventBtn" type="button">Create event</button>
+        <div style="width:100%;font-family:'Antonio',sans-serif;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--signal);margin-bottom:4px;">Or create a new event and add scores</div>
+
+        <div class="field-group">
+          <label class="field-label">Event name</label>
+          <input type="text" id="newEventName" placeholder="e.g. Sector Strike - ALB" style="min-width:220px;">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Event date</label>
+          <input type="date" id="newEventDate">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Select current arc</label>
+          <select id="newEventArc">
+            ${arcs.map(a=>`<option value="${a.id}" ${a.status==='active'?'selected':''}>${escapeHtml(a.name)}${a.status==='active'?' (active)':''}</option>`).join('')}
+            <option value="">— no arc (won't show in IDIQ tabs) —</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Choose scoring type</label>
+          <select id="newEventScoringType">
+            <option value="score">Score-based</option>
+            <option value="tasks">Task count</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Choose completion mode</label>
+          <select id="newEventCompletionMode">
+            <option value="average">Average / percentile</option>
+            <option value="threshold">Threshold (pass/fail)</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Threshold (optional)</label>
+          <input type="number" id="newEventThreshold" placeholder="e.g. 10000" style="min-width:160px;">
+        </div>
+        <label style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:5px;margin-top:6px;"><input type="checkbox" id="newEventIsTest"> Test event (excluded from Overall Completion too)</label>
+        <button class="btn save-all" id="createEventBtn" type="button" style="margin-top:8px;">Create event</button>
         <span id="newEventStatus" style="font-size:10.5px;color:var(--text-dim);"></span>
-        <div style="width:100%;font-size:9.5px;color:var(--text-faint);">Threshold is the score/task-count line used for pass/fail (threshold mode) or the green/amber/red coloring on the tracker. Leave blank to use the site default. Arc controls whether this shows up in the IDIQ-scoped tabs — it defaults to whichever arc is currently active.</div>
+        <div style="width:100%;font-size:9.5px;color:var(--text-faint);margin-top:8px;">
+          <b>Scoring type</b> is what kind of number goes into the scores table (a raw score, or a task count).
+          <b>Completion mode</b> is separately how that number gets colour-coded on the tracker — ranked against other players (average/percentile) or measured against a single pass/fail line (threshold). These are independent settings, which is why there are two dropdowns.
+          Threshold sets that pass/fail line, or the target used for colour-coding — leave blank to use the site default.
+          Arc controls whether this shows up in the IDIQ-scoped tabs — it defaults to whichever arc is currently active.
+        </div>
       </div>
 
       ${activeJob ? activeJobHtml() : `
@@ -749,7 +776,7 @@ async function handleCreateEvent(){
   statusEl.textContent = `Created "${name}".`;
   statusEl.style.color = 'var(--mint)';
   const sel = document.getElementById('importEventSelect');
-  sel.innerHTML = `<option value="">— pick an event —</option>` + events.map(e=>`<option value="${e.id}">${escapeHtml(e.name)} (${e.date})</option>`).join('');
+  sel.innerHTML = `<option value="">— pick an event to update existing scores —</option>` + events.map(e=>`<option value="${e.id}">${escapeHtml(e.name)} (${e.date})</option>`).join('');
   sel.value = id;
   selectedEventId = id;
   document.getElementById('newEventForm').style.display = 'none';
