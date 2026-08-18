@@ -1,0 +1,38 @@
+name: Weekly Supabase Backup
+
+on:
+  schedule:
+    # Every Sunday at 03:00 UTC
+    - cron: '0 3 * * 0'
+  workflow_dispatch: {}  # allows manually triggering a run from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run backup
+        run: |
+          chmod +x scripts/weekly-backup.sh
+          ./scripts/weekly-backup.sh
+
+      - name: Prune old backups (keep last 12 weekly snapshots)
+        run: |
+          chmod +x scripts/prune-backups.sh
+          ./scripts/prune-backups.sh 12
+
+      - name: Commit and push
+        run: |
+          git config user.name "phoenix-backup-bot"
+          git config user.email "actions@github.com"
+          git add backups/
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Weekly Supabase backup: $(date -u +%Y-%m-%d)"
+            git push
+          fi
