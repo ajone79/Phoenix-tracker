@@ -73,9 +73,11 @@
   .review-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;}
   .review-table tr.flagged{background:rgba(255,90,95,.07);}
   .review-table tr.nomatch{background:rgba(255,200,87,.07);}
+  .review-table tr.fuzzymatch{background:rgba(143,163,255,.06);}
   .review-table input[type=text], .review-table input[type=number]{width:100%;min-width:80px;}
   .review-table select{width:100%;min-width:150px;}
   .flag-note{font-size:9.5px;color:var(--alert);margin-top:2px;}
+  .fuzzy-note{font-size:9.5px;color:var(--periwinkle);margin-top:2px;}
   .import-status{font-size:11px;color:var(--text-dim);margin-top:8px;}
   .import-status.err{color:var(--alert);}
   .import-status.ok{color:var(--mint);}
@@ -320,14 +322,44 @@ function normalizeName(s){
   return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 }
 
+function levenshtein(a, b){
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp = Array.from({length: m+1}, () => new Array(n+1).fill(0));
+  for (let i=0;i<=m;i++) dp[i][0]=i;
+  for (let j=0;j<=n;j++) dp[0][j]=j;
+  for (let i=1;i<=m;i++){
+    for (let j=1;j<=n;j++){
+      dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+
+// Returns { playerId, confidence } where confidence is 'exact' | 'substring' | 'fuzzy' | null.
+// With a roster this small (~90 distinct names), the nearest edit-distance match is almost
+// always correct even for fairly mangled OCR reads -- so we always surface the closest
+// candidate rather than giving up, but flag anything short of an exact match for a human check.
 function bestRosterMatch(extractedName){
   const norm = normalizeName(extractedName);
-  if (!norm) return null;
-  let exact = roster.find(r => normalizeName(r.name) === norm);
-  if (exact) return exact.id;
-  let contains = roster.find(r => normalizeName(r.name).includes(norm) || norm.includes(normalizeName(r.name)));
-  if (contains) return contains.id;
-  return null;
+  if (!norm) return { playerId: null, confidence: null };
+
+  const exact = roster.find(r => normalizeName(r.name) === norm);
+  if (exact) return { playerId: exact.id, confidence: 'exact' };
+
+  const contains = roster.find(r => normalizeName(r.name).includes(norm) || norm.includes(normalizeName(r.name)));
+  if (contains) return { playerId: contains.id, confidence: 'substring' };
+
+  let best = null, bestDist = Infinity;
+  for (const r of roster) {
+    const rn = normalizeName(r.name);
+    if (!rn) continue;
+    const d = levenshtein(norm, rn);
+    if (d < bestDist) { bestDist = d; best = r; }
+  }
+  if (best) return { playerId: best.id, confidence: 'fuzzy', distance: bestDist };
+  return { playerId: null, confidence: null };
 }
 
 function importSectionHtml(){
@@ -377,7 +409,8 @@ function reviewTableHtml(){
   const rows = extractedRows.map((r, i) => {
     const isFlagged = r.existingScore != null && r.score < r.existingScore;
     const noMatch = !r.playerId;
-    const rowClass = isFlagged ? 'flagged' : (noMatch ? 'nomatch' : '');
+    const isFuzzy = r.matchConfidence === 'fuzzy';
+    const rowClass = isFlagged ? 'flagged' : (noMatch ? 'nomatch' : (isFuzzy ? 'fuzzymatch' : ''));
     return `
       <tr class="${rowClass}" data-row="${i}">
         <td><input type="checkbox" data-include="${i}" ${r.include ? 'checked' : ''}></td>
@@ -387,6 +420,7 @@ function reviewTableHtml(){
             <option value="">— no match, pick manually —</option>
             ${roster.map(p=>`<option value="${p.id}" ${p.id===r.playerId?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}
           </select>
+          ${isFuzzy ? `<div class="fuzzy-note">⚠ auto-matched (closest name) — please verify</div>` : ''}
         </td>
         <td><input type="number" data-scoreinput="${i}" value="${r.score}"></td>
         <td>
@@ -603,12 +637,13 @@ async function handleSendToGroq(){
   }
 
   extractedRows = extractedRows.concat(deduped.map(r => {
-    const playerId = bestRosterMatch(r.name);
+    const match = bestRosterMatch(r.name);
     return {
       name: r.name,
       score: parseInt(r.score) || 0,
-      playerId,
-      existingScore: playerId ? (existingMap[playerId] ?? null) : null,
+      playerId: match.playerId,
+      matchConfidence: match.confidence,
+      existingScore: match.playerId ? (existingMap[match.playerId] ?? null) : null,
       include: true,
       eventId
     };
@@ -668,7 +703,10 @@ function wireReviewTableEvents(){
     extractedRows[parseInt(cb.dataset.include)].include = cb.checked;
   }));
   document.querySelectorAll('[data-matchselect]').forEach(sel => sel.addEventListener('change', () => {
-    extractedRows[parseInt(sel.dataset.matchselect)].playerId = sel.value || null;
+    const idx = parseInt(sel.dataset.matchselect);
+    extractedRows[idx].playerId = sel.value || null;
+    extractedRows[idx].matchConfidence = sel.value ? 'manual' : null;
+    refreshReviewTableOnly();
   }));
   document.querySelectorAll('[data-scoreinput]').forEach(inp => inp.addEventListener('input', () => {
     const idx = parseInt(inp.dataset.scoreinput);
