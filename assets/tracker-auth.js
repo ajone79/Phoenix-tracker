@@ -55,13 +55,21 @@
     let { data: profile } = await sb.from('tracker_profiles').select('*').eq('id', user.id).maybeSingle();
 
     if (!profile) {
-      const identity = (user.identities || []).find(i => i.provider === 'discord');
-      const meta = (identity && identity.identity_data) || user.user_metadata || {};
-      const discordUsername = meta.full_name || meta.name || meta.user_name || meta.preferred_username || 'Unknown';
-      const avatar = meta.avatar_url || null;
-      const discordId = meta.provider_id || meta.sub || (identity && identity.id) || null;
+      const identity = (user.identities || [])[0]; // whichever identity exists (discord, email, etc.)
+      const provider = (identity && identity.provider) || 'email';
+      let displayName, avatar, providerId;
+      if (provider === 'discord') {
+        const meta = (identity && identity.identity_data) || user.user_metadata || {};
+        displayName = meta.full_name || meta.name || meta.user_name || meta.preferred_username || 'Unknown';
+        avatar = meta.avatar_url || null;
+        providerId = meta.provider_id || meta.sub || (identity && identity.id) || null;
+      } else {
+        displayName = user.email || 'Unknown';
+        avatar = null;
+        providerId = user.id;
+      }
       const { data: inserted } = await sb.from('tracker_profiles').insert({
-        id: user.id, discord_id: discordId, discord_username: discordUsername, avatar_url: avatar
+        id: user.id, discord_id: providerId, discord_username: displayName, avatar_url: avatar, login_provider: provider
       }).select().maybeSingle();
       profile = inserted;
     }
@@ -69,7 +77,7 @@
     if (!profile || !profile.approved) {
       renderScreen(`
         <h1>⏳ Pending approval</h1>
-        <p>You're signed in as <b class="accent">${escapeHtml((profile && profile.discord_username) || user.email || 'Discord user')}</b>, but an alliance admin hasn't whitelisted you yet.<br><br>Ping an officer in Discord and they'll approve your access — no need to log in again once they do.</p>
+        <p>You're signed in as <b class="accent">${escapeHtml((profile && profile.discord_username) || user.email || 'a member')}</b>, but an alliance admin hasn't whitelisted you yet.<br><br>Ping an officer in Discord and they'll approve your access — no need to log in again once they do.</p>
         <button class="btn ghost" id="signout">Sign out</button>
       `);
       document.getElementById('signout').addEventListener('click', async ()=>{ await sb.auth.signOut(); location.href='login.html'; });
