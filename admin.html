@@ -399,6 +399,9 @@ function render(){
 }
 
 function rowHtml(p){
+  const providerBadge = p.login_provider && p.login_provider !== 'discord'
+    ? `<span class="tag" style="border-color:var(--periwinkle);color:var(--periwinkle);">via ${escapeHtml(p.login_provider)}</span>`
+    : '';
   if (p.is_owner) {
     return `
       <div class="row">
@@ -410,6 +413,7 @@ function rowHtml(p){
         <input type="text" placeholder="In-game name" value="${escapeHtml(p.in_game_name||'')}" data-nameinput="${p.id}">
         <button class="btn save" data-save="${p.id}">Save</button>
         <span class="tag approved">Approved</span>
+        ${providerBadge}
         <span class="tag admintag" style="border-color:var(--gold);color:var(--gold);">👑 Owner — protected</span>
       </div>
     `;
@@ -426,6 +430,7 @@ function rowHtml(p){
       ${p.approved
         ? `<span class="tag approved">Approved</span><button class="btn revoke" data-revoke="${p.id}">Revoke</button>`
         : `<span class="tag pending">Pending</span><button class="btn approve" data-approve="${p.id}">Approve</button>`}
+      ${providerBadge}
       ${p.is_admin ? '<span class="tag admintag">Admin</span>' : ''}
       <button class="btn admin" data-admintoggle="${p.id}" data-current="${!!p.is_admin}">${p.is_admin?'Remove admin':'Make admin'}</button>
     </div>
