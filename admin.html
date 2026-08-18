@@ -102,6 +102,7 @@ let profiles = [];
 let roster = [];
 let allowlist = [];
 let events = [];
+let arcs = [];
 let me = null;
 let mySession = null;
 
@@ -189,16 +190,18 @@ async function init(){
 }
 
 async function loadData(){
-  const [{data:p}, {data:r}, {data:a}, {data:e}] = await Promise.all([
+  const [{data:p}, {data:r}, {data:a}, {data:e}, {data:ar}] = await Promise.all([
     sb.from('tracker_profiles').select('*').order('approved', {ascending:true}).order('created_at', {ascending:false}),
     sb.from('roster').select('id,name,level').order('name'),
     sb.from('tracker_admin_allowlist').select('*').order('in_game_name'),
-    sb.from('events').select('id,name,date').order('date', {ascending:false})
+    sb.from('events').select('id,name,date').order('date', {ascending:false}),
+    sb.from('arcs').select('id,name,status').order('end_date', {ascending:false})
   ]);
   profiles = p || [];
   roster = r || [];
   allowlist = a || [];
   events = e || [];
+  arcs = ar || [];
 }
 
 function render(){
@@ -302,6 +305,21 @@ function render(){
 }
 
 function rowHtml(p){
+  if (p.is_owner) {
+    return `
+      <div class="row">
+        ${p.avatar_url ? `<img class="avatar" src="${escapeHtml(p.avatar_url)}">` : '<div class="avatar"></div>'}
+        <div class="who">
+          <div class="dname">${escapeHtml(p.discord_username||'Unknown')}</div>
+          <div class="did">${escapeHtml(p.discord_id||'')}</div>
+        </div>
+        <input type="text" placeholder="In-game name" value="${escapeHtml(p.in_game_name||'')}" data-nameinput="${p.id}">
+        <button class="btn save" data-save="${p.id}">Save</button>
+        <span class="tag approved">Approved</span>
+        <span class="tag admintag" style="border-color:var(--gold);color:var(--gold);">👑 Owner — protected</span>
+      </div>
+    `;
+  }
   return `
     <div class="row ${p.approved?'':'pending'}">
       ${p.avatar_url ? `<img class="avatar" src="${escapeHtml(p.avatar_url)}">` : '<div class="avatar"></div>'}
@@ -394,6 +412,10 @@ function importSectionHtml(){
       <div class="import-row" id="newEventForm" style="display:none;background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:12px;">
         <input type="text" id="newEventName" placeholder="Event name (e.g. Sector Strike - ALB)" style="min-width:220px;">
         <input type="date" id="newEventDate">
+        <select id="newEventArc">
+          ${arcs.map(a=>`<option value="${a.id}" ${a.status==='active'?'selected':''}>${escapeHtml(a.name)}${a.status==='active'?' (active)':''}</option>`).join('')}
+          <option value="">— no arc (won't show in IDIQ tabs) —</option>
+        </select>
         <select id="newEventScoringType">
           <option value="score">Score-based</option>
           <option value="tasks">Task count</option>
@@ -403,9 +425,10 @@ function importSectionHtml(){
           <option value="threshold">Threshold (pass/fail)</option>
         </select>
         <input type="number" id="newEventThreshold" placeholder="Threshold (e.g. 10000)" style="min-width:160px;">
+        <label style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:5px;"><input type="checkbox" id="newEventIsTest"> Test event (excluded from Overall Completion too)</label>
         <button class="btn save-all" id="createEventBtn" type="button">Create event</button>
         <span id="newEventStatus" style="font-size:10.5px;color:var(--text-dim);"></span>
-        <div style="width:100%;font-size:9.5px;color:var(--text-faint);">Threshold is the score/task-count line used for pass/fail (threshold mode) or the green/amber/red coloring on the tracker. Leave blank to use the site default.</div>
+        <div style="width:100%;font-size:9.5px;color:var(--text-faint);">Threshold is the score/task-count line used for pass/fail (threshold mode) or the green/amber/red coloring on the tracker. Leave blank to use the site default. Arc controls whether this shows up in the IDIQ-scoped tabs — it defaults to whichever arc is currently active.</div>
       </div>
 
       ${activeJob ? activeJobHtml() : `
@@ -702,6 +725,8 @@ function slugifyEventId(name, date){
 async function handleCreateEvent(){
   const name = document.getElementById('newEventName').value.trim();
   const date = document.getElementById('newEventDate').value;
+  const arcId = document.getElementById('newEventArc').value;
+  const isTest = document.getElementById('newEventIsTest').checked;
   const scoringType = document.getElementById('newEventScoringType').value;
   const completionMode = document.getElementById('newEventCompletionMode').value;
   const thresholdRaw = document.getElementById('newEventThreshold').value;
@@ -712,7 +737,7 @@ async function handleCreateEvent(){
   const id = slugifyEventId(name, date);
   const insertBody = {
     id, name, date, scoring_type: scoringType, completion_mode: completionMode,
-    start_date: date
+    start_date: date, arc_id: arcId || null, is_test: isTest
   };
   if (thresholdRaw !== '') insertBody.threshold = parseInt(thresholdRaw);
 
