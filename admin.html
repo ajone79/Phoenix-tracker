@@ -112,8 +112,10 @@ let thresholdsOpen = false;
 let stitchedPreviews = []; // {id, dataUrl, sourceCount}
 let screensPerStitch = 5;
 let selectedEventId = '';
-let batchStatuses = []; // {label, state, message}
+let batchStatuses = []; // {label, state, message}  -- legacy, no longer used for sending but kept harmless
 let pendingDeleteEventId = null;
+let activeJob = null;
+let jobPollTimer = null;
 
 function eventThresholdRowHtml(e){
   const isPendingDelete = pendingDeleteEventId === e.id;
@@ -182,6 +184,7 @@ async function init(){
   }
   me = myProfile;
   await loadData();
+  await checkForActiveJob();
   render();
 }
 
@@ -387,12 +390,6 @@ function importSectionHtml(){
           ${events.map(e=>`<option value="${e.id}" ${e.id===selectedEventId?'selected':''}>${escapeHtml(e.name)} (${e.date})</option>`).join('')}
         </select>
         <button class="btn admin" id="newEventToggle" type="button">+ New event</button>
-        <input type="file" id="importFiles" accept="image/*" multiple>
-      </div>
-      <div class="import-row" style="font-size:11px;color:#8a8a94;">
-        <label>Screens per stitched image:</label>
-        <input type="number" id="screensPerStitchInput" value="${screensPerStitch}" min="1" max="15" style="width:60px;">
-        <button class="btn extract" id="previewBtn">Preview stitched image(s)</button>
       </div>
       <div class="import-row" id="newEventForm" style="display:none;background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:12px;">
         <input type="text" id="newEventName" placeholder="Event name (e.g. Sector Strike - ALB)" style="min-width:220px;">
@@ -410,15 +407,149 @@ function importSectionHtml(){
         <span id="newEventStatus" style="font-size:10.5px;color:var(--text-dim);"></span>
         <div style="width:100%;font-size:9.5px;color:var(--text-faint);">Threshold is the score/task-count line used for pass/fail (threshold mode) or the green/amber/red coloring on the tracker. Leave blank to use the site default.</div>
       </div>
-      <div class="import-status ${extractStatus.kind}" id="importStatus">${escapeHtml(extractStatus.message)}</div>
-      <div style="font-size:9.5px;color:var(--text-faint);margin-top:2px;">Preview builds stitched images locally first — nothing is sent to Groq until you confirm. Remove any stitched image that looks bad, or change the screens-per-stitch count and re-preview.</div>
-      <div class="stitch-gallery" id="stitchGallery">${stitchedPreviews.length ? stitchGalleryHtml() : ''}</div>
-      ${stitchedPreviews.length ? `<div class="import-row" style="margin-top:10px;"><button class="btn save-all" id="sendToGroqBtn">Send ${stitchedPreviews.length} batch(es) to Groq</button><button class="btn force" id="clearPreviewBtn">Discard previews</button></div>` : ''}
-      <div id="batchStatusList">${batchStatusListHtml()}</div>
+
+      ${activeJob ? activeJobHtml() : `
+        <div class="import-row">
+          <input type="file" id="importFiles" accept="image/*" multiple>
+        </div>
+        <div class="import-row" style="font-size:11px;color:#8a8a94;">
+          <label>Screens per stitched image:</label>
+          <input type="number" id="screensPerStitchInput" value="${screensPerStitch}" min="1" max="15" style="width:60px;">
+          <button class="btn extract" id="previewBtn">Preview stitched image(s)</button>
+        </div>
+        <div class="import-status ${extractStatus.kind}" id="importStatus">${escapeHtml(extractStatus.message)}</div>
+        <div style="font-size:9.5px;color:var(--text-faint);margin-top:2px;">Preview builds stitched images locally first — nothing is sent to Groq until you confirm. Once sent, it runs as a background job on the server — safe to close this tab, lock your phone, or come back later.</div>
+        <div class="stitch-gallery" id="stitchGallery">${stitchedPreviews.length ? stitchGalleryHtml() : ''}</div>
+        ${stitchedPreviews.length ? `<div class="import-row" style="margin-top:10px;"><button class="btn save-all" id="sendToGroqBtn">Send ${stitchedPreviews.length} batch(es) to Groq</button><button class="btn force" id="clearPreviewBtn">Discard previews</button></div>` : ''}
+      `}
+
       <div id="saveSuccessBanner" style="display:none;align-items:flex-start;gap:12px;background:rgba(95,208,104,.1);border:1px solid var(--mint);border-radius:10px;padding:14px 16px;margin-top:10px;"></div>
       <div id="reviewWrap">${extractedRows.length ? reviewTableHtml() : ''}</div>
     </div>
   `;
+}
+
+function activeJobHtml(){
+  if (!activeJob) return '';
+  const batches = activeJob.batches || [];
+  const colorFor = s => s==='error' ? 'var(--alert)' : s==='done' ? 'var(--mint)' : (s==='sending'||s==='waiting') ? 'var(--signal)' : 'var(--text-dim)';
+  const rowsHtml = batches.map((b,i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:5px 0;font-size:11.5px;">
+      <span style="width:70px;flex-shrink:0;color:var(--signal);font-weight:700;">Batch ${i+1}</span>
+      <span style="color:${colorFor(b.status)};">${escapeHtml(b.message || b.status || 'queued')}</span>
+    </div>
+  `).join('');
+
+  const eventName = escapeHtml((events.find(e=>e.id===activeJob.event_id)||{}).name || activeJob.event_id || '');
+  let footer = '';
+  if (activeJob.status === 'processing') {
+    footer = `
+      <div style="font-size:10px;color:var(--text-faint);margin-top:8px;">Running on the server — safe to close this tab, lock your phone, or come back later. Checks in every few seconds while this page is open.</div>
+      <div class="import-row" style="margin-top:10px;">
+        <button class="btn admin" id="jobRefreshBtn">Check now</button>
+        <button class="btn force" id="jobCancelBtn">Cancel job</button>
+      </div>`;
+  } else if (activeJob.status === 'done') {
+    const n = (activeJob.result_rows || []).length;
+    footer = `<div class="import-row" style="margin-top:10px;"><button class="btn save-all" id="jobLoadBtn">Load ${n} row(s) into review table</button></div>`;
+  } else if (activeJob.status === 'error') {
+    footer = `
+      <div class="flag-note" style="margin-top:6px;">${escapeHtml(activeJob.error_message || 'Job failed.')}</div>
+      <div class="import-row" style="margin-top:10px;">
+        <button class="btn save-all" id="jobRetryBtn">Retry failed batch</button>
+        <button class="btn force" id="jobDiscardBtn">Discard job</button>
+      </div>`;
+  }
+
+  return `<div class="import-box" style="margin-top:4px;border-color:${activeJob.status==='error'?'var(--alert)':activeJob.status==='done'?'var(--mint)':'var(--hair)'};">
+    <div style="font-weight:700;margin-bottom:8px;">Import job — ${eventName}</div>
+    ${rowsHtml}
+    ${footer}
+  </div>`;
+}
+
+async function checkForActiveJob(){
+  const { data } = await sb.from('import_jobs')
+    .select('*')
+    .eq('created_by', mySession.user.id)
+    .eq('dismissed', false)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  activeJob = data || null;
+  if (activeJob && activeJob.status === 'processing') startJobPolling();
+}
+
+function startJobPolling(){
+  stopJobPolling();
+  jobPollTimer = setInterval(pollActiveJob, 6000);
+}
+function stopJobPolling(){
+  if (jobPollTimer) { clearInterval(jobPollTimer); jobPollTimer = null; }
+}
+
+async function pollActiveJob(){
+  if (!activeJob) { stopJobPolling(); return; }
+  const { data } = await sb.from('import_jobs').select('*').eq('id', activeJob.id).maybeSingle();
+  if (!data) { activeJob = null; stopJobPolling(); refreshImportSectionOnly(); return; }
+  activeJob = data;
+  if (activeJob.status !== 'processing') stopJobPolling();
+  refreshImportSectionOnly();
+}
+
+async function handleLoadJobResults(){
+  if (!activeJob || activeJob.status !== 'done') return;
+  const eventId = activeJob.event_id;
+  const { data: existing } = await sb.from('scores').select('player_id,score').eq('event_id', eventId);
+  const existingMap = {};
+  (existing||[]).forEach(s => existingMap[s.player_id] = s.score);
+
+  const rows = activeJob.result_rows || [];
+  extractedRows = extractedRows.concat(rows.map(r => {
+    const match = bestRosterMatch(r.name);
+    return {
+      name: r.name,
+      score: parseInt(r.score) || 0,
+      playerId: match.playerId,
+      matchConfidence: match.confidence,
+      existingScore: match.playerId ? (existingMap[match.playerId] ?? null) : null,
+      include: true,
+      eventId
+    };
+  }));
+
+  await sb.from('import_jobs').update({ dismissed: true }).eq('id', activeJob.id);
+  selectedEventId = eventId;
+  activeJob = null;
+  setImportStatus(`Loaded ${rows.length} row(s) from the completed job — ${extractedRows.length} total in review.`, 'ok');
+  refreshImportSectionOnly();
+}
+
+async function handleRetryJob(){
+  if (!activeJob || activeJob.status !== 'error') return;
+  const batches = [...(activeJob.batches || [])];
+  const idx = activeJob.next_batch_index;
+  if (batches[idx]) batches[idx] = { ...batches[idx], status: 'pending', message: 'Queued for retry', attempt: 0 };
+  const { data, error } = await sb.from('import_jobs').update({
+    status: 'processing', batches, next_attempt_at: new Date().toISOString(), error_message: null
+  }).eq('id', activeJob.id).select().maybeSingle();
+  if (error) { alert(`Retry failed: ${error.message}`); return; }
+  activeJob = data;
+  startJobPolling();
+  refreshImportSectionOnly();
+}
+
+async function handleDiscardJob(){
+  if (!activeJob) return;
+  const wasProcessing = activeJob.status === 'processing';
+  await sb.from('import_jobs').update({
+    dismissed: true,
+    status: wasProcessing ? 'error' : activeJob.status,
+    error_message: wasProcessing ? 'Cancelled by admin' : activeJob.error_message
+  }).eq('id', activeJob.id);
+  stopJobPolling();
+  activeJob = null;
+  refreshImportSectionOnly();
 }
 
 function reviewTableHtml(){
@@ -460,24 +591,6 @@ function reviewTableHtml(){
   `;
 }
 
-function batchStatusListHtml(){
-  if (!batchStatuses.length) return '';
-  const colorFor = s => s==='error' ? 'var(--alert)' : s==='done' ? 'var(--mint)' : s==='sending' ? 'var(--signal)' : 'var(--text-dim)';
-  return `<div class="import-box" style="margin-top:10px;">
-    ${batchStatuses.map(b => `
-      <div style="display:flex;align-items:center;gap:10px;padding:5px 0;font-size:11.5px;">
-        <span style="width:70px;flex-shrink:0;color:var(--signal);font-weight:700;">${escapeHtml(b.label)}</span>
-        <span style="color:${colorFor(b.state)};">${escapeHtml(b.message)}</span>
-      </div>
-    `).join('')}
-  </div>`;
-}
-
-function renderBatchStatuses(){
-  const el = document.getElementById('batchStatusList');
-  if (el) el.innerHTML = batchStatusListHtml();
-}
-
 function stitchGalleryHtml(){  return stitchedPreviews.map((p, i) => `
     <div class="stitch-thumb" data-thumb="${p.id}">
       <button class="rm" data-removepreview="${p.id}" title="Remove">✕</button>
@@ -510,6 +623,18 @@ function wireImportSection(){
   });
   const createEventBtn = document.getElementById('createEventBtn');
   if (createEventBtn) createEventBtn.addEventListener('click', handleCreateEvent);
+
+  const jobRefreshBtn = document.getElementById('jobRefreshBtn');
+  if (jobRefreshBtn) jobRefreshBtn.addEventListener('click', pollActiveJob);
+  const jobCancelBtn = document.getElementById('jobCancelBtn');
+  if (jobCancelBtn) jobCancelBtn.addEventListener('click', handleDiscardJob);
+  const jobLoadBtn = document.getElementById('jobLoadBtn');
+  if (jobLoadBtn) jobLoadBtn.addEventListener('click', handleLoadJobResults);
+  const jobRetryBtn = document.getElementById('jobRetryBtn');
+  if (jobRetryBtn) jobRetryBtn.addEventListener('click', handleRetryJob);
+  const jobDiscardBtn = document.getElementById('jobDiscardBtn');
+  if (jobDiscardBtn) jobDiscardBtn.addEventListener('click', handleDiscardJob);
+
   wireReviewTableEvents();
 }
 
@@ -537,140 +662,33 @@ async function handlePreviewStitch(){
 
 function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
-// Groq's 429 body includes "Please try again in 33.7s." -- parse that out so we
-// wait exactly as long as it says, rather than guessing with a fixed backoff.
-function parseRetryAfterSeconds(errorText){
-  const m = String(errorText||'').match(/try again in\s+([\d.]+)s/i);
-  return m ? parseFloat(m[1]) : null;
-}
-
-async function callGroqBatch(images, attempt, onWait){
-  const res = await fetch('https://mmzizgsanwqjpiumpqay.supabase.co/functions/v1/parse-event-screenshot', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${mySession.access_token}`,
-      'apikey': SUPABASE_KEY,
-    },
-    body: JSON.stringify({ images })
-  });
-  const data = await res.json();
-  const isRateLimited = res.status === 429 || res.status === 413 || (data.error && /rate_limit|too large|tokens per minute/i.test(data.error));
-  if (!res.ok && isRateLimited && attempt < 4) {
-    const parsedWait = parseRetryAfterSeconds(data.error);
-    const waitS = Math.min(75, parsedWait ? Math.ceil(parsedWait) + 2 : 20 * attempt); // Groq's own reported wait + buffer, or a growing fallback
-    if (onWait) await onWait(waitS, attempt);
-    else await sleep(waitS * 1000);
-    return callGroqBatch(images, attempt + 1, onWait);
-  }
-  return { res, data };
-}
-
 async function handleSendToGroq(){
   const eventId = document.getElementById('importEventSelect').value;
   if (!eventId) { setImportStatus('Pick an event first.', 'err'); return; }
   if (stitchedPreviews.length === 0) { setImportStatus('Nothing to send — build a preview first.', 'err'); return; }
 
-  const { data: existing } = await sb.from('scores').select('player_id,score').eq('event_id', eventId);
-  const existingMap = {};
-  (existing||[]).forEach(s => existingMap[s.player_id] = s.score);
-
-  const previews = stitchedPreviews;
-  // Groq's limit is per-minute (8000 tokens), and one stitched batch can already use most of
-  // that budget -- so batches need to be spaced close to a full minute apart, not seconds.
-  const DELAY_S = 65;
-  batchStatuses = previews.map((p,i) => ({ label: `Batch ${i+1}`, state: 'pending', message: `Queued (${p.sourceCount} screens)` }));
-  renderBatchStatuses();
-  setImportStatus(`Sending ${previews.length} batch(es) to Groq, spaced ~${DELAY_S}s apart so we stay under the per-minute limit…`, '');
-
-  const newRowsThisSend = [];
-  let anyBatchFailed = false;
-
-  for (let i = 0; i < previews.length; i++) {
-    if (i > 0) {
-      for (let s = DELAY_S; s > 0; s--) {
-        batchStatuses[i].state = 'waiting';
-        batchStatuses[i].message = `Sending in ${s}s… (pacing to stay under Groq's per-minute limit)`;
-        renderBatchStatuses();
-        await sleep(1000);
-      }
-    }
-    batchStatuses[i].state = 'sending';
-    batchStatuses[i].message = 'Sending to Groq…';
-    renderBatchStatuses();
-
-    const onWait = async (waitS, attempt) => {
-      for (let s = waitS; s > 0; s--) {
-        batchStatuses[i].state = 'waiting';
-        batchStatuses[i].message = `Rate limited — retrying in ${s}s (attempt ${attempt+1}/4)…`;
-        renderBatchStatuses();
-        await sleep(1000);
-      }
-    };
-
-    try {
-      const { res, data } = await callGroqBatch([previews[i].dataUrl], 1, onWait);
-      if (!res.ok) {
-        const rawSnippet = data.raw ? ` — "${String(data.raw).slice(0,200)}${data.raw.length>200?'…':''}"` : '';
-        batchStatuses[i].state = 'error';
-        batchStatuses[i].message = `Failed after retries: ${data.error || res.statusText}${rawSnippet}`;
-        anyBatchFailed = true;
-      } else {
-        const rawRows = data.rows || [];
-        newRowsThisSend.push(...rawRows);
-        batchStatuses[i].state = 'done';
-        batchStatuses[i].message = rawRows.length ? `Done — ${rawRows.length} row(s)` : 'Done — no rows found';
-      }
-    } catch (e) {
-      batchStatuses[i].state = 'error';
-      batchStatuses[i].message = `Request failed — ${e.message}`;
-      anyBatchFailed = true;
-    }
-    renderBatchStatuses();
-  }
-
-  if (anyBatchFailed) {
-    // Don't touch the review table at all if any batch didn't come back clean --
-    // partial results could mean missing players nobody notices. Keep the stitched
-    // previews so the admin can just hit Send again rather than rebuilding everything.
-    setImportStatus(
-      `One or more batches failed — nothing was added to the review table so we don't end up with incomplete scores. Fix the issue above if needed, then press "Send" again to retry all batches.`,
-      'err'
-    );
-    refreshImportSectionOnly();
-    return;
-  }
-
-  // Same player often appears on every screenshot (their own row stays pinned/highlighted
-  // regardless of scroll position) -- dedupe by normalized name across everything from this send.
-  const seen = new Set();
-  const deduped = [];
-  for (const r of newRowsThisSend) {
-    const norm = normalizeName(r.name);
-    if (seen.has(norm)) continue;
-    seen.add(norm);
-    deduped.push(r);
-  }
-
-  extractedRows = extractedRows.concat(deduped.map(r => {
-    const match = bestRosterMatch(r.name);
-    return {
-      name: r.name,
-      score: parseInt(r.score) || 0,
-      playerId: match.playerId,
-      matchConfidence: match.confidence,
-      existingScore: match.playerId ? (existingMap[match.playerId] ?? null) : null,
-      include: true,
-      eventId
-    };
+  const batches = stitchedPreviews.map((p) => ({
+    id: p.id, dataUrl: p.dataUrl, sourceCount: p.sourceCount,
+    status: 'pending', message: `Queued (${p.sourceCount} screens)`, rows: null, attempt: 0
   }));
 
-  const dupCount = newRowsThisSend.length - deduped.length;
+  setImportStatus('Starting background job…', '');
+  const { data, error } = await sb.from('import_jobs').insert({
+    event_id: eventId,
+    created_by: mySession.user.id,
+    status: 'processing',
+    batches,
+    next_batch_index: 0,
+    next_attempt_at: new Date().toISOString(),
+    pacing_seconds: 65
+  }).select().maybeSingle();
+
+  if (error) { setImportStatus(`Couldn't start job: ${error.message}`, 'err'); return; }
+
+  activeJob = data;
   stitchedPreviews = [];
-  setImportStatus(
-    `All ${previews.length} batch(es) succeeded. Extracted ${deduped.length} unique row(s)${dupCount ? ` (${dupCount} duplicate(s) removed)` : ''} — ${extractedRows.length} total in review.`,
-    'ok'
-  );
+  setImportStatus('Job started — this now runs on the server (checked every minute) and keeps going even if you close this tab. Come back anytime to check progress.', 'ok');
+  startJobPolling();
   refreshImportSectionOnly();
 }
 
