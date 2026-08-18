@@ -128,7 +128,18 @@ function eventThresholdRowHtml(e){
   return `
     <tr data-eventrow="${e.id}">
       <td>${escapeHtml(e.name)} <span style="color:var(--text-faint)">(${e.date})</span></td>
-      <td>${escapeHtml(e.completion_mode || 'average')}</td>
+      <td>
+        <select data-scoringtypeinput="${e.id}">
+          <option value="score" ${e.scoring_type==='score'?'selected':''}>Score-based</option>
+          <option value="tasks" ${e.scoring_type==='tasks'?'selected':''}>Task count</option>
+        </select>
+      </td>
+      <td>
+        <select data-completionmodeinput="${e.id}">
+          <option value="average" ${(!e.completion_mode || e.completion_mode==='average')?'selected':''}>Average / percentile</option>
+          <option value="threshold" ${e.completion_mode==='threshold'?'selected':''}>Threshold (pass/fail)</option>
+        </select>
+      </td>
       <td><input type="number" data-thresholdinput="${e.id}" value="${e.threshold ?? ''}"></td>
       <td><button class="btn save" data-savethreshold="${e.id}">Save</button></td>
       <td>${isPendingDelete
@@ -147,12 +158,19 @@ function rerenderThresholdsTable(){
 function wireThresholdsTable(){
   document.querySelectorAll('[data-savethreshold]').forEach(b => b.addEventListener('click', async () => {
     const eventId = b.dataset.savethreshold;
-    const input = document.querySelector(`[data-thresholdinput="${eventId}"]`);
-    const val = input.value === '' ? null : parseInt(input.value);
-    const { error } = await sb.from('events').update({ threshold: val, updated_at: new Date().toISOString() }).eq('id', eventId);
-    if (error) { alert(`Error saving threshold: ${error.message}`); return; }
+    const thresholdInput = document.querySelector(`[data-thresholdinput="${eventId}"]`);
+    const scoringTypeInput = document.querySelector(`[data-scoringtypeinput="${eventId}"]`);
+    const completionModeInput = document.querySelector(`[data-completionmodeinput="${eventId}"]`);
+    const val = thresholdInput.value === '' ? null : parseInt(thresholdInput.value);
+    const { error } = await sb.from('events').update({
+      threshold: val,
+      scoring_type: scoringTypeInput.value,
+      completion_mode: completionModeInput.value,
+      updated_at: new Date().toISOString()
+    }).eq('id', eventId);
+    if (error) { alert(`Error saving: ${error.message}`); return; }
     const ev = events.find(e => e.id === eventId);
-    if (ev) ev.threshold = val;
+    if (ev) { ev.threshold = val; ev.scoring_type = scoringTypeInput.value; ev.completion_mode = completionModeInput.value; }
     b.textContent = 'Saved ✓';
     setTimeout(() => { b.textContent = 'Save'; }, 1500);
   }));
@@ -199,7 +217,7 @@ async function loadData(){
     sb.from('tracker_profiles').select('*').order('approved', {ascending:true}).order('created_at', {ascending:false}),
     sb.from('roster').select('id,name,level').order('name'),
     sb.from('tracker_admin_allowlist').select('*').order('in_game_name'),
-    sb.from('events').select('id,name,date').order('date', {ascending:false}),
+    sb.from('events').select('id,name,date,arc_id,scoring_type,completion_mode,threshold,is_test').order('date', {ascending:false}),
     sb.from('arcs').select('id,name,status').order('end_date', {ascending:false})
   ]);
   profiles = p || [];
@@ -268,7 +286,7 @@ function render(){
       <div id="thresholdsBox" style="${thresholdsOpen ? '' : 'display:none;'}">
         <div class="import-box">
           <table class="review-table" id="eventThresholdsTable">
-            <thead><tr><th>Event</th><th>Mode</th><th>Threshold</th><th></th><th></th></tr></thead>
+            <thead><tr><th>Event</th><th>Scoring Type</th><th>Completion Mode</th><th>Threshold</th><th></th><th></th></tr></thead>
             <tbody>
               ${events.map(e => eventThresholdRowHtml(e)).join('')}
             </tbody>
@@ -412,11 +430,9 @@ function importSectionHtml(){
           <option value="">— pick an event to update existing scores —</option>
           ${events.map(e=>`<option value="${e.id}" ${e.id===selectedEventId?'selected':''}>${escapeHtml(e.name)} (${e.date})</option>`).join('')}
         </select>
-        <button class="btn admin" id="newEventToggle" type="button">+ New event</button>
+        <button class="btn admin" id="newEventToggle" type="button">Or create a new event and add scores</button>
       </div>
       <div class="import-row" id="newEventForm" style="display:none;background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:12px;">
-        <div style="width:100%;font-family:'Antonio',sans-serif;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--signal);margin-bottom:4px;">Or create a new event and add scores</div>
-
         <div class="field-group">
           <label class="field-label">Event name</label>
           <input type="text" id="newEventName" placeholder="e.g. Sector Strike - ALB" style="min-width:220px;">
@@ -435,6 +451,7 @@ function importSectionHtml(){
         <div class="field-group">
           <label class="field-label">Choose scoring type</label>
           <select id="newEventScoringType">
+            <option value="">— please select —</option>
             <option value="score">Score-based</option>
             <option value="tasks">Task count</option>
           </select>
@@ -442,6 +459,7 @@ function importSectionHtml(){
         <div class="field-group">
           <label class="field-label">Choose completion mode</label>
           <select id="newEventCompletionMode">
+            <option value="">— please select —</option>
             <option value="average">Average / percentile</option>
             <option value="threshold">Threshold (pass/fail)</option>
           </select>
@@ -763,6 +781,7 @@ async function handleCreateEvent(){
   const statusEl = document.getElementById('newEventStatus');
 
   if (!name || !date) { statusEl.textContent = 'Name and date are required.'; statusEl.style.color = 'var(--alert)'; return; }
+  if (!scoringType || !completionMode) { statusEl.textContent = 'Please select both a scoring type and a completion mode.'; statusEl.style.color = 'var(--alert)'; return; }
 
   const id = slugifyEventId(name, date);
   const insertBody = {
