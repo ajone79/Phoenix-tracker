@@ -107,8 +107,9 @@ let extractedRows = []; // {name, score, playerId, existingScore}
 let extractStatus = { loading: false, message: '', kind: '' };
 let guideOpen = false;
 let stitchedPreviews = []; // {id, dataUrl, sourceCount}
-let screensPerStitch = 6;
+let screensPerStitch = 5;
 let selectedEventId = '';
+let batchStatuses = []; // {label, state, message}
 let pendingDeleteEventId = null;
 
 function eventThresholdRowHtml(e){
@@ -365,7 +366,8 @@ function importSectionHtml(){
       <div class="import-status ${extractStatus.kind}" id="importStatus">${escapeHtml(extractStatus.message)}</div>
       <div style="font-size:9.5px;color:var(--text-faint);margin-top:2px;">Preview builds stitched images locally first — nothing is sent to Groq until you confirm. Remove any stitched image that looks bad, or change the screens-per-stitch count and re-preview.</div>
       <div class="stitch-gallery" id="stitchGallery">${stitchedPreviews.length ? stitchGalleryHtml() : ''}</div>
-      ${stitchedPreviews.length ? `<div class="import-row" style="margin-top:10px;"><button class="btn save-all" id="sendToGroqBtn">Send ${stitchedPreviews.length} image(s) to Groq</button><button class="btn force" id="clearPreviewBtn">Discard previews</button></div>` : ''}
+      ${stitchedPreviews.length ? `<div class="import-row" style="margin-top:10px;"><button class="btn save-all" id="sendToGroqBtn">Send ${stitchedPreviews.length} batch(es) to Groq</button><button class="btn force" id="clearPreviewBtn">Discard previews</button></div>` : ''}
+      <div id="batchStatusList">${batchStatusListHtml()}</div>
       <div id="reviewWrap">${extractedRows.length ? reviewTableHtml() : ''}</div>
     </div>
   `;
@@ -408,12 +410,29 @@ function reviewTableHtml(){
   `;
 }
 
-function stitchGalleryHtml(){
-  return stitchedPreviews.map(p => `
+function batchStatusListHtml(){
+  if (!batchStatuses.length) return '';
+  const colorFor = s => s==='error' ? 'var(--alert)' : s==='done' ? 'var(--mint)' : s==='sending' ? 'var(--signal)' : 'var(--text-dim)';
+  return `<div class="import-box" style="margin-top:10px;">
+    ${batchStatuses.map(b => `
+      <div style="display:flex;align-items:center;gap:10px;padding:5px 0;font-size:11.5px;">
+        <span style="width:70px;flex-shrink:0;color:var(--signal);font-weight:700;">${escapeHtml(b.label)}</span>
+        <span style="color:${colorFor(b.state)};">${escapeHtml(b.message)}</span>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function renderBatchStatuses(){
+  const el = document.getElementById('batchStatusList');
+  if (el) el.innerHTML = batchStatusListHtml();
+}
+
+function stitchGalleryHtml(){  return stitchedPreviews.map((p, i) => `
     <div class="stitch-thumb" data-thumb="${p.id}">
       <button class="rm" data-removepreview="${p.id}" title="Remove">✕</button>
       <img src="${p.dataUrl}">
-      <div class="lbl">${p.sourceCount} screen${p.sourceCount>1?'s':''} combined</div>
+      <div class="lbl"><b style="color:var(--signal);">Batch ${i+1}</b> — ${p.sourceCount} screen${p.sourceCount>1?'s':''} combined</div>
     </div>
   `).join('');
 }
@@ -454,11 +473,12 @@ async function handlePreviewStitch(){
   const files = fileInput.files;
   if (!files || files.length === 0) { setImportStatus('Choose at least one screenshot.', 'err'); return; }
 
-  screensPerStitch = Math.max(1, parseInt(document.getElementById('screensPerStitchInput').value) || 6);
+  screensPerStitch = Math.max(1, parseInt(document.getElementById('screensPerStitchInput').value) || 5);
+  batchStatuses = [];
   setImportStatus(`Building preview from ${files.length} screenshot(s)…`, '');
   try {
     stitchedPreviews = await buildStitchedPreviews(files, screensPerStitch);
-    setImportStatus(`${stitchedPreviews.length} stitched image(s) ready — check them below, then send to Groq.`, 'ok');
+    setImportStatus(`${stitchedPreviews.length} batch(es) ready — check them below, then send to Groq.`, 'ok');
   } catch (e) {
     setImportStatus(`Couldn't build preview: ${e.message}`, 'err');
   }
@@ -497,57 +517,75 @@ async function handleSendToGroq(){
   const existingMap = {};
   (existing||[]).forEach(s => existingMap[s.player_id] = s.score);
 
-  // Groq accepts up to 5 images per request -- batch the stitched previews if there are more.
-  const chunks = [];
-  for (let i = 0; i < stitchedPreviews.length; i += 5) chunks.push(stitchedPreviews.slice(i, i+5));
+  const previews = stitchedPreviews;
+  const DELAY_S = 4;
+  batchStatuses = previews.map((p,i) => ({ label: `Batch ${i+1}`, state: 'pending', message: `Queued (${p.sourceCount} screens)` }));
+  renderBatchStatuses();
+  setImportStatus(`Sending ${previews.length} batch(es) to Groq, one at a time…`, '');
 
-  let totalExtracted = 0;
-  const batchErrors = [];
-  for (let c = 0; c < chunks.length; c++) {
-    setImportStatus(`Asking Groq to read batch ${c+1}/${chunks.length}…`, '');
-    try {
-      const { res, data } = await callGroqBatch(chunks[c].map(p => p.dataUrl), 1);
-      if (!res.ok) {
-        const rawSnippet = data.raw ? ` — model said: "${String(data.raw).slice(0,300)}${data.raw.length>300?'…':''}"` : '';
-        batchErrors.push(`Batch ${c+1}: ${data.error || res.statusText}${rawSnippet}`);
-        continue;
+  const newRowsThisSend = [];
+
+  for (let i = 0; i < previews.length; i++) {
+    if (i > 0) {
+      for (let s = DELAY_S; s > 0; s--) {
+        batchStatuses[i].state = 'waiting';
+        batchStatuses[i].message = `Sending in ${s}s…`;
+        renderBatchStatuses();
+        await sleep(1000);
       }
-      const rawRows = data.rows || [];
-      if (rawRows.length === 0) {
-        batchErrors.push(`Batch ${c+1}: Groq returned no rows for this image — it may be too blurry/small, or the stitched image didn't come through correctly.`);
-      }
-      totalExtracted += rawRows.length;
-      extractedRows = extractedRows.concat(rawRows.map(r => {
-        const playerId = bestRosterMatch(r.name);
-        return {
-          name: r.name,
-          score: parseInt(r.score) || 0,
-          playerId,
-          existingScore: playerId ? (existingMap[playerId] ?? null) : null,
-          include: true,
-          eventId
-        };
-      }));
-    } catch (e) {
-      batchErrors.push(`Batch ${c+1}: request failed — ${e.message}`);
     }
-    // pace requests -- Groq's limit is per-minute, so back-to-back batches can
-    // cumulatively exceed it even if each one individually fits.
-    if (c < chunks.length - 1) await sleep(3000);
+    batchStatuses[i].state = 'sending';
+    batchStatuses[i].message = 'Sending to Groq…';
+    renderBatchStatuses();
+
+    try {
+      const { res, data } = await callGroqBatch([previews[i].dataUrl], 1);
+      if (!res.ok) {
+        const rawSnippet = data.raw ? ` — "${String(data.raw).slice(0,200)}${data.raw.length>200?'…':''}"` : '';
+        batchStatuses[i].state = 'error';
+        batchStatuses[i].message = `Error: ${data.error || res.statusText}${rawSnippet}`;
+      } else {
+        const rawRows = data.rows || [];
+        newRowsThisSend.push(...rawRows);
+        batchStatuses[i].state = 'done';
+        batchStatuses[i].message = rawRows.length ? `Done — ${rawRows.length} row(s)` : 'Done — no rows found';
+      }
+    } catch (e) {
+      batchStatuses[i].state = 'error';
+      batchStatuses[i].message = `Request failed — ${e.message}`;
+    }
+    renderBatchStatuses();
   }
 
-  stitchedPreviews = [];
-  if (totalExtracted === 0) {
-    setImportStatus(
-      batchErrors.length
-        ? `Extracted 0 rows. ${batchErrors.join(' | ')}`
-        : 'Extracted 0 rows and no error was reported — try a clearer screenshot.',
-      'err'
-    );
-  } else {
-    const suffix = batchErrors.length ? ` (some batches had issues: ${batchErrors.join(' | ')})` : '';
-    setImportStatus(`Extracted ${totalExtracted} row(s) (${extractedRows.length} total in review)${suffix}. Review matches below before saving.`, batchErrors.length ? 'err' : 'ok');
+  // Same player often appears on every screenshot (their own row stays pinned/highlighted
+  // regardless of scroll position) -- dedupe by normalized name across everything from this send.
+  const seen = new Set();
+  const deduped = [];
+  for (const r of newRowsThisSend) {
+    const norm = normalizeName(r.name);
+    if (seen.has(norm)) continue;
+    seen.add(norm);
+    deduped.push(r);
   }
+
+  extractedRows = extractedRows.concat(deduped.map(r => {
+    const playerId = bestRosterMatch(r.name);
+    return {
+      name: r.name,
+      score: parseInt(r.score) || 0,
+      playerId,
+      existingScore: playerId ? (existingMap[playerId] ?? null) : null,
+      include: true,
+      eventId
+    };
+  }));
+
+  const dupCount = newRowsThisSend.length - deduped.length;
+  stitchedPreviews = [];
+  setImportStatus(
+    `Extracted ${deduped.length} unique row(s)${dupCount ? ` (${dupCount} duplicate(s) removed)` : ''} — ${extractedRows.length} total in review.`,
+    deduped.length > 0 ? 'ok' : 'err'
+  );
   refreshImportSectionOnly();
 }
 
