@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHX EU168 — Tag Manager (WIP)</title>
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--void:#050507;--panel:#111116;--panel2:#17171d;--signal:#ff9142;--periwinkle:#8fa3ff;--gold:#ffc857;--text:#e8e6e1;--text-dim:#8a8a94;--hair:#2a2a34;--green:#6ee7b7;--red:#ff6b6b;}
+*{box-sizing:border-box;}
+html,body{margin:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;min-height:100%;}
+h1,h2,h3{font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.03em;margin:0;}
+.wip-banner{background:#3a2400;color:var(--gold);text-align:center;padding:8px;font-size:12px;letter-spacing:.05em;text-transform:uppercase;}
+.wrap{max-width:900px;margin:0 auto;padding:20px 16px 80px;}
+.hdr{margin-bottom:20px;}
+.hdr h1{font-size:24px;}
+.hdr p{color:var(--text-dim);font-size:12.5px;margin:6px 0 0;line-height:1.6;}
+.section{background:var(--panel);border:1px solid var(--hair);border-radius:14px;padding:18px;margin-bottom:20px;}
+.section h2{font-size:17px;color:var(--periwinkle);margin-bottom:4px;}
+.section .sub{color:var(--text-dim);font-size:11.5px;margin-bottom:14px;}
+.family-group{margin-bottom:16px;}
+.family-title{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:8px;}
+.tag-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--panel2);border-radius:8px;margin-bottom:6px;border:1px solid var(--hair);}
+.tag-key{font-size:12.5px;color:var(--gold);min-width:140px;}
+.tag-label{font-size:12.5px;flex:1;}
+.tag-desc{font-size:11px;color:var(--text-dim);}
+.btn{background:var(--signal);color:var(--void);font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:12px;padding:8px 16px;border-radius:7px;border:none;cursor:pointer;}
+.btn.ghost{background:transparent;border:1px solid var(--hair);color:var(--text-dim);}
+.btn.small{padding:5px 10px;font-size:10.5px;}
+.btn.danger{background:var(--red);color:#2a0000;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+input,select,textarea{background:var(--void);border:1px solid var(--hair);color:var(--text);font-family:'Space Mono',monospace;font-size:12.5px;padding:7px 9px;border-radius:6px;}
+.form-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.form-row input,.form-row select{flex:1;min-width:100px;}
+.event-card{background:var(--panel2);border:1px solid var(--hair);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
+.event-name{font-size:13px;margin-bottom:6px;}
+.event-cat{color:var(--text-dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.chip{font-size:11px;padding:3px 9px;border-radius:12px;border:1px solid var(--hair);cursor:pointer;user-select:none;}
+.chip.on{background:var(--signal);color:var(--void);border-color:var(--signal);font-weight:700;}
+.chip.off{color:var(--text-dim);}
+.search-box{width:100%;margin-bottom:12px;}
+.day-row{border:1px solid var(--hair);border-radius:10px;padding:10px 12px;margin-bottom:6px;}
+.day-row.stack{border-color:var(--green);background:rgba(110,231,183,.06);}
+.day-date{font-weight:700;font-size:13px;}
+.stack-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
+.stack-badge{font-size:10.5px;padding:2px 8px;border-radius:10px;background:rgba(110,231,183,.15);color:var(--green);border:1px solid var(--green);}
+.ev-line{font-size:12px;color:var(--text-dim);margin-top:3px;}
+.msg{font-size:12px;padding:8px 10px;border-radius:8px;margin-top:10px;}
+.msg.err{background:rgba(255,107,107,.12);color:var(--red);}
+.msg.ok{background:rgba(110,231,183,.12);color:var(--green);}
+.gate{max-width:440px;margin:80px auto;text-align:center;padding:0 20px;}
+.gate p{color:var(--text-dim);font-size:13px;line-height:1.6;}
+</style>
+</head>
+<body style="visibility:hidden;">
+<div class="wip-banner">🚧 Work in progress — internal tool, not linked from the live site 🚧</div>
+<div class="wrap">
+  <div class="hdr">
+    <h1>Tag manager</h1>
+    <p>Define the action-tag vocabulary and match it to events. Events sharing a tag on the same day can be completed together — the preview at the bottom shows which days stack.</p>
+  </div>
+
+  <div id="adminGate" class="gate" style="display:none;">
+    <h2>Read-only</h2>
+    <p>You're signed in but not a tracker admin, so you can view tags and matches but can't add or edit them.</p>
+  </div>
+
+  <div class="section">
+    <h2>Action tags</h2>
+    <div class="sub">The vocabulary — grouped by family. A tag describes one underlying action (e.g. "kill a solo armada").</div>
+    <div id="tagFamilies"></div>
+    <div class="form-row" id="addTagForm">
+      <input type="text" id="newTagKey" placeholder="tag_key (e.g. armada_solo)">
+      <input type="text" id="newTagFamily" placeholder="family (e.g. armadas)">
+      <input type="text" id="newTagLabel" placeholder="Label (e.g. Solo Armada)">
+      <input type="text" id="newTagDesc" placeholder="Description" style="flex-basis:100%;">
+      <button class="btn" id="addTagBtn">Add tag</button>
+    </div>
+    <div id="tagMsg"></div>
+  </div>
+
+  <div class="section">
+    <h2>Match events to tags</h2>
+    <div class="sub">Tap tags to toggle them on an event. An event can have more than one tag if it can be satisfied more than one way.</div>
+    <input type="text" class="search-box" id="eventSearch" placeholder="Search events…">
+    <div id="eventList"></div>
+    <div id="matchMsg"></div>
+  </div>
+
+  <div class="section">
+    <h2>Live preview — current arc</h2>
+    <div class="sub">Computed from the current arc's dates in events-data-tags.js and whatever matches are saved above.</div>
+    <div id="preview"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/tracker-auth.js"></script>
+<script src="events-data-tags.js"></script>
+<script>
+let sb, isAdmin = false;
+let actionTags = [];
+let eventTags = {}; // event_id -> Set(tag_key)
+
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+document.addEventListener('tracker-auth-ready', async (e) => {
+  sb = window.__trackerSb;
+  isAdmin = !!(e.detail && e.detail.is_admin);
+  if(!isAdmin){ document.getElementById('adminGate').style.display='block'; document.getElementById('addTagForm').style.display='none'; }
+  await loadTags();
+  await loadEventTags();
+  renderTags();
+  renderEvents();
+  renderPreview();
+  document.getElementById('eventSearch').addEventListener('input', renderEvents);
+  if(isAdmin) document.getElementById('addTagBtn').addEventListener('click', addTag);
+});
+
+async function loadTags(){
+  const { data, error } = await sb.from('action_tags').select('*').order('family').order('tag_key');
+  if(error){ showMsg('tagMsg', 'Failed to load tags: '+error.message, true); return; }
+  actionTags = data || [];
+}
+
+async function loadEventTags(){
+  const { data, error } = await sb.from('event_action_tags').select('event_id, tag_key');
+  if(error){ showMsg('matchMsg', 'Failed to load matches: '+error.message, true); return; }
+  eventTags = {};
+  (data||[]).forEach(row => {
+    if(!eventTags[row.event_id]) eventTags[row.event_id] = new Set();
+    eventTags[row.event_id].add(row.tag_key);
+  });
+}
+
+function showMsg(id, text, isErr){
+  const el = document.getElementById(id);
+  el.innerHTML = `<div class="msg ${isErr?'err':'ok'}">${escapeHtml(text)}</div>`;
+  setTimeout(()=>{ el.innerHTML=''; }, 4000);
+}
+
+function renderTags(){
+  const byFamily = {};
+  actionTags.forEach(t => { (byFamily[t.family] = byFamily[t.family]||[]).push(t); });
+  const families = Object.keys(byFamily).sort();
+  const container = document.getElementById('tagFamilies');
+  if(!families.length){ container.innerHTML = '<div class="sub">No tags yet — add one below.</div>'; return; }
+  container.innerHTML = families.map(fam => `
+    <div class="family-group">
+      <div class="family-title">${escapeHtml(fam)}</div>
+      ${byFamily[fam].map(t => `
+        <div class="tag-row">
+          <span class="tag-key">${escapeHtml(t.tag_key)}</span>
+          <span class="tag-label">${escapeHtml(t.label)}<br><span class="tag-desc">${escapeHtml(t.description||'')}</span></span>
+          ${isAdmin ? `<button class="btn danger small" data-del="${escapeHtml(t.tag_key)}">Delete</button>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+  if(isAdmin){
+    container.querySelectorAll('[data-del]').forEach(btn => {
+      btn.addEventListener('click', () => deleteTag(btn.getAttribute('data-del')));
+    });
+  }
+}
+
+async function addTag(){
+  const key = document.getElementById('newTagKey').value.trim();
+  const family = document.getElementById('newTagFamily').value.trim();
+  const label = document.getElementById('newTagLabel').value.trim();
+  const desc = document.getElementById('newTagDesc').value.trim();
+  if(!key || !family || !label){ showMsg('tagMsg', 'Tag key, family, and label are required.', true); return; }
+  const { error } = await sb.from('action_tags').insert({ tag_key:key, family, label, description:desc || null });
+  if(error){ showMsg('tagMsg', 'Failed: '+error.message, true); return; }
+  document.getElementById('newTagKey').value='';
+  document.getElementById('newTagFamily').value='';
+  document.getElementById('newTagLabel').value='';
+  document.getElementById('newTagDesc').value='';
+  await loadTags();
+  renderTags();
+  renderEvents();
+  showMsg('tagMsg', 'Tag added.', false);
+}
+
+async function deleteTag(key){
+  if(!confirm(`Delete tag "${key}"? This removes it from every event it's matched to.`)) return;
+  const { error } = await sb.from('action_tags').delete().eq('tag_key', key);
+  if(error){ showMsg('tagMsg', 'Failed: '+error.message, true); return; }
+  await loadTags();
+  await loadEventTags();
+  renderTags();
+  renderEvents();
+  renderPreview();
+  showMsg('tagMsg', 'Tag deleted.', false);
+}
+
+function renderEvents(){
+  const q = (document.getElementById('eventSearch').value||'').toLowerCase();
+  const container = document.getElementById('eventList');
+  const evs = (window.EVENTS_TAGGED||[]).filter(ev => {
+    const label = (ev.name + ' ' + (ev.variant||'')).toLowerCase();
+    return !q || label.includes(q);
+  });
+  if(!evs.length){ container.innerHTML = '<div class="sub">No events match.</div>'; return; }
+  container.innerHTML = evs.map(ev => {
+    const current = eventTags[ev.id] || new Set();
+    const chips = actionTags.map(t => `
+      <span class="chip ${current.has(t.tag_key)?'on':'off'}" data-event="${escapeHtml(ev.id)}" data-tag="${escapeHtml(t.tag_key)}">${escapeHtml(t.label)}</span>
+    `).join('');
+    return `
+      <div class="event-card">
+        <div class="event-name">${escapeHtml(ev.name)}${ev.variant?' — '+escapeHtml(ev.variant):''}</div>
+        <div class="event-cat">${escapeHtml(ev.category)}</div>
+        <div class="chip-row">${chips || '<span class="sub">Add a tag above first.</span>'}</div>
+      </div>
+    `;
+  }).join('');
+  if(isAdmin){
+    container.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => toggleEventTag(chip.getAttribute('data-event'), chip.getAttribute('data-tag'), chip));
+    });
+  }
+}
+
+async function toggleEventTag(eventId, tagKey, chipEl){
+  const has = eventTags[eventId] && eventTags[eventId].has(tagKey);
+  if(has){
+    const { error } = await sb.from('event_action_tags').delete().eq('event_id', eventId).eq('tag_key', tagKey);
+    if(error){ showMsg('matchMsg', 'Failed: '+error.message, true); return; }
+    eventTags[eventId].delete(tagKey);
+    chipEl.classList.replace('on','off');
+  } else {
+    const { error } = await sb.from('event_action_tags').insert({ event_id: eventId, tag_key: tagKey });
+    if(error){ showMsg('matchMsg', 'Failed: '+error.message, true); return; }
+    if(!eventTags[eventId]) eventTags[eventId] = new Set();
+    eventTags[eventId].add(tagKey);
+    chipEl.classList.replace('off','on');
+  }
+  renderPreview();
+}
+
+// --- date expansion + preview ---
+function pad(n){ return String(n).padStart(2,'0'); }
+function toISO(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function addDaysD(iso, n){ const d = new Date(iso+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return toISO(d); }
+
+function expandOcc(ev, windowStart, windowEnd){
+  const dates = new Set();
+  const occ = ev.occ;
+  if(!occ) return dates;
+  if(occ.kind === 'dates'){
+    occ.dates.forEach(d => { if(d>=windowStart && d<=windowEnd) dates.add(d); });
+  } else if(occ.kind === 'ranges'){
+    occ.ranges.forEach(r => {
+      let cur = r.start;
+      while(cur <= r.end){
+        if(cur>=windowStart && cur<=windowEnd) dates.add(cur);
+        cur = addDaysD(cur, 1);
+      }
+    });
+  } else if(occ.kind === 'weekly'){
+    let cur = occ.start > windowStart ? occ.start : windowStart;
+    const end = occ.end < windowEnd ? occ.end : windowEnd;
+    while(cur <= end){
+      const dow = new Date(cur+'T00:00:00Z').getUTCDay();
+      if(dow === occ.dayOfWeek) dates.add(cur);
+      cur = addDaysD(cur, 1);
+    }
+  }
+  return dates;
+}
+
+function renderPreview(){
+  const container = document.getElementById('preview');
+  const evs = (window.EVENTS_TAGGED||[]).filter(ev => eventTags[ev.id] && eventTags[ev.id].size);
+  if(!evs.length){ container.innerHTML = '<div class="sub">No tagged events yet — match some above to see stacking.</div>'; return; }
+
+  // window: current arc's date span, derived from tagged events' own ranges/dates
+  let allDates = [];
+  evs.forEach(ev => {
+    const occ = ev.occ;
+    if(occ.kind==='dates') allDates.push(...occ.dates);
+    if(occ.kind==='ranges') occ.ranges.forEach(r=>{ allDates.push(r.start); allDates.push(r.end); });
+    if(occ.kind==='weekly'){ allDates.push(occ.start>occ.start?occ.start:occ.start); }
+  });
+  if(!allDates.length){ container.innerHTML = '<div class="sub">No dated occurrences to preview.</div>'; return; }
+  const windowStart = allDates.reduce((a,b)=>a<b?a:b);
+  const windowEnd = allDates.reduce((a,b)=>a>b?a:b);
+
+  const byDay = {}; // date -> [{ev, tags}]
+  evs.forEach(ev => {
+    const dates = expandOcc(ev, windowStart, windowEnd);
+    dates.forEach(d => {
+      if(!byDay[d]) byDay[d] = [];
+      byDay[d].push({ ev, tags: [...eventTags[ev.id]] });
+    });
+  });
+
+  const days = Object.keys(byDay).sort();
+  container.innerHTML = days.map(d => {
+    const entries = byDay[d];
+    const tagCounts = {};
+    entries.forEach(en => en.tags.forEach(t => { tagCounts[t] = (tagCounts[t]||0)+1; }));
+    const stackedTags = Object.keys(tagCounts).filter(t => tagCounts[t] > 1);
+    const tagLabel = k => (actionTags.find(t=>t.tag_key===k)||{}).label || k;
+    return `
+      <div class="day-row ${stackedTags.length?'stack':''}">
+        <div class="day-date">${escapeHtml(d)}</div>
+        ${stackedTags.length ? `<div class="stack-badges">${stackedTags.map(t=>`<span class="stack-badge">🔗 ${escapeHtml(tagLabel(t))} ×${tagCounts[t]}</span>`).join('')}</div>` : ''}
+        ${entries.map(en => `<div class="ev-line">${escapeHtml(en.ev.name)}${en.ev.variant?' — '+escapeHtml(en.ev.variant):''} <span style="opacity:.6;">[${en.tags.map(tagLabel).join(', ')}]</span></div>`).join('')}
+      </div>
+    `;
+  }).join('');
+}
+</script>
+</body>
+</html>
