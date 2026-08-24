@@ -120,15 +120,15 @@
 
   /* Expandable table panels */
   .table-wrap{position:relative;}
-  .table-actions{position:absolute; top:8px; right:8px; z-index:6; display:flex; gap:6px;}
+  .table-actions{display:flex; justify-content:flex-end; gap:8px; margin-bottom:6px;}
   .expand-btn,.csv-btn{
-    background:var(--panel-2); border:1px solid var(--hair); color:var(--text-dim);
-    font-family:'Antonio',sans-serif; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
-    font-size:10.5px; padding:5px 10px; border-radius:6px; cursor:pointer;
-    display:flex; align-items:center; gap:5px; transition:border-color .12s ease,color .12s ease;
+    border:none; font-family:'Antonio',sans-serif; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+    font-size:11px; padding:6px 12px; border-radius:6px; cursor:pointer;
+    display:flex; align-items:center; gap:5px; transition:filter .12s ease;
   }
-  .expand-btn:hover{border-color:var(--signal); color:var(--text);}
-  .csv-btn:hover{border-color:var(--mint); color:var(--text);}
+  .expand-btn{background:var(--periwinkle); color:var(--void);}
+  .csv-btn{background:var(--mint); color:var(--void);}
+  .expand-btn:hover,.csv-btn:hover{filter:brightness(1.15);}
   .fs-overlay{
     display:none; position:fixed; inset:0; z-index:200;
     background:rgba(2,2,4,.88); padding:16px;
@@ -267,6 +267,7 @@ function toast(msg){ toastEl.textContent=msg; toastEl.classList.add('show'); cle
 const fsOverlay = document.getElementById('fsOverlay');
 const fsBody = document.getElementById('fsBody');
 const fsTitle = document.getElementById('fsTitle');
+let fsHistoryPushed = false;
 
 function openFullscreenTable(panelEl, title){
   fsTitle.textContent = title || 'Table';
@@ -278,13 +279,27 @@ function openFullscreenTable(panelEl, title){
   fsBody.appendChild(clone);
   fsOverlay.classList.add('show');
   document.body.style.overflow = 'hidden';
+  // Push a dummy history entry so the device/browser back button closes the overlay
+  // instead of navigating away from the page.
+  history.pushState({fsOpen:true}, '', location.href);
+  fsHistoryPushed = true;
 }
 
-function closeFullscreenTable(){
+function closeFullscreenTable(fromPopstate){
+  if(fsHistoryPushed && !fromPopstate){
+    fsHistoryPushed = false;
+    history.back(); // triggers popstate, which finishes the close below
+    return;
+  }
+  fsHistoryPushed = false;
   fsOverlay.classList.remove('show');
   fsBody.innerHTML = '';
   document.body.style.overflow = '';
 }
+
+window.addEventListener('popstate', () => {
+  if(fsOverlay.classList.contains('show')) closeFullscreenTable(true);
+});
 
 /* ---------------- CSV export ---------------- */
 function csvEscape(v){
