@@ -8,6 +8,7 @@
     {href:'credits.html', label:'🔗 Links & Credits'},
     {href:'f2p-task-guide.html', label:'🎯 F2P Task Guide'},
     {href:'fleet-commanders.html', label:'🧭 Fleet Commanders'},
+    {href:'sheets/stfc-sheets.html', label:'📑 STFC Sheets'},
     {href:'admin.html', label:'🛠️ Admin'},
   ];
 
