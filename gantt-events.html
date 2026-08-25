@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix EU168 — Weekly Gantt View</title>
+<style>
+  :root{
+    --bg:#0A0D12; --panel:#12161D; --panel-alt:#171C25; --border:#232A35;
+    --text:#D8DEE9; --muted:#7C8798; --amber:#FFB454; --blue:#5FB4E5;
+    --red:#FF6B6B; --purple:#B98CE0; --green:#6EE7B7;
+    --mono: 'SF Mono', 'Consolas', 'Menlo', monospace;
+    --disp: 'Segoe UI Semibold', 'Segoe UI', system-ui, sans-serif;
+    --daycol: 132px;
+    --labelcol: 148px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 20% -10%, rgba(95,180,229,0.08), transparent 40%),
+      radial-gradient(ellipse at 100% 0%, rgba(255,180,84,0.06), transparent 45%),
+      var(--bg);
+    color:var(--text); font-family:var(--disp); -webkit-font-smoothing:antialiased;
+    padding-bottom:50px;
+  }
+  header{
+    padding:20px 16px 14px; border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, rgba(255,180,84,0.05), transparent);
+  }
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--amber); display:flex; align-items:center; gap:8px;
+  }
+  .eyebrow::before{content:""; width:22px;height:8px; background:var(--amber); display:inline-block;}
+  h1{margin:8px 0 4px; font-size:21px; line-height:1.2;}
+  .sub{color:var(--muted); font-size:13px; font-family:var(--mono);}
+
+  .controls{
+    position:sticky; top:36px; z-index:20;
+    background:rgba(10,13,18,0.96); backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--border); padding:10px 16px;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .row{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
+  .field-label{
+    font-family:var(--mono); font-size:10px; text-transform:uppercase;
+    letter-spacing:.1em; color:var(--muted); margin-bottom:3px; display:block;
+  }
+  select, input[type=text]{
+    background:var(--panel-alt); border:1px solid var(--border); color:var(--text);
+    border-radius:6px; padding:7px 9px; font-family:var(--mono); font-size:13px;
+  }
+  select:focus, input:focus{outline:2px solid var(--blue); outline-offset:1px;}
+  .search-wrap{flex:1; min-width:140px;}
+  .search-wrap input{width:100%;}
+  .btn{
+    font-family:var(--mono); font-size:12px; letter-spacing:.04em;
+    padding:8px 14px; border-radius:6px; border:1px solid var(--border);
+    background:var(--panel-alt); color:var(--text); cursor:pointer;
+  }
+  .btn:hover{border-color:var(--blue);}
+  .btn.primary{border-color:var(--amber); color:var(--amber);}
+  .week-label{font-family:var(--mono); font-size:13px; font-weight:600; flex:1; text-align:center; min-width:160px;}
+  .chip{
+    font-family:var(--mono); font-size:11px; letter-spacing:.03em;
+    padding:6px 10px; border-radius:20px; border:1px solid var(--border); background:var(--panel-alt);
+    color:var(--muted); cursor:pointer; user-select:none;
+  }
+  .chip.on{color:var(--text); border-color:currentColor; background:rgba(255,255,255,0.03);}
+  .toggle-row{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); font-family:var(--mono);}
+  details.adv{border:1px solid var(--border); border-radius:8px; background:var(--panel-alt);}
+  details.adv summary{
+    cursor:pointer; padding:8px 12px; font-family:var(--mono); font-size:11px;
+    text-transform:uppercase; letter-spacing:.08em; color:var(--muted); list-style:none;
+    display:flex; align-items:center; gap:6px;
+  }
+  details.adv summary::-webkit-details-marker{display:none;}
+  details.adv summary::before{content:"▸"; color:var(--amber); transition:transform .15s;}
+  details.adv[open] summary::before{transform:rotate(90deg);}
+  details.adv .adv-body{padding:8px 12px 12px;}
+
+  .legend{display:flex; flex-wrap:wrap; gap:10px; padding:10px 16px; font-family:var(--mono); font-size:11px; color:var(--muted);}
+  .legend span{display:inline-flex; align-items:center; gap:5px;}
+  .legend .dot{width:8px;height:8px;border-radius:50%;}
+
+  /* ===== Gantt grid ===== */
+  .gantt-wrap{padding:14px 0 0 16px;}
+  .gantt-scroll{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--panel);}
+  .gantt-inner{display:inline-block; min-width:100%;}
+  .gantt-header-row{display:flex; position:sticky; top:0; z-index:5; background:var(--panel-alt); border-bottom:1px solid var(--border);}
+  .gantt-header-label{
+    width:var(--labelcol); flex-shrink:0; position:sticky; left:0; z-index:6;
+    background:var(--panel-alt); border-right:1px solid var(--border);
+    font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--muted); padding:8px 10px; display:flex; align-items:center;
+  }
+  .gantt-daycol{
+    width:var(--daycol); flex-shrink:0; text-align:center; padding:8px 4px;
+    border-right:1px solid var(--border); font-family:var(--mono);
+  }
+  .gantt-daycol .dname{font-size:11px; font-weight:700; color:var(--text);}
+  .gantt-daycol .ddate{font-size:9.5px; color:var(--muted);}
+  .gantt-daycol.today{background:rgba(110,231,183,0.10);}
+  .gantt-daycol.today .dname{color:var(--green);}
+  .gantt-daycol.weekend .dname{color:var(--purple);}
+
+  .gantt-body{position:relative;}
+  .gantt-row{display:flex; align-items:center; border-bottom:1px solid var(--border); min-height:34px;}
+  .gantt-row:nth-child(even){background:rgba(255,255,255,0.015);}
+  .gantt-row-label{
+    width:var(--labelcol); flex-shrink:0; position:sticky; left:0; z-index:2;
+    background:var(--panel); border-right:1px solid var(--border);
+    padding:6px 10px; font-size:11px; line-height:1.25; cursor:pointer;
+  }
+  .gantt-row:nth-child(even) .gantt-row-label{background:#12161d;}
+  .gantt-row-label .cat-dot{display:inline-block; width:7px;height:7px;border-radius:50%; margin-right:5px; flex-shrink:0;}
+  .gantt-track{
+    position:relative; height:34px;
+    width:calc(var(--daycol) * 7);
+    background-image: repeating-linear-gradient(to right, transparent, transparent calc(var(--daycol) - 1px), var(--border) calc(var(--daycol) - 1px), var(--border) var(--daycol));
+    flex-shrink:0;
+  }
+  .gantt-bar{
+    position:absolute; top:7px; height:20px; border-radius:5px;
+    font-family:var(--mono); font-size:9.5px; color:#05070a; font-weight:700;
+    display:flex; align-items:center; padding:0 6px; white-space:nowrap; overflow:hidden;
+    cursor:pointer; opacity:0.92;
+  }
+  .gantt-bar:active{opacity:1; transform:scaleY(1.05);}
+  .now-line{position:absolute; top:0; bottom:0; width:2px; background:var(--green); z-index:4;}
+  .now-label{
+    position:absolute; top:-18px; transform:translateX(-50%);
+    font-family:var(--mono); font-size:9px; color:var(--green); background:var(--bg);
+    padding:1px 4px; border-radius:3px; white-space:nowrap; z-index:4;
+  }
+  .detail-panel{
+    display:none; padding:10px 14px; margin:0 16px 4px; border:1px solid var(--border);
+    border-radius:8px; background:var(--panel-alt); font-size:12px; color:var(--muted);
+  }
+  .detail-panel.open{display:block;}
+  .detail-panel .dt-title{color:var(--text); font-weight:700; font-size:13px; margin-bottom:3px;}
+  .detail-panel .dt-meta{font-family:var(--mono); font-size:11px; margin-bottom:6px;}
+  .empty-note{padding:24px 16px; color:var(--muted); font-size:12px; font-style:italic; text-align:center;}
+  footer{padding:18px 16px 10px; color:var(--muted); font-family:var(--mono); font-size:10.5px; text-align:center;}
+
+.phx-nav{
+  position:sticky; top:0; z-index:9999; display:flex; align-items:center; gap:4px;
+  background:#0a0a0d; border-bottom:2px solid #f2a93b; padding:0 14px; height:36px;
+  font-family:ui-monospace,'SF Mono','Consolas',monospace; overflow-x:auto; white-space:nowrap;
+}
+.phx-nav .phx-nav-tag{color:#f2a93b; font-weight:700; letter-spacing:.12em; font-size:11px; margin-right:12px; flex-shrink:0;}
+.phx-nav a{
+  color:#9a9aa4; text-decoration:none; font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+  padding:8px 12px; border-radius:0 0 6px 6px; transition:color .15s ease, background .15s ease; flex-shrink:0;
+}
+.phx-nav a:hover{ color:#e8e6e1; background:rgba(255,255,255,.06); }
+.phx-nav a.current{ color:#0a0a0d; background:#f2a93b; font-weight:700; }
+</style>
+</head>
+<body>
+<nav class="phx-nav"><span class="phx-nav-tag">PHX</span><a href="events-calendar.html">Events Calendar</a><a href="game-events.html">Game Events</a><a href="gantt-events.html" class="current">Gantt View</a><a href="f2p-task-guide.html">F2P Task Guide</a><a href="index.html">Tracker</a></nav>
+
+<header>
+  <div class="eyebrow">Global Feed · stfc.cfd + Territory Capture + Voyage</div>
+  <h1>Phoenix EU168 — Weekly Gantt View</h1>
+  <div class="sub">One row per event, positioned by actual start/end time · Swipe the chart sideways to see the full week · Tap a bar for details</div>
+</header>
+
+<div class="controls">
+  <div class="row">
+    <div class="search-wrap">
+      <span class="field-label">Search</span>
+      <input type="text" id="searchBox" placeholder="event name…">
+    </div>
+  </div>
+  <div class="row">
+    <button class="btn" id="prevWeek">‹ Prev</button>
+    <span class="week-label" id="weekLabel"></span>
+    <button class="btn primary" id="thisWeek">This Week</button>
+    <button class="btn" id="nextWeek">Next ›</button>
+  </div>
+  <div class="row" id="gradeChipRow"></div>
+  <details class="adv">
+    <summary>Advanced filters (event types, timezone)</summary>
+    <div class="adv-body row" id="chipRow"></div>
+    <div class="adv-body row">
+      <label class="toggle-row"><input type="checkbox" id="ticketedOnly"> Ticketed only</label>
+    </div>
+    <div class="adv-body row">
+      <div>
+        <span class="field-label">Timezone</span>
+        <select id="tzSelect"></select>
+      </div>
+    </div>
+  </details>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<div id="detailPanel" class="detail-panel"></div>
+
+<div class="gantt-wrap">
+  <div class="gantt-scroll" id="ganttScroll">
+    <div class="gantt-inner">
+      <div class="gantt-header-row" id="ganttHeaderRow"></div>
+      <div class="gantt-body" id="ganttBody"></div>
+    </div>
+  </div>
+</div>
+
+<footer>stfc.cfd events refreshed daily · Territory Capture and Voyage Across the Void are hand-maintained indefinite weekly recurrences · Bars are clipped to the visible week</footer>
+
+<script>
+let GAME_EVENTS = [];
+
+/* =========================================================
+   CATEGORY DEFINITIONS — mirrors game-events.html exactly so
+   colors/labels stay consistent across both pages.
+   ========================================================= */
+const GAME_CATS = {
+  hostiles:     {label:'Hostiles',        color:'#FF6B6B'},
+  waves:        {label:'Wave Defense',    color:'#6EE7B7'},
+  armadas:      {label:'Armadas',         color:'#B98CE0'},
+  recruit:      {label:'Officer Recruit', color:'#5FB4E5'},
+  meta:         {label:'Meta',            color:'#FFB454'},
+  alliance:     {label:'Alliance',        color:'#FF8FE3'},
+  ship_upgrade: {label:'Ship Upgrade',    color:'#7FDBFF'},
+  battlepass:   {label:'Battle Pass',     color:'#9AA5B1'},
+  building:     {label:'Building',        color:'#F5D97A'},
+  research:     {label:'Research',        color:'#5FE0C0'},
+  domination:   {label:'Domination',      color:'#8C6FE0'},
+  pvp:          {label:'PvP',             color:'#FF9B54'},
+  arc_banner:   {label:'Arc Banner',      color:'#E0C56F'},
+  mining:       {label:'Mining',          color:'#C08552'},
+  vengeance:    {label:'Vengeance',       color:'#C0392B'},
+  aphelion:     {label:'Aphelion',        color:'#A5D8FF'},
+  territory:    {label:'Territory Capture', color:'#8CE071'},
+  voyage:       {label:'Voyage Across the Void', color:'#4FD1C5'},
+  '':           {label:'Other',           color:'#7C8798'}
+};
+const FALLBACK_PALETTE = ['#E57373','#64B5F6','#81C784','#FFD54F','#BA68C8','#4DB6AC','#F06292','#A1887F'];
+const GRADE_BANDS = {G1:[1,20],G2:[21,30],G3:[31,40],G4:[41,50],G5:[51,60],G6:[61,70],G7:[71,80],G8:[81,90]};
+
+const VOYAGE_NOTES = {
+  'Into the Unknown': 'SMS: Complete Away Team Assignments, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Complete Priority One Away Team Assignments.',
+  'Perimeter Breach': 'SMS: Clear Solo, Elite Solo, and Duo Wave Defense waves, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Clear Solo, Elite Solo, and Duo Wave Defense waves.',
+  'Singular Strike': 'SMS: Defeat Invading Entities and Solo Armadas, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Defeat Invading Entities and Solo Armadas.',
+  'United Offensive': 'SMS: Defeat group Armadas, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Defeat group Armadas.',
+  'Command Mobilization': 'Gain Power via Research, Defense Platforms, Buildings and Drydocks, or spend Ship XP / Officer Intel — scoring is the same across SMS, SLB, and ALB.',
+  'Subspace Surge': 'SMS: Defeat Solo Armadas or clear Wave Defense waves, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Defeat Solo Armadas or clear Wave Defense waves.',
+  'Echoes of War': 'Defeat Armadas, complete research, or upgrade buildings, or defeat Federation, Klingon, and Romulan hostiles — scoring is the same across SMS, SLB, and ALB.'
+};
+
+const TERRITORY_EVENTS = [
+  {name:'Nujord — Territory Capture', displayType:'territory', eventSubType:null, dayOfWeek:5, h:15, m:0, durationDays:0, note:'PHX conquest window · cost 1 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Duportas — Territory Capture', displayType:'territory', eventSubType:null, dayOfWeek:6, h:14, m:0, durationDays:0, note:'PHX conquest window · cost 2 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:"Ber'Tho — Territory Capture", displayType:'territory', eventSubType:null, dayOfWeek:6, h:19, m:0, durationDays:0, note:'PHX conquest window · cost 2 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Brellan — Territory Capture', displayType:'territory', eventSubType:null, dayOfWeek:0, h:19, m:0, durationDays:0, note:'PHX conquest window · cost 3 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Bimasa — Territory Capture', displayType:'territory', eventSubType:null, dayOfWeek:2, h:17, m:0, durationDays:0, note:'PHX conquest window · cost 2 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'}
+];
+const VOYAGE_EVENTS = [
+  {name:'Voyage Across the Void — Into the Unknown', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:1, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Into the Unknown'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage Across the Void — Perimeter Breach', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:2, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Perimeter Breach'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage Across the Void — Singular Strike', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:3, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Singular Strike'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage Across the Void — United Offensive', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:4, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['United Offensive'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage Across the Void — Command Mobilization', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:5, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Command Mobilization'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage Across the Void — Subspace Surge', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:6, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Subspace Surge'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage Across the Void — Echoes of War', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:0, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Echoes of War'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage Across the Void (Meta)', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:1, h:17, m:0, durationDays:7, note:'Complete Voyage Across the Void feeder events. No scoring changes vs. the daily variants.', validFrom:'2025-01-01', validTo:'2027-12-31'}
+];
+
+let selectedType = null;
+let selectedGrade = null;
+let weekOffset = 0; // 0 = week containing today, ±1 = adjacent weeks, etc.
+const el = id => document.getElementById(id);
+
+/* =========================================================
+   TIME HELPERS (identical to game-events.html)
+   ========================================================= */
+function getOffsetForZone(date, timeZone){
+  try{
+    const dtf = new Intl.DateTimeFormat('en-US', {timeZone, timeZoneName:'shortOffset'});
+    const part = dtf.formatToParts(date).find(p => p.type === 'timeZoneName').value;
+    const match = part.match(/GMT([+-]\d+(?:\.\d+)?)?/);
+    return match ? (match[1] ? parseFloat(match[1]) : 0) : 0;
+  } catch(e){ return 0; }
+}
+function resolveOffset(isoUTC, tzValue){
+  if(tzValue === 'uk-auto') return getOffsetForZone(new Date(isoUTC), 'Europe/London');
+  return parseFloat(tzValue);
+}
+function toZoned(isoUTC, tzValue){
+  const offsetHours = resolveOffset(isoUTC, tzValue);
+  const d = new Date(isoUTC);
+  const shifted = new Date(d.getTime() + offsetHours*3600*1000);
+  return {
+    dateISO: shifted.getUTCFullYear()+'-'+String(shifted.getUTCMonth()+1).padStart(2,'0')+'-'+String(shifted.getUTCDate()).padStart(2,'0'),
+    h: shifted.getUTCHours(), m: shifted.getUTCMinutes()
+  };
+}
+function ukLocalToUTC(dateISO, h, m){
+  const [y,mo,d] = dateISO.split('-').map(Number);
+  const naiveUTC = Date.UTC(y, mo-1, d, h, m);
+  const offset = getOffsetForZone(new Date(naiveUTC), 'Europe/London');
+  return new Date(naiveUTC - offset*3600*1000).toISOString();
+}
+function addDays(dateISO, n){
+  const [y,mo,d] = dateISO.split('-').map(Number);
+  const dt = new Date(Date.UTC(y,mo-1,d));
+  dt.setUTCDate(dt.getUTCDate()+n);
+  return dt.getUTCFullYear()+'-'+String(dt.getUTCMonth()+1).padStart(2,'0')+'-'+String(dt.getUTCDate()).padStart(2,'0');
+}
+function dateRangeList(startISO, endISO){
+  const out=[]; let cur=startISO; let guard=0;
+  while(cur<=endISO && guard<400){ out.push(cur); cur=addDays(cur,1); guard++; }
+  return out;
+}
+function dowOf(dateISO){
+  const [y,mo,d]=dateISO.split('-').map(Number);
+  return new Date(Date.UTC(y,mo-1,d)).getUTCDay();
+}
+function mondayOnOrBefore(dateISO){
+  const dow = dowOf(dateISO); // 0=Sun..6=Sat
+  const diff = (dow === 0) ? 6 : dow - 1; // days since most recent Monday
+  return addDays(dateISO, -diff);
+}
+
+const TZ_OPTIONS = [
+  {label:'UK (auto — BST/GMT)', offset:'uk-auto'},
+  {label:'UTC−11 (Midway)', offset:-11}, {label:'UTC−10 (Hawaii)', offset:-10},
+  {label:'UTC−9 (Alaska)', offset:-9}, {label:'UTC−8 (Los Angeles / PDT)', offset:-8},
+  {label:'UTC−7 (Denver / MDT)', offset:-7}, {label:'UTC−6 (Chicago / CDT)', offset:-6},
+  {label:'UTC−5 (New York / EDT)', offset:-5}, {label:'UTC−4 (Halifax / AST)', offset:-4},
+  {label:'UTC−3 (São Paulo)', offset:-3}, {label:'UTC 0 (GMT, fixed)', offset:0},
+  {label:'UTC+1 (fixed)', offset:1}, {label:'UTC+2 (Berlin / Cairo)', offset:2},
+  {label:'UTC+3 (Moscow)', offset:3}, {label:'UTC+4 (Dubai)', offset:4},
+  {label:'UTC+5:30 (Mumbai)', offset:5.5}, {label:'UTC+8 (Beijing / Singapore)', offset:8},
+  {label:'UTC+9 (Tokyo)', offset:9}, {label:'UTC+10 (Sydney / AEST)', offset:10},
+  {label:'UTC+12 (Auckland)', offset:12}
+];
+
+/* =========================================================
+   FORMAT MERGING (identical to game-events.html)
+   ========================================================= */
+function stripFormatSuffix(title){
+  return title.replace(/\s*-\s*(SMS|ALB|SLB|AMS|RLB|XALB)\s*$/i, '').trim();
+}
+function getDisplayType(ev){
+  return ev.eventSubType === 'voyage_across_the_void' ? 'voyage' : (ev.eventType || '');
+}
+function buildMergedEvents(raw){
+  const map = new Map();
+  (raw||[]).forEach(ev => {
+    if(!ev.startUTC) return;
+    const baseTitle = stripFormatSuffix(ev.title || '');
+    const key = baseTitle + '|' + ev.startUTC + '|' + ev.endUTC;
+    if(!map.has(key)){
+      map.set(key, {
+        title: baseTitle, description: ev.description || '', imageUrl: ev.imageUrl,
+        startUTC: ev.startUTC, endUTC: ev.endUTC, displayType: getDisplayType(ev),
+        eventSubType: ev.eventSubType, priority: ev.priority,
+        minOpsLevel: ev.minOpsLevel, maxOpsLevel: ev.maxOpsLevel, formats: []
+      });
+    }
+    const entry = map.get(key);
+    if(ev.eventFormat && !entry.formats.includes(ev.eventFormat)) entry.formats.push(ev.eventFormat);
+    if(!entry.description && ev.description) entry.description = ev.description;
+  });
+  map.forEach(entry => {
+    if(entry.eventSubType === 'voyage_across_the_void'){
+      const noteKey = entry.title.replace(/\s*\(Meta\)\s*$/i, '').trim();
+      if(VOYAGE_NOTES[noteKey]) entry.description = VOYAGE_NOTES[noteKey];
+    }
+  });
+  return Array.from(map.values());
+}
+function generateRecurringEvents(defs, winStartISO, winEndISO){
+  const out = [];
+  dateRangeList(winStartISO, winEndISO).forEach(dISO => {
+    defs.forEach(d => {
+      if(dISO < d.validFrom || dISO > d.validTo) return;
+      if(dowOf(dISO) !== d.dayOfWeek) return;
+      const startUTC = ukLocalToUTC(dISO, d.h, d.m);
+      const endUTC = d.durationDays > 0 ? ukLocalToUTC(addDays(dISO, d.durationDays), d.h, d.m) : null;
+      out.push({
+        title: d.name, description: d.note, displayType: d.displayType,
+        eventSubType: d.eventSubType, priority: 'normal',
+        minOpsLevel: 1, maxOpsLevel: 999, formats: [], startUTC, endUTC
+      });
+    });
+  });
+  return out;
+}
+
+/* =========================================================
+   BUILD CONTROLS
+   ========================================================= */
+function buildTzSelect(){
+  el('tzSelect').innerHTML = TZ_OPTIONS.map(t => '<option value="'+t.offset+'"'+(t.offset==='uk-auto'?' selected':'')+'>'+t.label+'</option>').join('');
+}
+function buildChips(){
+  const wrap = el('chipRow');
+  wrap.innerHTML = '';
+  Object.keys(GAME_CATS).forEach(key => {
+    const cat = GAME_CATS[key];
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (selectedType === key ? ' on' : '');
+    chip.style.color = cat.color;
+    chip.textContent = cat.label;
+    chip.title = 'Click to isolate, click again to show all types';
+    chip.addEventListener('click', () => { selectedType = (selectedType===key)?null:key; buildChips(); render(); });
+    wrap.appendChild(chip);
+  });
+}
+function buildGradeChips(){
+  const wrap = el('gradeChipRow');
+  wrap.innerHTML = '';
+  Object.keys(GRADE_BANDS).forEach(g => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (selectedGrade === g ? ' on' : '');
+    chip.style.color = 'var(--blue)';
+    chip.textContent = g;
+    chip.title = 'Ops ' + GRADE_BANDS[g][0] + '–' + GRADE_BANDS[g][1] + ' — click to isolate, click again for all grades';
+    chip.addEventListener('click', () => { selectedGrade = (selectedGrade===g)?null:g; buildGradeChips(); render(); });
+    wrap.appendChild(chip);
+  });
+}
+function buildLegend(){
+  el('legend').innerHTML = Object.values(GAME_CATS).map(c =>
+    '<span><span class="dot" style="background:'+c.color+'"></span>'+c.label+'</span>').join('');
+}
+function escapeHTML(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+function fmtTime(h,m){
+  const ap = h>=12?'PM':'AM';
+  let hh = h%12; if(hh===0) hh=12;
+  return hh+':'+String(m).padStart(2,'0')+' '+ap;
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function render(){
+  const tzValue = el('tzSelect').value;
+  const search = el('searchBox').value.trim().toLowerCase();
+  const ticketedOnly = el('ticketedOnly').checked;
+
+  // Determine the visible week (Monday 00:00 → next Monday 00:00, UK-local
+  // calendar days, then converted through the selected timezone for display).
+  const todayISO = toZoned(new Date().toISOString(), 'uk-auto').dateISO;
+  const currentWeekMonday = mondayOnOrBefore(todayISO);
+  const weekStartISO = addDays(currentWeekMonday, weekOffset * 7);
+  const weekEndISO = addDays(weekStartISO, 6); // Sunday
+  const weekStartUTC = ukLocalToUTC(weekStartISO, 0, 0);
+  const weekEndUTC = ukLocalToUTC(addDays(weekEndISO, 1), 0, 0); // exclusive upper bound
+  const weekStartMs = new Date(weekStartUTC).getTime();
+  const weekEndMs = new Date(weekEndUTC).getTime();
+  const weekMs = weekEndMs - weekStartMs;
+
+  const [wy,wmo,wd] = weekStartISO.split('-').map(Number);
+  const weekStartLabel = new Date(Date.UTC(wy,wmo-1,wd)).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+  const [ey,emo,ed] = weekEndISO.split('-').map(Number);
+  const weekEndLabel = new Date(Date.UTC(ey,emo-1,ed)).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});
+  el('weekLabel').textContent = weekStartLabel + ' – ' + weekEndLabel + (weekOffset===0?' (this week)':'');
+
+  // Candidate events: reuse the wider ±1 week window so multi-day events
+  // that start before/end after this week still get generated, then clip.
+  const genStart = addDays(weekStartISO, -7);
+  const genEnd = addDays(weekEndISO, 7);
+  const candidateEvents = [
+    ...buildMergedEvents(GAME_EVENTS).filter(e => e.eventSubType !== 'voyage_across_the_void'),
+    ...generateRecurringEvents(TERRITORY_EVENTS, genStart, genEnd),
+    ...generateRecurringEvents(VOYAGE_EVENTS, genStart, genEnd)
+  ];
+
+  const rows = [];
+  candidateEvents.forEach(ev => {
+    if(selectedType && ev.displayType !== selectedType) return;
+    if(ticketedOnly && ev.eventSubType !== 'ticketed') return;
+    if(search && !ev.title.toLowerCase().includes(search)) return;
+    if(!ev.startUTC) return;
+
+    const opsMin = ev.minOpsLevel == null ? 1 : ev.minOpsLevel;
+    const opsMax = ev.maxOpsLevel == null ? 999 : ev.maxOpsLevel;
+    if(selectedGrade){
+      const [gMin,gMax] = GRADE_BANDS[selectedGrade];
+      if(!(opsMin <= gMax && opsMax >= gMin)) return;
+    }
+
+    const startMs = new Date(ev.startUTC).getTime();
+    const endMs = ev.endUTC ? new Date(ev.endUTC).getTime() : startMs + 30*60*1000; // 30-min minimum block for point events
+    if(endMs <= weekStartMs || startMs >= weekEndMs) return; // doesn't overlap this week at all
+
+    const clippedStart = Math.max(startMs, weekStartMs);
+    const clippedEnd = Math.min(endMs, weekEndMs);
+    rows.push({ev, opsMin, opsMax, startMs, endMs, clippedStart, clippedEnd});
+  });
+
+  rows.sort((a,b) => a.startMs - b.startMs);
+
+  // --- Header row (day columns) ---
+  const headerRow = el('ganttHeaderRow');
+  headerRow.innerHTML = '<div class="gantt-header-label">Event</div>' +
+    dateRangeList(weekStartISO, weekEndISO).map(dISO => {
+      const [y,mo,d] = dISO.split('-').map(Number);
+      const jsDate = new Date(Date.UTC(y,mo-1,d));
+      const dname = jsDate.toLocaleDateString('en-US',{weekday:'short',timeZone:'UTC'});
+      const ddate = jsDate.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+      const dow = dowOf(dISO);
+      const cls = 'gantt-daycol' + (dISO===todayISO?' today':'') + ((dow===0||dow===6)?' weekend':'');
+      return '<div class="'+cls+'"><div class="dname">'+dname+'</div><div class="ddate">'+ddate+'</div></div>';
+    }).join('');
+
+  // --- Body rows ---
+  const body = el('ganttBody');
+  body.innerHTML = '';
+  el('detailPanel').classList.remove('open');
+
+  if(rows.length === 0){
+    body.innerHTML = '<div class="empty-note">No events match your filters this week.</div>';
+    return;
+  }
+
+  rows.forEach(({ev, opsMin, opsMax, clippedStart, clippedEnd}) => {
+    const catDef = GAME_CATS[ev.displayType] || GAME_CATS[''];
+    const row = document.createElement('div');
+    row.className = 'gantt-row';
+
+    const label = document.createElement('div');
+    label.className = 'gantt-row-label';
+    label.innerHTML = '<span class="cat-dot" style="background:'+catDef.color+'"></span>'+escapeHTML(ev.title);
+
+    const track = document.createElement('div');
+    track.className = 'gantt-track';
+
+    const leftPct = ((clippedStart - weekStartMs) / weekMs) * 100;
+    const widthPct = Math.max(((clippedEnd - clippedStart) / weekMs) * 100, 0.6);
+    const bar = document.createElement('div');
+    bar.className = 'gantt-bar';
+    bar.style.left = leftPct + '%';
+    bar.style.width = widthPct + '%';
+    bar.style.background = catDef.color;
+    bar.textContent = (ev.formats && ev.formats.length) ? ev.formats.join('/') : '';
+    track.appendChild(bar);
+
+    // "Now" marker, only within the row that actually spans the current moment
+    const nowMs = Date.now();
+    if(weekOffset === 0 && nowMs >= weekStartMs && nowMs <= weekEndMs){
+      const nowPct = ((nowMs - weekStartMs) / weekMs) * 100;
+      const line = document.createElement('div');
+      line.className = 'now-line';
+      line.style.left = nowPct + '%';
+      track.appendChild(line);
+    }
+
+    const showDetail = () => {
+      const opsLabel = opsMax>=999 ? (opsMin+'+') : (opsMin+'–'+opsMax);
+      const startZ = toZoned(new Date(ev.startUTC || clippedStart).toISOString(), tzValue);
+      const endZ = ev.endUTC ? toZoned(ev.endUTC, tzValue) : null;
+      const timeLabel = endZ
+        ? fmtTime(startZ.h,startZ.m) + ' → ' + fmtTime(endZ.h,endZ.m)
+        : fmtTime(startZ.h,startZ.m);
+      const panel = el('detailPanel');
+      panel.innerHTML =
+        '<div class="dt-title">'+escapeHTML(ev.title)+'</div>'+
+        '<div class="dt-meta" style="color:'+catDef.color+'">'+catDef.label+
+          ((ev.formats&&ev.formats.length)?' · '+ev.formats.join('/'):'')+
+          ' · '+timeLabel+' · Ops '+opsLabel+'</div>'+
+        (ev.description ? '<div>'+escapeHTML(ev.description)+'</div>' : '');
+      panel.classList.add('open');
+      if(typeof panel.scrollIntoView === 'function') panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+    };
+    bar.addEventListener('click', showDetail);
+    label.addEventListener('click', showDetail);
+
+    row.appendChild(label);
+    row.appendChild(track);
+    body.appendChild(row);
+  });
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+async function loadDataAndInit(){
+  try{
+    const res = await fetch('events-data-game.json?t=' + Date.now(), {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const payload = await res.json();
+    GAME_EVENTS = payload.events || [];
+  } catch(e){
+    console.warn('events-data-game.json missing or empty — showing recurring events only.', e);
+    GAME_EVENTS = [];
+  }
+
+  const seenTypes = new Set(buildMergedEvents(GAME_EVENTS).map(e => e.displayType || ''));
+  let paletteIdx = 0;
+  seenTypes.forEach(t => {
+    if(!(t in GAME_CATS)){
+      GAME_CATS[t] = {label: t ? (t.charAt(0).toUpperCase()+t.slice(1).replace(/_/g,' ')) : 'Other', color: FALLBACK_PALETTE[paletteIdx++ % FALLBACK_PALETTE.length]};
+    }
+  });
+
+  buildTzSelect();
+  buildChips();
+  buildGradeChips();
+  buildLegend();
+  render();
+
+  ['tzSelect','searchBox','ticketedOnly'].forEach(id => {
+    el(id).addEventListener('input', render);
+    el(id).addEventListener('change', render);
+  });
+  el('prevWeek').addEventListener('click', () => { weekOffset -= 1; render(); });
+  el('nextWeek').addEventListener('click', () => { weekOffset += 1; render(); });
+  el('thisWeek').addEventListener('click', () => { weekOffset = 0; render(); });
+}
+loadDataAndInit();
+</script>
+</body>
+</html>
