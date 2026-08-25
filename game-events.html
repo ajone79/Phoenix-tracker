@@ -277,7 +277,25 @@ const GAME_CATS = {
   vengeance:    {label:'Vengeance',       color:'#C0392B'},
   aphelion:     {label:'Aphelion',        color:'#A5D8FF'},
   territory:    {label:'Territory Capture', color:'#8CE071'},
+  voyage:       {label:'Voyage Across the Void', color:'#4FD1C5'},
   '':           {label:'Other',           color:'#7C8798'}
+};
+
+/* =========================================================
+   VOYAGE ACROSS THE VOID — hand-written notes
+   Copied from events-data.js so the description here matches
+   the arc calendar exactly (SMS vs ALB/SLB scoring differences).
+   Keyed by the event's base title once format suffixes are
+   stripped and any "(Meta)" wrapper suffix is removed.
+   ========================================================= */
+const VOYAGE_NOTES = {
+  'Into the Unknown': 'SMS: Complete Away Team Assignments, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Complete Priority One Away Team Assignments.',
+  'Perimeter Breach': 'SMS: Clear Solo, Elite Solo, and Duo Wave Defense waves, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Clear Solo, Elite Solo, and Duo Wave Defense waves.',
+  'Singular Strike': 'SMS: Defeat Invading Entities and Solo Armadas, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Defeat Invading Entities and Solo Armadas.',
+  'United Offensive': 'SMS: Defeat group Armadas, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Defeat group Armadas.',
+  'Command Mobilization': 'Gain Power via Research, Defense Platforms, Buildings and Drydocks, or spend Ship XP / Officer Intel — scoring is the same across SMS, SLB, and ALB.',
+  'Subspace Surge': 'SMS: Defeat Solo Armadas or clear Wave Defense waves, or defeat Federation, Klingon, and Romulan hostiles. ALB/SLB: Defeat Solo Armadas or clear Wave Defense waves.',
+  'Echoes of War': 'Defeat Armadas, complete research, or upgrade buildings, or defeat Federation, Klingon, and Romulan hostiles — scoring is the same across SMS, SLB, and ALB.'
 };
 const FALLBACK_PALETTE = ['#E57373','#64B5F6','#81C784','#FFD54F','#BA68C8','#4DB6AC','#F06292','#A1887F'];
 const GRADE_BANDS = {G1:[1,20],G2:[21,30],G3:[31,40],G4:[41,50],G5:[51,60],G6:[61,70],G7:[71,80],G8:[81,90]};
@@ -352,6 +370,54 @@ function dateRangeList(startISO, endISO){
   const out=[]; let cur=startISO; let guard=0;
   while(cur<=endISO && guard<400){ out.push(cur); cur=addDays(cur,1); guard++; }
   return out;
+}
+/* =========================================================
+   FORMAT MERGING — the feed lists SMS/ALB/SLB/AMS variants of
+   the same event as separate entries with the same title
+   (minus a " - FORMAT" suffix) and the same start/end time.
+   Collapse those into a single display entry with a combined
+   format list, so e.g. "Perimeter Breach - SMS/ALB/SLB" shows
+   as one row instead of three.
+   ========================================================= */
+function stripFormatSuffix(title){
+  return title.replace(/\s*-\s*(SMS|ALB|SLB|AMS|RLB|XALB)\s*$/i, '').trim();
+}
+function getDisplayType(ev){
+  return ev.eventSubType === 'voyage_across_the_void' ? 'voyage' : (ev.eventType || '');
+}
+function buildMergedEvents(raw){
+  const map = new Map();
+  (raw||[]).forEach(ev => {
+    if(!ev.startUTC) return;
+    const baseTitle = stripFormatSuffix(ev.title || '');
+    const key = baseTitle + '|' + ev.startUTC + '|' + ev.endUTC;
+    if(!map.has(key)){
+      map.set(key, {
+        title: baseTitle,
+        description: ev.description || '',
+        imageUrl: ev.imageUrl,
+        startUTC: ev.startUTC,
+        endUTC: ev.endUTC,
+        displayType: getDisplayType(ev),
+        eventSubType: ev.eventSubType,
+        priority: ev.priority,
+        minOpsLevel: ev.minOpsLevel,
+        maxOpsLevel: ev.maxOpsLevel,
+        formats: []
+      });
+    }
+    const entry = map.get(key);
+    if(ev.eventFormat && !entry.formats.includes(ev.eventFormat)) entry.formats.push(ev.eventFormat);
+    if(!entry.description && ev.description) entry.description = ev.description;
+  });
+  // Swap in the hand-written Voyage Across the Void notes where we have one
+  map.forEach(entry => {
+    if(entry.eventSubType === 'voyage_across_the_void'){
+      const noteKey = entry.title.replace(/\s*\(Meta\)\s*$/i, '').trim();
+      if(VOYAGE_NOTES[noteKey]) entry.description = VOYAGE_NOTES[noteKey];
+    }
+  });
+  return Array.from(map.values());
 }
 function dowOf(dateISO){
   const [y,mo,d]=dateISO.split('-').map(Number);
@@ -432,9 +498,10 @@ function render(){
 
   const byDay = {};
 
-  // --- Absolute events from the stfc.cfd feed ---
-  (GAME_EVENTS || []).forEach(ev => {
-    if(!activeTypes.has(ev.eventType)) return;
+  // --- Absolute events from the stfc.cfd feed (format-merged) ---
+  const mergedEvents = buildMergedEvents(GAME_EVENTS);
+  mergedEvents.forEach(ev => {
+    if(!activeTypes.has(ev.displayType)) return;
     if(heroicOnly && ev.eventSubType !== 'heroic') return;
     if(incursionOnly && ev.priority !== 'incursion') return;
     if(search && !ev.title.toLowerCase().includes(search)) return;
@@ -468,7 +535,7 @@ function render(){
         const startUTC = ukLocalToUTC(dISO, t.h, t.m);
         if(hidePast && new Date(startUTC).getTime() < nowMs) return;
         const startZ = toZoned(startUTC, tzValue);
-        const pseudoEv = {title:t.name, eventType:'territory', eventSubType:null, eventFormat:null, priority:'normal', description:t.note};
+        const pseudoEv = {title:t.name, displayType:'territory', eventSubType:null, formats:[], priority:'normal', description:t.note};
         (byDay[startZ.dateISO] = byDay[startZ.dateISO] || []).push({ev:pseudoEv, startZ, endZ:null, opsMin:1, opsMax:999});
       });
     });
@@ -508,7 +575,7 @@ function render(){
       card.appendChild(empty);
     } else {
       list.forEach(({ev, startZ, endZ, opsMin, opsMax}) => {
-        const catDef = GAME_CATS[ev.eventType] || GAME_CATS[''];
+        const catDef = GAME_CATS[ev.displayType] || GAME_CATS[''];
         const row = document.createElement('div');
         row.className = 'event-row';
         const opsLabel = opsMax>=999 ? (opsMin+'+') : (opsMin+'–'+opsMax);
@@ -521,9 +588,8 @@ function render(){
             '<div class="ev-title-row">'+
               '<span class="ev-name">'+escapeHTML(ev.title)+'</span>'+
               '<span class="tag" style="color:'+catDef.color+';border-color:'+catDef.color+'">'+catDef.label+'</span>'+
-              (ev.eventFormat?'<span class="tag">'+ev.eventFormat+'</span>':'')+
+              ((ev.formats&&ev.formats.length)?'<span class="tag">'+ev.formats.join(' · ')+'</span>':'')+
               (ev.eventSubType==='heroic'?'<span class="tag heroic">Heroic</span>':'')+
-              (ev.eventSubType==='voyage_across_the_void'?'<span class="tag voyage">Voyage</span>':'')+
               (ev.priority==='incursion'?'<span class="tag incursion">Incursion</span>':'')+
             '</div>'+
             '<div class="ev-meta"><span>'+timeLabel+'</span><span>Ops '+opsLabel+'</span></div>'+
@@ -567,7 +633,7 @@ function init(){
 
   // Discover any event types present in the feed that aren't already
   // mapped, so nothing is ever silently excluded from the type list.
-  const seenTypes = new Set((GAME_EVENTS||[]).map(e => e.eventType || ''));
+  const seenTypes = new Set(buildMergedEvents(GAME_EVENTS).map(e => e.displayType || ''));
   let paletteIdx = 0;
   seenTypes.forEach(t => {
     if(!(t in GAME_CATS)){
