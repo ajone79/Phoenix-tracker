@@ -185,6 +185,9 @@
     display:flex; flex-wrap:wrap; gap:10px;
   }
   .ev-note{font-size:11.5px; color:var(--muted); margin-top:3px; max-width:60ch;}
+  .ev-note.expandable{cursor:pointer;}
+  .ev-note.expandable:active{opacity:0.65;}
+  .more-hint{font-family:var(--mono); font-size:10px; color:var(--blue); letter-spacing:.03em; white-space:nowrap;}
   .empty-day{padding:16px 14px; color:var(--muted); font-size:12px; font-style:italic;}
 
   footer{padding:20px 16px 10px; color:var(--muted); font-family:var(--mono); font-size:10.5px; text-align:center;}
@@ -312,6 +315,7 @@ const VOYAGE_NOTES = {
 };
 const FALLBACK_PALETTE = ['#E57373','#64B5F6','#81C784','#FFD54F','#BA68C8','#4DB6AC','#F06292','#A1887F'];
 const GRADE_BANDS = {G1:[1,20],G2:[21,30],G3:[31,40],G4:[41,50],G5:[51,60],G6:[61,70],G7:[71,80],G8:[81,90]};
+const DESC_TRUNCATE_LEN = 160;
 
 /* =========================================================
    RECURRING TERRITORY CAPTURE WINDOWS
@@ -648,6 +652,9 @@ function render(){
         const timeLabel = endZ
           ? fmtTime(startZ.h, startZ.m) + ' → ' + (endZ.dateISO !== startZ.dateISO ? dateLabelShort(endZ.dateISO)+' ' : '') + fmtTime(endZ.h, endZ.m)
           : fmtTime(startZ.h, startZ.m);
+        const fullDesc = ev.description || '';
+        const isLong = fullDesc.length > DESC_TRUNCATE_LEN;
+        const shortDesc = isLong ? truncate(fullDesc, DESC_TRUNCATE_LEN) : fullDesc;
         row.innerHTML =
           '<div class="cat-bar" style="background:'+catDef.color+'"></div>'+
           '<div class="ev-main">'+
@@ -660,8 +667,18 @@ function render(){
               (ev.priority==='incursion'?'<span class="tag incursion">Incursion</span>':'')+
             '</div>'+
             '<div class="ev-meta"><span>'+timeLabel+'</span><span>Ops '+opsLabel+'</span></div>'+
-            (ev.description?'<div class="ev-note">'+escapeHTML(truncate(ev.description, 160))+'</div>':'')+
+            (fullDesc?'<div class="ev-note'+(isLong?' expandable':'')+'">'+escapeHTML(shortDesc)+(isLong?' <span class="more-hint">▸ tap to expand</span>':'')+'</div>':'')+
           '</div>';
+        if(isLong){
+          const noteEl = row.querySelector('.ev-note');
+          let expanded = false;
+          noteEl.addEventListener('click', () => {
+            expanded = !expanded;
+            noteEl.innerHTML = expanded
+              ? escapeHTML(fullDesc) + ' <span class="more-hint">▾ tap to collapse</span>'
+              : escapeHTML(shortDesc) + ' <span class="more-hint">▸ tap to expand</span>';
+          });
+        }
         card.appendChild(row);
       });
     }
