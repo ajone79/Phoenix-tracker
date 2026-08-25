@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix EU168 — Game-Wide Events</title>
+<style>
+  :root{
+    --bg:#0A0D12;
+    --panel:#12161D;
+    --panel-alt:#171C25;
+    --border:#232A35;
+    --text:#D8DEE9;
+    --muted:#7C8798;
+    --amber:#FFB454;
+    --blue:#5FB4E5;
+    --red:#FF6B6B;
+    --purple:#B98CE0;
+    --green:#6EE7B7;
+    --mono: 'SF Mono', 'Consolas', 'Menlo', monospace;
+    --disp: 'Segoe UI Semibold', 'Segoe UI', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 20% -10%, rgba(95,180,229,0.08), transparent 40%),
+      radial-gradient(ellipse at 100% 0%, rgba(255,180,84,0.06), transparent 45%),
+      var(--bg);
+    color:var(--text);
+    font-family: var(--disp);
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:60px;
+  }
+  a{color:var(--blue);}
+
+  header{
+    padding:22px 16px 16px;
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, rgba(255,180,84,0.05), transparent);
+  }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:var(--amber);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:22px;height:8px;
+    background:var(--amber);
+    border-radius:0 0 0 8px / 0 0 0 8px;
+    display:inline-block;
+  }
+  h1{
+    margin:8px 0 4px;
+    font-size:22px;
+    letter-spacing:.01em;
+    line-height:1.2;
+  }
+  .sub{
+    color:var(--muted);
+    font-size:13px;
+    font-family:var(--mono);
+  }
+
+  .controls{
+    position:sticky; top:0; z-index:20;
+    background:rgba(10,13,18,0.96);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--border);
+    padding:12px 16px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .row{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
+  .field-label{
+    font-family:var(--mono); font-size:10px; text-transform:uppercase;
+    letter-spacing:.1em; color:var(--muted); margin-bottom:3px; display:block;
+  }
+  select, input[type=number], input[type=date], input[type=text]{
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:6px;
+    padding:7px 9px;
+    font-family:var(--mono);
+    font-size:13px;
+  }
+  select:focus, input:focus{outline:2px solid var(--blue); outline-offset:1px;}
+  .chip{
+    font-family:var(--mono); font-size:11px; letter-spacing:.03em;
+    padding:6px 10px; border-radius:20px;
+    border:1px solid var(--border); background:var(--panel-alt);
+    color:var(--muted); cursor:pointer; user-select:none;
+    display:inline-flex; align-items:center; gap:6px;
+    transition:border-color .15s, color .15s, background .15s;
+  }
+  .chip.on{color:var(--text); border-color:currentColor; background:rgba(255,255,255,0.03);}
+  .search-wrap{flex:1; min-width:160px;}
+  .search-wrap input{width:100%;}
+  .btn{
+    font-family:var(--mono); font-size:12px; letter-spacing:.04em;
+    padding:8px 14px; border-radius:6px; border:1px solid var(--border);
+    background:var(--panel-alt); color:var(--text); cursor:pointer;
+  }
+  .btn:hover{border-color:var(--blue);}
+  .toggle-row{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); font-family:var(--mono);}
+
+  details.adv{border:1px solid var(--border); border-radius:8px; background:var(--panel-alt);}
+  details.adv summary{
+    cursor:pointer; padding:8px 12px; font-family:var(--mono); font-size:11px;
+    text-transform:uppercase; letter-spacing:.08em; color:var(--muted); list-style:none;
+    display:flex; align-items:center; gap:6px;
+  }
+  details.adv summary::-webkit-details-marker{display:none;}
+  details.adv summary::before{content:"▸"; color:var(--amber); transition:transform .15s;}
+  details.adv[open] summary::before{transform:rotate(90deg);}
+  details.adv .adv-body{padding:4px 12px 12px;}
+
+  .legend{display:flex; flex-wrap:wrap; gap:10px; padding:10px 16px; font-family:var(--mono); font-size:11px; color:var(--muted);}
+  .legend span{display:inline-flex; align-items:center; gap:5px;}
+  .legend .dot{width:8px;height:8px;border-radius:50%;}
+
+  main{padding:14px 16px 0;}
+  .day-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    margin-bottom:14px;
+    overflow:hidden;
+    scroll-margin-top:170px;
+  }
+  .day-head{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--panel-alt);
+    padding:10px 14px;
+    border-left:5px solid var(--amber);
+  }
+  .day-card.today .day-head{border-left-color:var(--green); background:linear-gradient(90deg, rgba(110,231,183,0.12), transparent);}
+  .day-head .dow{font-weight:600; font-size:14px;}
+  .day-head .date{font-family:var(--mono); font-size:12px; color:var(--muted); margin-left:8px;}
+  .today-badge{
+    font-family:var(--mono); font-size:10px; letter-spacing:.1em;
+    background:var(--green); color:#052014; padding:2px 8px; border-radius:10px; font-weight:700;
+  }
+  .count-badge{font-family:var(--mono); font-size:11px; color:var(--muted);}
+
+  .event-row{
+    display:flex; gap:10px; padding:9px 14px;
+    border-top:1px solid var(--border);
+    align-items:flex-start;
+  }
+  .event-row:hover{background:rgba(255,255,255,0.02);}
+  .cat-bar{width:4px; align-self:stretch; border-radius:3px; flex-shrink:0; min-height:30px;}
+  .ev-main{flex:1; min-width:0;}
+  .ev-title-row{display:flex; flex-wrap:wrap; align-items:center; gap:6px;}
+  .ev-name{font-size:13.5px; font-weight:600;}
+  .tag{
+    font-family:var(--mono); font-size:9.5px; letter-spacing:.05em; text-transform:uppercase;
+    padding:1px 6px; border-radius:4px; border:1px solid var(--border); color:var(--muted);
+  }
+  .tag.heroic{color:var(--red); border-color:var(--red);}
+  .tag.incursion{color:var(--amber); border-color:var(--amber);}
+  .ev-meta{
+    font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:2px;
+    display:flex; flex-wrap:wrap; gap:10px;
+  }
+  .ev-note{font-size:11.5px; color:var(--muted); margin-top:3px; max-width:60ch;}
+  .empty-day{padding:16px 14px; color:var(--muted); font-size:12px; font-style:italic;}
+
+  footer{padding:20px 16px 10px; color:var(--muted); font-family:var(--mono); font-size:10.5px; text-align:center;}
+
+/* ===== PHX cross-page nav strip ===== */
+.phx-nav{
+  position:sticky; top:0; z-index:9999;
+  display:flex; align-items:center; gap:4px;
+  background:#0a0a0d; border-bottom:2px solid #f2a93b;
+  padding:0 14px; height:36px;
+  font-family:ui-monospace,'SF Mono','Consolas',monospace;
+  overflow-x:auto; white-space:nowrap;
+}
+.phx-nav .phx-nav-tag{
+  color:#f2a93b; font-weight:700; letter-spacing:.12em; font-size:11px;
+  margin-right:12px; flex-shrink:0;
+}
+.phx-nav a{
+  color:#9a9aa4; text-decoration:none; font-size:11px; letter-spacing:.06em;
+  text-transform:uppercase; padding:8px 12px; border-radius:0 0 6px 6px;
+  transition:color .15s ease, background .15s ease; flex-shrink:0;
+}
+.phx-nav a:hover{ color:#e8e6e1; background:rgba(255,255,255,.06); }
+.phx-nav a.current{ color:#0a0a0d; background:#f2a93b; font-weight:700; }
+
+</style>
+</head>
+<body>
+<nav class="phx-nav"><span class="phx-nav-tag">PHX</span><a href="events-calendar.html">Events Calendar</a><a href="game-events.html" class="current">Game Events</a><a href="f2p-task-guide.html">F2P Task Guide</a><a href="index.html">Tracker</a></nav>
+
+<header>
+  <div class="eyebrow">Global Feed · stfc.cfd</div>
+  <h1>Phoenix EU168 — Game-Wide Events</h1>
+  <div class="sub">Sourced from the community stfc.cfd events feed, refreshed daily · Content-creator/stream events excluded · This is a standalone page — your arc-specific Events Calendar is untouched</div>
+</header>
+
+<div class="controls">
+  <div class="row">
+    <div class="search-wrap">
+      <span class="field-label">Search</span>
+      <input type="text" id="searchBox" placeholder="event name…">
+    </div>
+    <button class="btn" id="jumpToday">Jump to today</button>
+  </div>
+  <div class="row" id="chipRow"></div>
+  <div class="row">
+    <label class="toggle-row"><input type="checkbox" id="heroicOnly"> Heroic only</label>
+    <label class="toggle-row"><input type="checkbox" id="incursionOnly"> Incursions only</label>
+    <label class="toggle-row"><input type="checkbox" id="hidePast" checked> Hide events that have ended</label>
+    <label class="toggle-row"><input type="checkbox" id="hideEmpty"> Hide days with no matches</label>
+  </div>
+  <details class="adv">
+    <summary>Advanced filters (timezone, ops level, date range)</summary>
+    <div class="adv-body row">
+      <div>
+        <span class="field-label">Your Timezone</span>
+        <select id="tzSelect"></select>
+      </div>
+      <div>
+        <span class="field-label">From</span>
+        <input type="date" id="rangeStart">
+      </div>
+      <div>
+        <span class="field-label">To</span>
+        <input type="date" id="rangeEnd">
+      </div>
+    </div>
+    <div class="adv-body row" id="gradeChipRow"></div>
+  </details>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<main id="dayList"></main>
+
+<footer>Data sourced from the community stfc.cfd events API, refreshed daily via GitHub Actions · Content-creator/stream events filtered out at scrape time · Times default to GMT — change via the timezone selector above</footer>
+
+<script src="events-data-game.js"></script>
+<script>
+/* =========================================================
+   CATEGORY DEFINITIONS — keyed on eventType from the feed
+   ========================================================= */
+const GAME_CATS = {
+  hostiles:     {label:'Hostiles',        color:'#FF6B6B'},
+  waves:        {label:'Wave Defense',    color:'#6EE7B7'},
+  armadas:      {label:'Armadas',         color:'#B98CE0'},
+  recruit:      {label:'Officer Recruit', color:'#5FB4E5'},
+  meta:         {label:'Meta',            color:'#FFB454'},
+  alliance:     {label:'Alliance',        color:'#FF8FE3'},
+  ship_upgrade: {label:'Ship Upgrade',    color:'#7FDBFF'},
+  battlepass:   {label:'Battle Pass',     color:'#9AA5B1'},
+  building:     {label:'Building',        color:'#F5D97A'},
+  research:     {label:'Research',        color:'#5FE0C0'},
+  domination:   {label:'Domination',      color:'#8C6FE0'},
+  pvp:          {label:'PvP',             color:'#FF9B54'},
+  arc_banner:   {label:'Arc Banner',      color:'#E0C56F'},
+  mining:       {label:'Mining',          color:'#C08552'},
+  vengeance:    {label:'Vengeance',       color:'#C0392B'},
+  aphelion:     {label:'Aphelion',        color:'#A5D8FF'},
+  '':           {label:'Other',           color:'#7C8798'}
+};
+const GRADE_BANDS = {G1:[1,20],G2:[21,30],G3:[31,40],G4:[41,50],G5:[51,60],G6:[61,70],G7:[71,80],G8:[81,90]};
+
+const TZ_OPTIONS = [
+  {label:'UTC−11 (Midway)', offset:-11}, {label:'UTC−10 (Hawaii)', offset:-10},
+  {label:'UTC−9 (Alaska)', offset:-9}, {label:'UTC−8 (Los Angeles / PDT)', offset:-8},
+  {label:'UTC−7 (Denver / MDT)', offset:-7}, {label:'UTC−6 (Chicago / CDT)', offset:-6},
+  {label:'UTC−5 (New York / EDT)', offset:-5}, {label:'UTC−4 (Halifax / AST)', offset:-4},
+  {label:'UTC−3 (São Paulo)', offset:-3}, {label:'UTC 0 (GMT) — default', offset:0},
+  {label:'UTC+1 (London, BST)', offset:1}, {label:'UTC+2 (Berlin / Cairo)', offset:2},
+  {label:'UTC+3 (Moscow)', offset:3}, {label:'UTC+4 (Dubai)', offset:4},
+  {label:'UTC+5:30 (Mumbai)', offset:5.5}, {label:'UTC+8 (Beijing / Singapore)', offset:8},
+  {label:'UTC+9 (Tokyo)', offset:9}, {label:'UTC+10 (Sydney / AEST)', offset:10},
+  {label:'UTC+12 (Auckland)', offset:12}
+];
+
+let activeTypes = new Set(Object.keys(GAME_CATS));
+let activeGrades = new Set(['G1','G2','G3','G4','G5','G6','G7','G8']);
+const el = id => document.getElementById(id);
+
+/* =========================================================
+   TIME HELPERS — GAME_EVENTS already carry true UTC instants,
+   so we just shift the epoch by the selected offset and read
+   the UTC-labeled components back out. No wall-clock guessing.
+   ========================================================= */
+function toZoned(isoUTC, offsetHours){
+  const d = new Date(isoUTC);
+  const shifted = new Date(d.getTime() + offsetHours*3600*1000);
+  return {
+    dateISO: shifted.getUTCFullYear()+'-'+String(shifted.getUTCMonth()+1).padStart(2,'0')+'-'+String(shifted.getUTCDate()).padStart(2,'0'),
+    h: shifted.getUTCHours(), m: shifted.getUTCMinutes()
+  };
+}
+function fmtTime(h,m){
+  const ap = h>=12?'PM':'AM';
+  let hh = h%12; if(hh===0) hh=12;
+  return hh+':'+String(m).padStart(2,'0')+' '+ap;
+}
+function addDays(dateISO, n){
+  const [y,mo,d] = dateISO.split('-').map(Number);
+  const dt = new Date(Date.UTC(y,mo-1,d));
+  dt.setUTCDate(dt.getUTCDate()+n);
+  return dt.getUTCFullYear()+'-'+String(dt.getUTCMonth()+1).padStart(2,'0')+'-'+String(dt.getUTCDate()).padStart(2,'0');
+}
+function dateRangeList(startISO, endISO){
+  const out=[]; let cur=startISO; let guard=0;
+  while(cur<=endISO && guard<400){ out.push(cur); cur=addDays(cur,1); guard++; }
+  return out;
+}
+
+/* =========================================================
+   BUILD CONTROLS
+   ========================================================= */
+function buildTzSelect(){
+  const sel = el('tzSelect');
+  sel.innerHTML = TZ_OPTIONS.map(t => '<option value="'+t.offset+'"'+(t.offset===0?' selected':'')+'>'+t.label+'</option>').join('');
+}
+function buildChips(){
+  const wrap = el('chipRow');
+  wrap.innerHTML = '';
+  Object.keys(GAME_CATS).forEach(key => {
+    const cat = GAME_CATS[key];
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (activeTypes.has(key) ? ' on' : '');
+    chip.style.color = cat.color;
+    chip.textContent = cat.label;
+    chip.addEventListener('click', () => {
+      if(activeTypes.has(key)) activeTypes.delete(key); else activeTypes.add(key);
+      buildChips(); render();
+    });
+    wrap.appendChild(chip);
+  });
+}
+function buildGradeChips(){
+  const wrap = el('gradeChipRow');
+  wrap.innerHTML = '';
+  Object.keys(GRADE_BANDS).forEach(g => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (activeGrades.has(g) ? ' on' : '');
+    chip.style.color = 'var(--blue)';
+    chip.textContent = g;
+    chip.title = 'Ops ' + GRADE_BANDS[g][0] + '–' + GRADE_BANDS[g][1];
+    chip.addEventListener('click', () => {
+      if(activeGrades.has(g)) activeGrades.delete(g); else activeGrades.add(g);
+      buildGradeChips(); render();
+    });
+    wrap.appendChild(chip);
+  });
+}
+function buildLegend(){
+  el('legend').innerHTML = Object.values(GAME_CATS).map(c =>
+    '<span><span class="dot" style="background:'+c.color+'"></span>'+c.label+'</span>').join('');
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function render(){
+  const offset = parseFloat(el('tzSelect').value);
+  const rangeStart = el('rangeStart').value;
+  const rangeEnd = el('rangeEnd').value;
+  const search = el('searchBox').value.trim().toLowerCase();
+  const heroicOnly = el('heroicOnly').checked;
+  const incursionOnly = el('incursionOnly').checked;
+  const hidePast = el('hidePast').checked;
+  const hideEmpty = el('hideEmpty').checked;
+  const nowMs = Date.now();
+
+  const byDay = {};
+  (GAME_EVENTS || []).forEach(ev => {
+    if(!activeTypes.has(ev.eventType)) return;
+    if(heroicOnly && ev.eventSubType !== 'heroic') return;
+    if(incursionOnly && ev.priority !== 'incursion') return;
+    if(search && !ev.title.toLowerCase().includes(search)) return;
+    if(hidePast && ev.endUTC && new Date(ev.endUTC).getTime() < nowMs) return;
+
+    const opsMin = ev.minOpsLevel == null ? 1 : ev.minOpsLevel;
+    const opsMax = ev.maxOpsLevel == null ? 999 : ev.maxOpsLevel;
+    const overlapsActiveGrade = Array.from(activeGrades).some(g => {
+      const [gMin,gMax] = GRADE_BANDS[g];
+      return opsMin <= gMax && opsMax >= gMin;
+    });
+    if(!overlapsActiveGrade) return;
+
+    if(!ev.startUTC) return;
+    const startZ = toZoned(ev.startUTC, offset);
+    if(rangeStart && startZ.dateISO < rangeStart) return;
+    if(rangeEnd && startZ.dateISO > rangeEnd) return;
+
+    const endZ = ev.endUTC ? toZoned(ev.endUTC, offset) : null;
+    (byDay[startZ.dateISO] = byDay[startZ.dateISO] || []).push({ev, startZ, endZ, opsMin, opsMax});
+  });
+  Object.values(byDay).forEach(list => list.sort((a,b) => a.startZ.h*60+a.startZ.m - (b.startZ.h*60+b.startZ.m)));
+
+  const todayISO = toZoned(new Date().toISOString(), offset).dateISO;
+  const daysToShow = (rangeStart && rangeEnd) ? dateRangeList(rangeStart, rangeEnd) : Object.keys(byDay).sort();
+  const dayList = el('dayList');
+  dayList.innerHTML = '';
+
+  if(daysToShow.length === 0){
+    dayList.innerHTML = '<div class="empty-day">No events match your filters. Try widening the date range or clearing a filter.</div>';
+    return;
+  }
+
+  daysToShow.forEach(dISO => {
+    const list = byDay[dISO] || [];
+    if(hideEmpty && list.length===0) return;
+    const [y,mo,d] = dISO.split('-').map(Number);
+    const jsDate = new Date(Date.UTC(y,mo-1,d));
+    const dow = jsDate.toLocaleDateString('en-US', {weekday:'long', timeZone:'UTC'});
+    const dateLabel = jsDate.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric', timeZone:'UTC'});
+
+    const card = document.createElement('div');
+    card.className = 'day-card' + (dISO===todayISO ? ' today' : '');
+
+    const head = document.createElement('div');
+    head.className = 'day-head';
+    head.innerHTML = '<div><span class="dow">'+dow+'</span><span class="date">'+dateLabel+'</span>'+(dISO===todayISO?' <span class="today-badge">TODAY</span>':'')+'</div>'+
+      '<span class="count-badge">'+list.length+' event'+(list.length===1?'':'s')+'</span>';
+    card.appendChild(head);
+
+    if(list.length===0){
+      const empty = document.createElement('div');
+      empty.className = 'empty-day';
+      empty.textContent = 'No matching events for this day.';
+      card.appendChild(empty);
+    } else {
+      list.forEach(({ev, startZ, endZ, opsMin, opsMax}) => {
+        const catDef = GAME_CATS[ev.eventType] || GAME_CATS[''];
+        const row = document.createElement('div');
+        row.className = 'event-row';
+        const opsLabel = opsMax>=999 ? (opsMin+'+') : (opsMin+'–'+opsMax);
+        const timeLabel = endZ
+          ? fmtTime(startZ.h, startZ.m) + ' → ' + (endZ.dateISO !== startZ.dateISO ? dateLabelShort(endZ.dateISO)+' ' : '') + fmtTime(endZ.h, endZ.m)
+          : fmtTime(startZ.h, startZ.m);
+        row.innerHTML =
+          '<div class="cat-bar" style="background:'+catDef.color+'"></div>'+
+          '<div class="ev-main">'+
+            '<div class="ev-title-row">'+
+              '<span class="ev-name">'+escapeHTML(ev.title)+'</span>'+
+              '<span class="tag" style="color:'+catDef.color+';border-color:'+catDef.color+'">'+catDef.label+'</span>'+
+              (ev.eventFormat?'<span class="tag">'+ev.eventFormat+'</span>':'')+
+              (ev.eventSubType==='heroic'?'<span class="tag heroic">Heroic</span>':'')+
+              (ev.priority==='incursion'?'<span class="tag incursion">Incursion</span>':'')+
+            '</div>'+
+            '<div class="ev-meta"><span>'+timeLabel+'</span><span>Ops '+opsLabel+'</span></div>'+
+            (ev.description?'<div class="ev-note">'+escapeHTML(truncate(ev.description, 160))+'</div>':'')+
+          '</div>';
+        card.appendChild(row);
+      });
+    }
+    dayList.appendChild(card);
+  });
+}
+function dateLabelShort(dISO){
+  const [y,mo,d] = dISO.split('-').map(Number);
+  return new Date(Date.UTC(y,mo-1,d)).toLocaleDateString('en-US', {month:'short', day:'numeric', timeZone:'UTC'});
+}
+function truncate(str, n){
+  return str.length > n ? str.slice(0, n-1).trimEnd() + '…' : str;
+}
+function escapeHTML(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+function init(){
+  if(typeof GAME_EVENTS === 'undefined'){
+    el('dayList').innerHTML = '<div class="empty-day">Event data hasn\'t loaded yet — events-data-game.js may be missing or the daily scrape hasn\'t run.</div>';
+    return;
+  }
+  buildTzSelect();
+  buildChips();
+  buildGradeChips();
+  buildLegend();
+  render();
+
+  ['tzSelect','rangeStart','rangeEnd','searchBox','heroicOnly','incursionOnly','hidePast','hideEmpty'].forEach(id => {
+    el(id).addEventListener('input', render);
+    el(id).addEventListener('change', render);
+  });
+  el('jumpToday').addEventListener('click', () => {
+    const todayCard = document.querySelector('.day-card.today');
+    if(todayCard) todayCard.scrollIntoView({behavior:'smooth', block:'start'});
+    else alert('Today has no events currently shown — try widening filters or the date range.');
+  });
+}
+init();
+</script>
+</body>
+</html>
