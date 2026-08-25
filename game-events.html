@@ -69,7 +69,7 @@
   }
 
   .controls{
-    position:sticky; top:0; z-index:20;
+    position:sticky; top:36px; z-index:20;
     background:rgba(10,13,18,0.96);
     backdrop-filter:blur(6px);
     border-bottom:1px solid var(--border);
@@ -178,6 +178,7 @@
   }
   .tag.heroic{color:var(--red); border-color:var(--red);}
   .tag.incursion{color:var(--amber); border-color:var(--amber);}
+  .tag.ticketed{color:#FFD54F; border-color:#FFD54F;}
   .tag.voyage{color:#7FDBFF; border-color:#7FDBFF;}
   .ev-meta{
     font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:2px;
@@ -236,8 +237,7 @@
     <summary>Advanced filters (event types, timezone, date range)</summary>
     <div class="adv-body row" id="chipRow"></div>
     <div class="adv-body row">
-      <label class="toggle-row"><input type="checkbox" id="heroicOnly"> Heroic only</label>
-      <label class="toggle-row"><input type="checkbox" id="incursionOnly"> Incursions only</label>
+      <label class="toggle-row"><input type="checkbox" id="ticketedOnly"> Ticketed only</label>
       <label class="toggle-row"><input type="checkbox" id="hidePast" checked> Hide events that have ended</label>
       <label class="toggle-row"><input type="checkbox" id="hideEmpty"> Hide days with no matches</label>
     </div>
@@ -374,7 +374,7 @@ function generateRecurringEvents(defs, winStartISO, winEndISO){
   return out;
 }
 
-let activeTypes = new Set();
+let selectedType = null; // null = show all types; otherwise a single GAME_CATS key
 let selectedGrade = null; // null = show all grades; otherwise a single 'G1'..'G8'
 const el = id => document.getElementById(id);
 
@@ -508,11 +508,12 @@ function buildChips(){
   Object.keys(GAME_CATS).forEach(key => {
     const cat = GAME_CATS[key];
     const chip = document.createElement('div');
-    chip.className = 'chip' + (activeTypes.has(key) ? ' on' : '');
+    chip.className = 'chip' + (selectedType === key ? ' on' : '');
     chip.style.color = cat.color;
     chip.textContent = cat.label;
+    chip.title = 'Click to isolate, click again to show all types';
     chip.addEventListener('click', () => {
-      if(activeTypes.has(key)) activeTypes.delete(key); else activeTypes.add(key);
+      selectedType = (selectedType === key) ? null : key;
       buildChips(); render();
     });
     wrap.appendChild(chip);
@@ -547,8 +548,7 @@ function render(){
   const rangeStart = el('rangeStart').value;
   const rangeEnd = el('rangeEnd').value;
   const search = el('searchBox').value.trim().toLowerCase();
-  const heroicOnly = el('heroicOnly').checked;
-  const incursionOnly = el('incursionOnly').checked;
+  const ticketedOnly = el('ticketedOnly').checked;
   const hidePast = el('hidePast').checked;
   const hideEmpty = el('hideEmpty').checked;
   const nowMs = Date.now();
@@ -564,8 +564,8 @@ function render(){
   // One combined candidate list: scraped+merged feed events (minus Voyage,
   // which is hand-defined below instead) + recurring Territory Capture +
   // recurring Voyage Across the Void. All three go through the exact same
-  // filter pass so behavior (grade bands, heroic/incursion, search, etc.)
-  // never silently diverges between sources.
+  // filter pass so behavior (grade bands, type isolation, etc.) never
+  // silently diverges between sources.
   const candidateEvents = [
     ...buildMergedEvents(GAME_EVENTS).filter(e => e.eventSubType !== 'voyage_across_the_void'),
     ...generateRecurringEvents(TERRITORY_EVENTS, winStart, winEnd),
@@ -573,9 +573,8 @@ function render(){
   ];
 
   candidateEvents.forEach(ev => {
-    if(!activeTypes.has(ev.displayType)) return;
-    if(heroicOnly && ev.eventSubType !== 'heroic') return;
-    if(incursionOnly && ev.priority !== 'incursion') return;
+    if(selectedType && ev.displayType !== selectedType) return;
+    if(ticketedOnly && ev.eventSubType !== 'ticketed') return;
     if(search && !ev.title.toLowerCase().includes(search)) return;
     if(hidePast && ev.endUTC && new Date(ev.endUTC).getTime() < nowMs) return;
     if(hidePast && !ev.endUTC && ev.startUTC && new Date(ev.startUTC).getTime() < nowMs) return;
@@ -657,6 +656,7 @@ function render(){
               '<span class="tag" style="color:'+catDef.color+';border-color:'+catDef.color+'">'+catDef.label+'</span>'+
               ((ev.formats&&ev.formats.length)?'<span class="tag">'+ev.formats.join(' · ')+'</span>':'')+
               (ev.eventSubType==='heroic'?'<span class="tag heroic">Heroic</span>':'')+
+              (ev.eventSubType==='ticketed'?'<span class="tag ticketed">Ticketed</span>':'')+
               (ev.priority==='incursion'?'<span class="tag incursion">Incursion</span>':'')+
             '</div>'+
             '<div class="ev-meta"><span>'+timeLabel+'</span><span>Ops '+opsLabel+'</span></div>'+
@@ -710,7 +710,6 @@ function init(){
       GAME_CATS[t] = {label: t ? (t.charAt(0).toUpperCase()+t.slice(1).replace(/_/g,' ')) : 'Other', color: FALLBACK_PALETTE[paletteIdx++ % FALLBACK_PALETTE.length]};
     }
   });
-  activeTypes = new Set(Object.keys(GAME_CATS));
 
   buildTzSelect();
   buildChips();
@@ -725,7 +724,7 @@ function init(){
   render();
   requestAnimationFrame(() => setTimeout(jumpToToday, 50));
 
-  ['tzSelect','rangeStart','rangeEnd','searchBox','heroicOnly','incursionOnly','hidePast','hideEmpty'].forEach(id => {
+  ['tzSelect','rangeStart','rangeEnd','searchBox','ticketedOnly','hidePast','hideEmpty'].forEach(id => {
     el(id).addEventListener('input', render);
     el(id).addEventListener('change', render);
   });
