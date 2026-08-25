@@ -1,15 +1,15 @@
 (function(){
   const LINKS = [
-    {href:'index.html', label:'🏠 Home'},
-    {href:'alb-participation.html', label:'📊 ALB Participation'},
-    {href:'events-calendar.html', label:'🗓️ Events Calendar'},
-    {href:'crewing.html', label:'🖖 Crewing'},
-    {href:'idiq-hints-and-tips.html', label:'💡 IDIQ Hints & Tips'},
-    {href:'credits.html', label:'🔗 Links & Credits'},
-    {href:'f2p-task-guide.html', label:'🎯 F2P Task Guide'},
-    {href:'fleet-commanders.html', label:'🧭 Fleet Commanders'},
-    {href:'sheets/stfc-sheets.html', label:'📑 STFC Sheets'},
-    {href:'admin.html', label:'🛠️ Admin'},
+    {href:'/index.html', label:'🏠 Home'},
+    {href:'/alb-participation.html', label:'📊 ALB Participation'},
+    {href:'/events-calendar.html', label:'🗓️ Events Calendar'},
+    {href:'/crewing.html', label:'🖖 Crewing'},
+    {href:'/idiq-hints-and-tips.html', label:'💡 IDIQ Hints & Tips'},
+    {href:'/credits.html', label:'🔗 Links & Credits'},
+    {href:'/f2p-task-guide.html', label:'🎯 F2P Task Guide'},
+    {href:'/fleet-commanders.html', label:'🧭 Fleet Commanders'},
+    {href:'/sheets/stfc-sheets.html', label:'📑 STFC Sheets'},
+    {href:'/admin.html', label:'🛠️ Admin'},
   ];
 
   function init(){
@@ -40,7 +40,7 @@
     `;
     document.head.appendChild(style);
 
-    const path = (location.pathname.split('/').pop() || 'index.html');
+    const path = location.pathname;
 
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -50,7 +50,7 @@
     const dropdown = document.createElement('div');
     dropdown.className = 'phx-menu-dropdown';
     dropdown.innerHTML = LINKS.map(l =>
-      `<a href="${l.href}" class="${l.href===path?'current':''}">${l.label}</a>`
+      `<a href="${l.href}" class="${(path.endsWith(l.href) || (l.href==='/index.html' && (path==='/'||path==='')))?'current':''}">${l.label}</a>`
     ).join('');
     document.body.appendChild(dropdown);
 
