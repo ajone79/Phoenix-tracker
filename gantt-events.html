@@ -11,8 +11,7 @@
     --red:#FF6B6B; --purple:#B98CE0; --green:#6EE7B7;
     --mono: 'SF Mono', 'Consolas', 'Menlo', monospace;
     --disp: 'Segoe UI Semibold', 'Segoe UI', system-ui, sans-serif;
-    --daycol: 132px;
-    --labelcol: 148px;
+    --daycol: 128px;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -61,7 +60,7 @@
   }
   .btn:hover{border-color:var(--blue);}
   .btn.primary{border-color:var(--amber); color:var(--amber);}
-  .week-label{font-family:var(--mono); font-size:13px; font-weight:600; flex:1; text-align:center; min-width:160px;}
+  .range-label{font-family:var(--mono); font-size:13px; font-weight:600; flex:1; text-align:center; min-width:180px;}
   .chip{
     font-family:var(--mono); font-size:11px; letter-spacing:.03em;
     padding:6px 10px; border-radius:20px; border:1px solid var(--border); background:var(--panel-alt);
@@ -84,56 +83,6 @@
   .legend span{display:inline-flex; align-items:center; gap:5px;}
   .legend .dot{width:8px;height:8px;border-radius:50%;}
 
-  /* ===== Gantt grid ===== */
-  .gantt-wrap{padding:14px 0 0 16px;}
-  .gantt-scroll{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--panel);}
-  .gantt-inner{display:inline-block; min-width:100%;}
-  .gantt-header-row{display:flex; position:sticky; top:0; z-index:5; background:var(--panel-alt); border-bottom:1px solid var(--border);}
-  .gantt-header-label{
-    width:var(--labelcol); flex-shrink:0; position:sticky; left:0; z-index:6;
-    background:var(--panel-alt); border-right:1px solid var(--border);
-    font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.08em;
-    color:var(--muted); padding:8px 10px; display:flex; align-items:center;
-  }
-  .gantt-daycol{
-    width:var(--daycol); flex-shrink:0; text-align:center; padding:8px 4px;
-    border-right:1px solid var(--border); font-family:var(--mono);
-  }
-  .gantt-daycol .dname{font-size:11px; font-weight:700; color:var(--text);}
-  .gantt-daycol .ddate{font-size:9.5px; color:var(--muted);}
-  .gantt-daycol.today{background:rgba(110,231,183,0.10);}
-  .gantt-daycol.today .dname{color:var(--green);}
-  .gantt-daycol.weekend .dname{color:var(--purple);}
-
-  .gantt-body{position:relative;}
-  .gantt-row{display:flex; align-items:center; border-bottom:1px solid var(--border); min-height:34px;}
-  .gantt-row:nth-child(even){background:rgba(255,255,255,0.015);}
-  .gantt-row-label{
-    width:var(--labelcol); flex-shrink:0; position:sticky; left:0; z-index:2;
-    background:var(--panel); border-right:1px solid var(--border);
-    padding:6px 10px; font-size:11px; line-height:1.25; cursor:pointer;
-  }
-  .gantt-row:nth-child(even) .gantt-row-label{background:#12161d;}
-  .gantt-row-label .cat-dot{display:inline-block; width:7px;height:7px;border-radius:50%; margin-right:5px; flex-shrink:0;}
-  .gantt-track{
-    position:relative; height:34px;
-    width:calc(var(--daycol) * 7);
-    background-image: repeating-linear-gradient(to right, transparent, transparent calc(var(--daycol) - 1px), var(--border) calc(var(--daycol) - 1px), var(--border) var(--daycol));
-    flex-shrink:0;
-  }
-  .gantt-bar{
-    position:absolute; top:7px; height:20px; border-radius:5px;
-    font-family:var(--mono); font-size:9.5px; color:#05070a; font-weight:700;
-    display:flex; align-items:center; padding:0 6px; white-space:nowrap; overflow:hidden;
-    cursor:pointer; opacity:0.92;
-  }
-  .gantt-bar:active{opacity:1; transform:scaleY(1.05);}
-  .now-line{position:absolute; top:0; bottom:0; width:2px; background:var(--green); z-index:4;}
-  .now-label{
-    position:absolute; top:-18px; transform:translateX(-50%);
-    font-family:var(--mono); font-size:9px; color:var(--green); background:var(--bg);
-    padding:1px 4px; border-radius:3px; white-space:nowrap; z-index:4;
-  }
   .detail-panel{
     display:none; padding:10px 14px; margin:0 16px 4px; border:1px solid var(--border);
     border-radius:8px; background:var(--panel-alt); font-size:12px; color:var(--muted);
@@ -141,6 +90,47 @@
   .detail-panel.open{display:block;}
   .detail-panel .dt-title{color:var(--text); font-weight:700; font-size:13px; margin-bottom:3px;}
   .detail-panel .dt-meta{font-family:var(--mono); font-size:11px; margin-bottom:6px;}
+
+  /* ===== Multi-week day-grid ===== */
+  .gantt-scroll{overflow-x:auto; padding:14px 0 0 16px;}
+  .gantt-inner{display:inline-block; min-width:100%;}
+  .week-block{
+    border:1px solid var(--border); border-radius:10px; overflow:hidden;
+    margin-bottom:16px; background:var(--panel);
+    width:calc(var(--daycol) * 7);
+  }
+  .week-block-label{
+    font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--amber); padding:6px 10px; background:var(--panel-alt); border-bottom:1px solid var(--border);
+  }
+  .week-grid{
+    display:grid;
+    grid-template-columns: repeat(7, var(--daycol));
+    grid-auto-rows: 30px;
+    row-gap:2px;
+  }
+  .day-header{
+    grid-row:1; padding:6px 4px; text-align:center; border-right:1px solid var(--border);
+    border-bottom:1px solid var(--border); background:var(--panel-alt);
+    font-family:var(--mono); position:sticky; top:0;
+  }
+  .day-header .dname{font-size:11px; font-weight:700; color:var(--text);}
+  .day-header .ddate{font-size:9.5px; color:var(--muted);}
+  .day-header.today{background:rgba(110,231,183,0.14);}
+  .day-header.today .dname{color:var(--green);}
+  .day-header.weekend .dname{color:var(--purple);}
+  .day-col-bg{
+    grid-row: 2 / -1; border-right:1px solid var(--border);
+  }
+  .day-col-bg.today{background:rgba(110,231,183,0.05);}
+  .day-col-bg.weekend{background:rgba(185,140,224,0.04);}
+  .gantt-bar{
+    margin:1px 2px; border-radius:5px; font-family:var(--mono); font-size:10px;
+    color:#05070a; font-weight:700; display:flex; align-items:center; padding:0 6px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; opacity:0.94;
+    min-width:0;
+  }
+  .gantt-bar:active{opacity:1;}
   .empty-note{padding:24px 16px; color:var(--muted); font-size:12px; font-style:italic; text-align:center;}
   footer{padding:18px 16px 10px; color:var(--muted); font-family:var(--mono); font-size:10.5px; text-align:center;}
 
@@ -164,7 +154,7 @@
 <header>
   <div class="eyebrow">Global Feed · stfc.cfd + Territory Capture + Voyage</div>
   <h1>Phoenix EU168 — Weekly Gantt View</h1>
-  <div class="sub">One row per event, positioned by actual start/end time · Swipe the chart sideways to see the full week · Tap a bar for details</div>
+  <div class="sub">4 weeks stacked, day-by-day · Swipe sideways if it doesn't fit your screen · Tap a bar for details</div>
 </header>
 
 <div class="controls">
@@ -175,10 +165,10 @@
     </div>
   </div>
   <div class="row">
-    <button class="btn" id="prevWeek">‹ Prev</button>
-    <span class="week-label" id="weekLabel"></span>
-    <button class="btn primary" id="thisWeek">This Week</button>
-    <button class="btn" id="nextWeek">Next ›</button>
+    <button class="btn" id="prevRange">‹ Earlier 4wk</button>
+    <span class="range-label" id="rangeLabel"></span>
+    <button class="btn primary" id="todayRange">Today</button>
+    <button class="btn" id="nextRange">Later 4wk ›</button>
   </div>
   <div class="row" id="gradeChipRow"></div>
   <details class="adv">
@@ -200,24 +190,15 @@
 
 <div id="detailPanel" class="detail-panel"></div>
 
-<div class="gantt-wrap">
-  <div class="gantt-scroll" id="ganttScroll">
-    <div class="gantt-inner">
-      <div class="gantt-header-row" id="ganttHeaderRow"></div>
-      <div class="gantt-body" id="ganttBody"></div>
-    </div>
-  </div>
+<div class="gantt-scroll">
+  <div class="gantt-inner" id="ganttInner"></div>
 </div>
 
-<footer>stfc.cfd events refreshed daily · Territory Capture and Voyage Across the Void are hand-maintained indefinite weekly recurrences · Bars are clipped to the visible week</footer>
+<footer>stfc.cfd events refreshed daily · Territory Capture and Voyage Across the Void are hand-maintained indefinite weekly recurrences · Bars show whole active days, not exact hours</footer>
 
 <script>
 let GAME_EVENTS = [];
 
-/* =========================================================
-   CATEGORY DEFINITIONS — mirrors game-events.html exactly so
-   colors/labels stay consistent across both pages.
-   ========================================================= */
 const GAME_CATS = {
   hostiles:     {label:'Hostiles',        color:'#FF6B6B'},
   waves:        {label:'Wave Defense',    color:'#6EE7B7'},
@@ -260,24 +241,23 @@ const TERRITORY_EVENTS = [
   {name:'Bimasa — Territory Capture', displayType:'territory', eventSubType:null, dayOfWeek:2, h:17, m:0, durationDays:0, note:'PHX conquest window · cost 2 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'}
 ];
 const VOYAGE_EVENTS = [
-  {name:'Voyage Across the Void — Into the Unknown', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:1, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Into the Unknown'], validFrom:'2025-01-01', validTo:'2027-12-31'},
-  {name:'Voyage Across the Void — Perimeter Breach', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:2, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Perimeter Breach'], validFrom:'2025-01-01', validTo:'2027-12-31'},
-  {name:'Voyage Across the Void — Singular Strike', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:3, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Singular Strike'], validFrom:'2025-01-01', validTo:'2027-12-31'},
-  {name:'Voyage Across the Void — United Offensive', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:4, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['United Offensive'], validFrom:'2025-01-01', validTo:'2027-12-31'},
-  {name:'Voyage Across the Void — Command Mobilization', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:5, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Command Mobilization'], validFrom:'2025-01-01', validTo:'2027-12-31'},
-  {name:'Voyage Across the Void — Subspace Surge', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:6, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Subspace Surge'], validFrom:'2025-01-01', validTo:'2027-12-31'},
-  {name:'Voyage Across the Void — Echoes of War', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:0, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Echoes of War'], validFrom:'2025-01-01', validTo:'2027-12-31'},
-  {name:'Voyage Across the Void (Meta)', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:1, h:17, m:0, durationDays:7, note:'Complete Voyage Across the Void feeder events. No scoring changes vs. the daily variants.', validFrom:'2025-01-01', validTo:'2027-12-31'}
+  {name:'Voyage — Into the Unknown', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:1, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Into the Unknown'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage — Perimeter Breach', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:2, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Perimeter Breach'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage — Singular Strike', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:3, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Singular Strike'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage — United Offensive', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:4, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['United Offensive'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage — Command Mobilization', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:5, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Command Mobilization'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage — Subspace Surge', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:6, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Subspace Surge'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage — Echoes of War', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:0, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Echoes of War'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage (Meta)', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:1, h:17, m:0, durationDays:7, note:'Complete Voyage Across the Void feeder events. No scoring changes vs. the daily variants.', validFrom:'2025-01-01', validTo:'2027-12-31'}
 ];
 
+const WEEKS_SHOWN = 4;
 let selectedType = null;
 let selectedGrade = null;
-let weekOffset = 0; // 0 = week containing today, ±1 = adjacent weeks, etc.
+let rangeBlockOffset = 0; // shifts by WEEKS_SHOWN each Prev/Next click
 const el = id => document.getElementById(id);
 
-/* =========================================================
-   TIME HELPERS (identical to game-events.html)
-   ========================================================= */
+/* ===== Time helpers ===== */
 function getOffsetForZone(date, timeZone){
   try{
     const dtf = new Intl.DateTimeFormat('en-US', {timeZone, timeZoneName:'shortOffset'});
@@ -321,9 +301,14 @@ function dowOf(dateISO){
   return new Date(Date.UTC(y,mo-1,d)).getUTCDay();
 }
 function mondayOnOrBefore(dateISO){
-  const dow = dowOf(dateISO); // 0=Sun..6=Sat
-  const diff = (dow === 0) ? 6 : dow - 1; // days since most recent Monday
+  const dow = dowOf(dateISO);
+  const diff = (dow === 0) ? 6 : dow - 1;
   return addDays(dateISO, -diff);
+}
+function dayIndexBetween(fromISO, toISO){
+  const [y1,m1,d1] = fromISO.split('-').map(Number);
+  const [y2,m2,d2] = toISO.split('-').map(Number);
+  return Math.round((Date.UTC(y2,m2-1,d2) - Date.UTC(y1,m1-1,d1)) / 86400000);
 }
 
 const TZ_OPTIONS = [
@@ -340,9 +325,7 @@ const TZ_OPTIONS = [
   {label:'UTC+12 (Auckland)', offset:12}
 ];
 
-/* =========================================================
-   FORMAT MERGING (identical to game-events.html)
-   ========================================================= */
+/* ===== Format merging (same as game-events.html) ===== */
 function stripFormatSuffix(title){
   return title.replace(/\s*-\s*(SMS|ALB|SLB|AMS|RLB|XALB)\s*$/i, '').trim();
 }
@@ -369,7 +352,7 @@ function buildMergedEvents(raw){
   });
   map.forEach(entry => {
     if(entry.eventSubType === 'voyage_across_the_void'){
-      const noteKey = entry.title.replace(/\s*\(Meta\)\s*$/i, '').trim();
+      const noteKey = entry.title.replace(/^Voyage — /,'').replace(/\s*\(Meta\)\s*$/i, '').trim();
       if(VOYAGE_NOTES[noteKey]) entry.description = VOYAGE_NOTES[noteKey];
     }
   });
@@ -393,9 +376,26 @@ function generateRecurringEvents(defs, winStartISO, winEndISO){
   return out;
 }
 
-/* =========================================================
-   BUILD CONTROLS
-   ========================================================= */
+/* ===== Row packing: assign non-overlapping events to shared rows ===== */
+function packRows(items){
+  const sorted = [...items].sort((a,b) => a.startDay - b.startDay || a.endDay - b.endDay);
+  const rows = [];
+  sorted.forEach(item => {
+    let placed = false;
+    for(const row of rows){
+      if(item.startDay > row.lastEndDay){
+        row.items.push(item);
+        row.lastEndDay = item.endDay;
+        placed = true;
+        break;
+      }
+    }
+    if(!placed) rows.push({lastEndDay:item.endDay, items:[item]});
+  });
+  return rows.map(r => r.items);
+}
+
+/* ===== Controls ===== */
 function buildTzSelect(){
   el('tzSelect').innerHTML = TZ_OPTIONS.map(t => '<option value="'+t.offset+'"'+(t.offset==='uk-auto'?' selected':'')+'>'+t.label+'</option>').join('');
 }
@@ -441,151 +441,170 @@ function fmtTime(h,m){
   return hh+':'+String(m).padStart(2,'0')+' '+ap;
 }
 
-/* =========================================================
-   RENDER
-   ========================================================= */
+/* ===== Render ===== */
 function render(){
   const tzValue = el('tzSelect').value;
   const search = el('searchBox').value.trim().toLowerCase();
   const ticketedOnly = el('ticketedOnly').checked;
+  const nowMs = Date.now();
 
-  // Determine the visible week (Monday 00:00 → next Monday 00:00, UK-local
-  // calendar days, then converted through the selected timezone for display).
-  const todayISO = toZoned(new Date().toISOString(), 'uk-auto').dateISO;
-  const currentWeekMonday = mondayOnOrBefore(todayISO);
-  const weekStartISO = addDays(currentWeekMonday, weekOffset * 7);
-  const weekEndISO = addDays(weekStartISO, 6); // Sunday
-  const weekStartUTC = ukLocalToUTC(weekStartISO, 0, 0);
-  const weekEndUTC = ukLocalToUTC(addDays(weekEndISO, 1), 0, 0); // exclusive upper bound
-  const weekStartMs = new Date(weekStartUTC).getTime();
-  const weekEndMs = new Date(weekEndUTC).getTime();
-  const weekMs = weekEndMs - weekStartMs;
+  const todayISO = toZoned(new Date().toISOString(), tzValue).dateISO;
+  const currentBlockMonday = mondayOnOrBefore(todayISO);
+  const blockStartISO = addDays(currentBlockMonday, rangeBlockOffset * 7 * WEEKS_SHOWN);
+  const blockEndISO = addDays(blockStartISO, WEEKS_SHOWN*7 - 1);
 
-  const [wy,wmo,wd] = weekStartISO.split('-').map(Number);
-  const weekStartLabel = new Date(Date.UTC(wy,wmo-1,wd)).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
-  const [ey,emo,ed] = weekEndISO.split('-').map(Number);
-  const weekEndLabel = new Date(Date.UTC(ey,emo-1,ed)).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});
-  el('weekLabel').textContent = weekStartLabel + ' – ' + weekEndLabel + (weekOffset===0?' (this week)':'');
+  const [sy,smo,sd] = blockStartISO.split('-').map(Number);
+  const [ey,emo,ed] = blockEndISO.split('-').map(Number);
+  const startLabel = new Date(Date.UTC(sy,smo-1,sd)).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+  const endLabel = new Date(Date.UTC(ey,emo-1,ed)).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});
+  el('rangeLabel').textContent = startLabel + ' – ' + endLabel + (rangeBlockOffset===0?' (current)':'');
 
-  // Candidate events: reuse the wider ±1 week window so multi-day events
-  // that start before/end after this week still get generated, then clip.
-  const genStart = addDays(weekStartISO, -7);
-  const genEnd = addDays(weekEndISO, 7);
+  // Widen generation window slightly so multi-day events starting just
+  // before the block still appear (clipped) at the block's start.
+  const genStart = addDays(blockStartISO, -7);
+  const genEnd = addDays(blockEndISO, 7);
   const candidateEvents = [
     ...buildMergedEvents(GAME_EVENTS).filter(e => e.eventSubType !== 'voyage_across_the_void'),
     ...generateRecurringEvents(TERRITORY_EVENTS, genStart, genEnd),
     ...generateRecurringEvents(VOYAGE_EVENTS, genStart, genEnd)
   ];
 
-  const rows = [];
-  candidateEvents.forEach(ev => {
-    if(selectedType && ev.displayType !== selectedType) return;
-    if(ticketedOnly && ev.eventSubType !== 'ticketed') return;
-    if(search && !ev.title.toLowerCase().includes(search)) return;
-    if(!ev.startUTC) return;
-
+  const filtered = candidateEvents.filter(ev => {
+    if(selectedType && ev.displayType !== selectedType) return false;
+    if(ticketedOnly && ev.eventSubType !== 'ticketed') return false;
+    if(search && !ev.title.toLowerCase().includes(search)) return false;
+    if(!ev.startUTC) return false;
     const opsMin = ev.minOpsLevel == null ? 1 : ev.minOpsLevel;
     const opsMax = ev.maxOpsLevel == null ? 999 : ev.maxOpsLevel;
     if(selectedGrade){
       const [gMin,gMax] = GRADE_BANDS[selectedGrade];
-      if(!(opsMin <= gMax && opsMax >= gMin)) return;
+      if(!(opsMin <= gMax && opsMax >= gMin)) return false;
     }
-
-    const startMs = new Date(ev.startUTC).getTime();
-    const endMs = ev.endUTC ? new Date(ev.endUTC).getTime() : startMs + 30*60*1000; // 30-min minimum block for point events
-    if(endMs <= weekStartMs || startMs >= weekEndMs) return; // doesn't overlap this week at all
-
-    const clippedStart = Math.max(startMs, weekStartMs);
-    const clippedEnd = Math.min(endMs, weekEndMs);
-    rows.push({ev, opsMin, opsMax, startMs, endMs, clippedStart, clippedEnd});
+    return true;
   });
 
-  rows.sort((a,b) => a.startMs - b.startMs);
+  const inner = el('ganttInner');
+  inner.innerHTML = '';
+  el('detailPanel').classList.remove('open');
 
-  // --- Header row (day columns) ---
-  const headerRow = el('ganttHeaderRow');
-  headerRow.innerHTML = '<div class="gantt-header-label">Event</div>' +
-    dateRangeList(weekStartISO, weekEndISO).map(dISO => {
+  let anyEventsAtAll = false;
+
+  for(let w=0; w<WEEKS_SHOWN; w++){
+    const weekStartISO = addDays(blockStartISO, w*7);
+    const weekEndISO = addDays(weekStartISO, 6);
+    const weekStartUTC = ukLocalToUTC(weekStartISO, 0, 0);
+    const weekEndUTC = ukLocalToUTC(addDays(weekEndISO,1), 0, 0);
+    const weekStartMs = new Date(weekStartUTC).getTime();
+    const weekEndMs = new Date(weekEndUTC).getTime();
+
+    // Clip candidate events to this week and compute day indices (0-6)
+    const weekItems = [];
+    filtered.forEach(ev => {
+      const opsMin = ev.minOpsLevel == null ? 1 : ev.minOpsLevel;
+      const opsMax = ev.maxOpsLevel == null ? 999 : ev.maxOpsLevel;
+      const startMs = new Date(ev.startUTC).getTime();
+      const endMs = ev.endUTC ? new Date(ev.endUTC).getTime() : startMs;
+      if(endMs <= weekStartMs || startMs >= weekEndMs) return;
+      const startZ = toZoned(new Date(Math.max(startMs, weekStartMs)).toISOString(), tzValue);
+      const endZraw = toZoned(new Date(Math.min(endMs, weekEndMs)).toISOString(), tzValue);
+      // If the (clipped) end lands exactly on local midnight, the event's active
+      // span doesn't actually include that calendar day — attribute the end to
+      // the day before instead. Doing this AFTER timezone conversion (not by
+      // subtracting 1ms beforehand) avoids a positive UTC offset like BST
+      // pushing a near-midnight UTC instant into the next local calendar day.
+      const effectiveEndDateISO = (endZraw.h === 0 && endZraw.m === 0) ? addDays(endZraw.dateISO, -1) : endZraw.dateISO;
+      let startDay = Math.max(0, dayIndexBetween(weekStartISO, startZ.dateISO));
+      let endDay = Math.min(6, dayIndexBetween(weekStartISO, effectiveEndDateISO));
+      if(endDay < startDay) endDay = startDay;
+      weekItems.push({ev, opsMin, opsMax, startDay, endDay});
+    });
+
+    if(weekItems.length) anyEventsAtAll = true;
+
+    const packedRows = packRows(weekItems);
+    const rowCount = Math.max(packedRows.length, 1);
+
+    const block = document.createElement('div');
+    block.className = 'week-block';
+
+    const label = document.createElement('div');
+    label.className = 'week-block-label';
+    label.textContent = 'Week of ' + startLabelFor(weekStartISO);
+    block.appendChild(label);
+
+    const grid = document.createElement('div');
+    grid.className = 'week-grid';
+    grid.style.gridTemplateRows = '30px repeat(' + rowCount + ', 30px)';
+
+    // Day headers + background columns
+    dateRangeList(weekStartISO, weekEndISO).forEach((dISO, idx) => {
       const [y,mo,d] = dISO.split('-').map(Number);
       const jsDate = new Date(Date.UTC(y,mo-1,d));
       const dname = jsDate.toLocaleDateString('en-US',{weekday:'short',timeZone:'UTC'});
       const ddate = jsDate.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
       const dow = dowOf(dISO);
-      const cls = 'gantt-daycol' + (dISO===todayISO?' today':'') + ((dow===0||dow===6)?' weekend':'');
-      return '<div class="'+cls+'"><div class="dname">'+dname+'</div><div class="ddate">'+ddate+'</div></div>';
-    }).join('');
+      const isToday = dISO === todayISO;
+      const isWeekend = (dow===0||dow===6);
 
-  // --- Body rows ---
-  const body = el('ganttBody');
-  body.innerHTML = '';
-  el('detailPanel').classList.remove('open');
+      const bg = document.createElement('div');
+      bg.className = 'day-col-bg' + (isToday?' today':'') + (isWeekend?' weekend':'');
+      bg.style.gridColumn = (idx+1) + ' / span 1';
+      grid.appendChild(bg);
 
-  if(rows.length === 0){
-    body.innerHTML = '<div class="empty-note">No events match your filters this week.</div>';
-    return;
+      const head = document.createElement('div');
+      head.className = 'day-header' + (isToday?' today':'') + (isWeekend?' weekend':'');
+      head.style.gridColumn = (idx+1) + ' / span 1';
+      head.innerHTML = '<div class="dname">'+dname+'</div><div class="ddate">'+ddate+'</div>';
+      grid.appendChild(head);
+    });
+
+    // Bars
+    packedRows.forEach((rowItems, rowIdx) => {
+      rowItems.forEach(({ev, opsMin, opsMax, startDay, endDay}) => {
+        const catDef = GAME_CATS[ev.displayType] || GAME_CATS[''];
+        const bar = document.createElement('div');
+        bar.className = 'gantt-bar';
+        bar.style.gridColumn = (startDay+1) + ' / span ' + (endDay-startDay+1);
+        bar.style.gridRow = (rowIdx+2) + ' / span 1';
+        bar.style.background = catDef.color;
+        const fmtSuffix = (ev.formats && ev.formats.length) ? ' ('+ev.formats.join('/')+')' : '';
+        bar.textContent = ev.title + fmtSuffix;
+        bar.addEventListener('click', () => showDetail(ev, opsMin, opsMax, tzValue, catDef));
+        grid.appendChild(bar);
+      });
+    });
+
+    block.appendChild(grid);
+    inner.appendChild(block);
   }
 
-  rows.forEach(({ev, opsMin, opsMax, clippedStart, clippedEnd}) => {
-    const catDef = GAME_CATS[ev.displayType] || GAME_CATS[''];
-    const row = document.createElement('div');
-    row.className = 'gantt-row';
-
-    const label = document.createElement('div');
-    label.className = 'gantt-row-label';
-    label.innerHTML = '<span class="cat-dot" style="background:'+catDef.color+'"></span>'+escapeHTML(ev.title);
-
-    const track = document.createElement('div');
-    track.className = 'gantt-track';
-
-    const leftPct = ((clippedStart - weekStartMs) / weekMs) * 100;
-    const widthPct = Math.max(((clippedEnd - clippedStart) / weekMs) * 100, 0.6);
-    const bar = document.createElement('div');
-    bar.className = 'gantt-bar';
-    bar.style.left = leftPct + '%';
-    bar.style.width = widthPct + '%';
-    bar.style.background = catDef.color;
-    bar.textContent = (ev.formats && ev.formats.length) ? ev.formats.join('/') : '';
-    track.appendChild(bar);
-
-    // "Now" marker, only within the row that actually spans the current moment
-    const nowMs = Date.now();
-    if(weekOffset === 0 && nowMs >= weekStartMs && nowMs <= weekEndMs){
-      const nowPct = ((nowMs - weekStartMs) / weekMs) * 100;
-      const line = document.createElement('div');
-      line.className = 'now-line';
-      line.style.left = nowPct + '%';
-      track.appendChild(line);
-    }
-
-    const showDetail = () => {
-      const opsLabel = opsMax>=999 ? (opsMin+'+') : (opsMin+'–'+opsMax);
-      const startZ = toZoned(new Date(ev.startUTC || clippedStart).toISOString(), tzValue);
-      const endZ = ev.endUTC ? toZoned(ev.endUTC, tzValue) : null;
-      const timeLabel = endZ
-        ? fmtTime(startZ.h,startZ.m) + ' → ' + fmtTime(endZ.h,endZ.m)
-        : fmtTime(startZ.h,startZ.m);
-      const panel = el('detailPanel');
-      panel.innerHTML =
-        '<div class="dt-title">'+escapeHTML(ev.title)+'</div>'+
-        '<div class="dt-meta" style="color:'+catDef.color+'">'+catDef.label+
-          ((ev.formats&&ev.formats.length)?' · '+ev.formats.join('/'):'')+
-          ' · '+timeLabel+' · Ops '+opsLabel+'</div>'+
-        (ev.description ? '<div>'+escapeHTML(ev.description)+'</div>' : '');
-      panel.classList.add('open');
-      if(typeof panel.scrollIntoView === 'function') panel.scrollIntoView({behavior:'smooth', block:'nearest'});
-    };
-    bar.addEventListener('click', showDetail);
-    label.addEventListener('click', showDetail);
-
-    row.appendChild(label);
-    row.appendChild(track);
-    body.appendChild(row);
-  });
+  if(!anyEventsAtAll){
+    inner.innerHTML = '<div class="empty-note">No events match your filters in this 4-week range.</div>';
+  }
+}
+function startLabelFor(dISO){
+  const [y,mo,d] = dISO.split('-').map(Number);
+  return new Date(Date.UTC(y,mo-1,d)).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+}
+function showDetail(ev, opsMin, opsMax, tzValue, catDef){
+  const opsLabel = opsMax>=999 ? (opsMin+'+') : (opsMin+'–'+opsMax);
+  const startZ = toZoned(ev.startUTC, tzValue);
+  const endZ = ev.endUTC ? toZoned(ev.endUTC, tzValue) : null;
+  const timeLabel = endZ
+    ? fmtTime(startZ.h,startZ.m) + ' → ' + fmtTime(endZ.h,endZ.m) + (endZ.dateISO!==startZ.dateISO?' ('+startZ.dateISO+' → '+endZ.dateISO+')':'')
+    : fmtTime(startZ.h,startZ.m);
+  const panel = el('detailPanel');
+  panel.innerHTML =
+    '<div class="dt-title">'+escapeHTML(ev.title)+'</div>'+
+    '<div class="dt-meta" style="color:'+catDef.color+'">'+catDef.label+
+      ((ev.formats&&ev.formats.length)?' · '+ev.formats.join('/'):'')+
+      ' · '+timeLabel+' · Ops '+opsLabel+'</div>'+
+    (ev.description ? '<div>'+escapeHTML(ev.description)+'</div>' : '');
+  panel.classList.add('open');
+  if(typeof panel.scrollIntoView === 'function') panel.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
-/* =========================================================
-   INIT
-   ========================================================= */
+/* ===== Init ===== */
 async function loadDataAndInit(){
   try{
     const res = await fetch('events-data-game.json?t=' + Date.now(), {cache:'no-store'});
@@ -615,9 +634,9 @@ async function loadDataAndInit(){
     el(id).addEventListener('input', render);
     el(id).addEventListener('change', render);
   });
-  el('prevWeek').addEventListener('click', () => { weekOffset -= 1; render(); });
-  el('nextWeek').addEventListener('click', () => { weekOffset += 1; render(); });
-  el('thisWeek').addEventListener('click', () => { weekOffset = 0; render(); });
+  el('prevRange').addEventListener('click', () => { rangeBlockOffset -= 1; render(); });
+  el('nextRange').addEventListener('click', () => { rangeBlockOffset += 1; render(); });
+  el('todayRange').addEventListener('click', () => { rangeBlockOffset = 0; render(); });
 }
 loadDataAndInit();
 </script>
