@@ -249,10 +249,10 @@
 
 <main id="dayList"></main>
 
-<footer>stfc.cfd events refreshed daily via GitHub Actions · Territory Capture windows are hand-maintained recurring data · Default timezone auto-tracks UK BST/GMT — change it under Advanced filters</footer>
+<footer id="footerText">stfc.cfd events refreshed daily via GitHub Actions · Territory Capture windows are hand-maintained recurring data · Default timezone auto-tracks UK BST/GMT — change it under Advanced filters</footer>
 
-<script src="events-data-game.js"></script>
 <script>
+let GAME_EVENTS = [];
 /* =========================================================
    CATEGORY DEFINITIONS — keyed on eventType from the feed.
    Any type present in the data but not listed here gets a
@@ -560,8 +560,8 @@ function jumpToToday(){
    INIT
    ========================================================= */
 function init(){
-  if(typeof GAME_EVENTS === 'undefined'){
-    el('dayList').innerHTML = '<div class="empty-day">Event data hasn\'t loaded yet — events-data-game.js may be missing or the daily scrape hasn\'t run.</div>';
+  if(!GAME_EVENTS || GAME_EVENTS.length === 0){
+    el('dayList').innerHTML = '<div class="empty-day">Event data hasn\'t loaded yet — events-data-game.json may be missing or the daily scrape hasn\'t run.</div>';
     return;
   }
 
@@ -595,7 +595,30 @@ function init(){
   });
   el('jumpToday').addEventListener('click', jumpToToday);
 }
-init();
+
+/* =========================================================
+   DATA LOADER — always fetches fresh, bypassing any HTTP/CDN
+   cache via a timestamp query param + no-store, so a daily
+   scrape update is visible immediately on next page load
+   instead of waiting out a cache lifetime.
+   ========================================================= */
+async function loadDataAndInit(){
+  try{
+    const res = await fetch('events-data-game.json?t=' + Date.now(), {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const payload = await res.json();
+    GAME_EVENTS = payload.events || [];
+    if(payload.generatedAt){
+      const genDate = new Date(payload.generatedAt);
+      el('footerText').textContent = 'Data last refreshed ' + genDate.toLocaleString('en-GB', {timeZone:'Europe/London', dateStyle:'medium', timeStyle:'short'}) + ' UK time · ' + el('footerText').textContent;
+    }
+  } catch(e){
+    console.error('Failed to load events-data-game.json', e);
+    GAME_EVENTS = [];
+  }
+  init();
+}
+loadDataAndInit();
 </script>
 </body>
 </html>
