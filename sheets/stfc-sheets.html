@@ -4,10 +4,34 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>STFC Sheets</title>
+    <link rel="icon" href="/icon-eu168.png">
+    <script src="/assets/phx-nav-menu.js"></script>
+    <style>
+      .phx-nav{
+        position:sticky; top:0; z-index:9999;
+        display:flex; align-items:center; gap:4px;
+        background:#0a0a0d; border-bottom:2px solid #f2a93b;
+        padding:0 14px; height:36px;
+        font-family:ui-monospace,'SF Mono','Consolas',monospace;
+        overflow-x:auto; white-space:nowrap;
+      }
+      .phx-nav .phx-nav-tag{
+        color:#f2a93b; font-weight:700; letter-spacing:.12em; font-size:11px;
+        margin-right:12px; flex-shrink:0;
+      }
+      .phx-nav a{
+        color:#9a9aa4; text-decoration:none; font-size:11px; letter-spacing:.06em;
+        text-transform:uppercase; padding:8px 12px; border-radius:0 0 6px 6px;
+        transition:color .15s ease, background .15s ease; flex-shrink:0;
+      }
+      .phx-nav a:hover{ color:#e8e6e1; background:rgba(255,255,255,.06); }
+      .phx-nav a.current{ color:#0a0a0d; background:#f2a93b; font-weight:700; }
+    </style>
     <script type="module" crossorigin src="/sheets/assets/index-CMaFP1eO.js"></script>
     <link rel="stylesheet" crossorigin href="/sheets/assets/index-BqdimHjl.css">
   </head>
   <body>
+    <nav class="phx-nav"><span class="phx-nav-tag">PHX</span><a href="/index.html">🏠 Home</a></nav>
     <div id="root"></div>
   </body>
 </html>
