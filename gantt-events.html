@@ -175,7 +175,7 @@
     <summary>Advanced filters (event types, timezone)</summary>
     <div class="adv-body row" id="chipRow"></div>
     <div class="adv-body row">
-      <label class="toggle-row"><input type="checkbox" id="ticketedOnly"> Ticketed only</label>
+      <div class="chip" id="ticketedChip" style="color:#FFD54F;">Ticketed</div>
     </div>
     <div class="adv-body row">
       <div>
@@ -252,8 +252,9 @@ const VOYAGE_EVENTS = [
 ];
 
 const WEEKS_SHOWN = 4;
-let selectedType = null;
-let selectedGrade = null;
+let activeTypes = new Set();
+let activeGrades = new Set(Object.keys(GRADE_BANDS));
+let ticketedOnly = false;
 let rangeBlockOffset = 0; // shifts by WEEKS_SHOWN each Prev/Next click
 const el = id => document.getElementById(id);
 
@@ -405,11 +406,14 @@ function buildChips(){
   Object.keys(GAME_CATS).forEach(key => {
     const cat = GAME_CATS[key];
     const chip = document.createElement('div');
-    chip.className = 'chip' + (selectedType === key ? ' on' : '');
+    chip.className = 'chip' + (activeTypes.has(key) ? ' on' : '');
     chip.style.color = cat.color;
     chip.textContent = cat.label;
-    chip.title = 'Click to isolate, click again to show all types';
-    chip.addEventListener('click', () => { selectedType = (selectedType===key)?null:key; buildChips(); render(); });
+    chip.title = 'Toggle this type on/off';
+    chip.addEventListener('click', () => {
+      if(activeTypes.has(key)) activeTypes.delete(key); else activeTypes.add(key);
+      buildChips(); render();
+    });
     wrap.appendChild(chip);
   });
 }
@@ -418,13 +422,20 @@ function buildGradeChips(){
   wrap.innerHTML = '';
   Object.keys(GRADE_BANDS).forEach(g => {
     const chip = document.createElement('div');
-    chip.className = 'chip' + (selectedGrade === g ? ' on' : '');
+    chip.className = 'chip' + (activeGrades.has(g) ? ' on' : '');
     chip.style.color = 'var(--blue)';
     chip.textContent = g;
-    chip.title = 'Ops ' + GRADE_BANDS[g][0] + '–' + GRADE_BANDS[g][1] + ' — click to isolate, click again for all grades';
-    chip.addEventListener('click', () => { selectedGrade = (selectedGrade===g)?null:g; buildGradeChips(); render(); });
+    chip.title = 'Ops ' + GRADE_BANDS[g][0] + '–' + GRADE_BANDS[g][1] + ' — toggle on/off';
+    chip.addEventListener('click', () => {
+      if(activeGrades.has(g)) activeGrades.delete(g); else activeGrades.add(g);
+      buildGradeChips(); render();
+    });
     wrap.appendChild(chip);
   });
+}
+function buildTicketedChip(){
+  const chip = el('ticketedChip');
+  chip.className = 'chip' + (ticketedOnly ? ' on' : '');
 }
 function buildLegend(){
   el('legend').innerHTML = Object.values(GAME_CATS).map(c =>
@@ -445,7 +456,6 @@ function fmtTime(h,m){
 function render(){
   const tzValue = el('tzSelect').value;
   const search = el('searchBox').value.trim().toLowerCase();
-  const ticketedOnly = el('ticketedOnly').checked;
   const nowMs = Date.now();
 
   const todayISO = toZoned(new Date().toISOString(), tzValue).dateISO;
@@ -470,16 +480,17 @@ function render(){
   ];
 
   const filtered = candidateEvents.filter(ev => {
-    if(selectedType && ev.displayType !== selectedType) return false;
+    if(!activeTypes.has(ev.displayType)) return false;
     if(ticketedOnly && ev.eventSubType !== 'ticketed') return false;
     if(search && !ev.title.toLowerCase().includes(search)) return false;
     if(!ev.startUTC) return false;
     const opsMin = ev.minOpsLevel == null ? 1 : ev.minOpsLevel;
     const opsMax = ev.maxOpsLevel == null ? 999 : ev.maxOpsLevel;
-    if(selectedGrade){
-      const [gMin,gMax] = GRADE_BANDS[selectedGrade];
-      if(!(opsMin <= gMax && opsMax >= gMin)) return false;
-    }
+    const overlapsActiveGrade = Array.from(activeGrades).some(g => {
+      const [gMin,gMax] = GRADE_BANDS[g];
+      return opsMin <= gMax && opsMax >= gMin;
+    });
+    if(!overlapsActiveGrade) return false;
     return true;
   });
 
@@ -623,17 +634,20 @@ async function loadDataAndInit(){
       GAME_CATS[t] = {label: t ? (t.charAt(0).toUpperCase()+t.slice(1).replace(/_/g,' ')) : 'Other', color: FALLBACK_PALETTE[paletteIdx++ % FALLBACK_PALETTE.length]};
     }
   });
+  activeTypes = new Set(Object.keys(GAME_CATS));
 
   buildTzSelect();
   buildChips();
   buildGradeChips();
+  buildTicketedChip();
   buildLegend();
   render();
 
-  ['tzSelect','searchBox','ticketedOnly'].forEach(id => {
+  ['tzSelect','searchBox'].forEach(id => {
     el(id).addEventListener('input', render);
     el(id).addEventListener('change', render);
   });
+  el('ticketedChip').addEventListener('click', () => { ticketedOnly = !ticketedOnly; buildTicketedChip(); render(); });
   el('prevRange').addEventListener('click', () => { rangeBlockOffset -= 1; render(); });
   el('nextRange').addEventListener('click', () => { rangeBlockOffset += 1; render(); });
   el('todayRange').addEventListener('click', () => { rangeBlockOffset = 0; render(); });
