@@ -130,24 +130,37 @@
     background:var(--panel);
     border:1px solid var(--border);
     border-radius:10px;
-    margin-bottom:14px;
+    margin-bottom:18px;
     overflow:hidden;
     scroll-margin-top:220px;
   }
+  .day-card.alt{background:#0E1219;}
   .day-head{
     display:flex; align-items:center; justify-content:space-between;
     background:var(--panel-alt);
-    padding:10px 14px;
+    padding:12px 14px;
     border-left:5px solid var(--amber);
   }
+  .day-card.weekend .day-head{border-left-color:var(--purple); background:linear-gradient(90deg, rgba(185,140,224,0.10), transparent);}
   .day-card.today .day-head{border-left-color:var(--green); background:linear-gradient(90deg, rgba(110,231,183,0.12), transparent);}
-  .day-head .dow{font-weight:600; font-size:14px;}
+  .day-head .dow{font-weight:700; font-size:15px;}
+  .day-card.weekend .day-head .dow{color:var(--purple);}
   .day-head .date{font-family:var(--mono); font-size:12px; color:var(--muted); margin-left:8px;}
   .today-badge{
     font-family:var(--mono); font-size:10px; letter-spacing:.1em;
     background:var(--green); color:#052014; padding:2px 8px; border-radius:10px; font-weight:700;
   }
+  .weekend-badge{
+    font-family:var(--mono); font-size:10px; letter-spacing:.1em;
+    background:var(--purple); color:#1a0d26; padding:2px 8px; border-radius:10px; font-weight:700;
+  }
   .count-badge{font-family:var(--mono); font-size:11px; color:var(--muted);}
+  .week-divider{
+    display:flex; align-items:center; gap:10px;
+    margin:22px 0 10px; color:var(--muted); font-family:var(--mono);
+    font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+  }
+  .week-divider::before, .week-divider::after{content:''; flex:1; height:1px; background:var(--border);}
 
   .event-row{
     display:flex; gap:10px; padding:9px 14px;
@@ -590,21 +603,35 @@ function render(){
   const dayList = el('dayList');
   dayList.innerHTML = '';
 
-  daysToShow.forEach(dISO => {
+  daysToShow.forEach((dISO, idx) => {
     const list = byDay[dISO] || [];
     if(hideEmpty && list.length===0) return;
     const [y,mo,d] = dISO.split('-').map(Number);
     const jsDate = new Date(Date.UTC(y,mo-1,d));
     const dow = jsDate.toLocaleDateString('en-US', {weekday:'long', timeZone:'UTC'});
     const dateLabel = jsDate.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric', timeZone:'UTC'});
+    const dowNum = dowOf(dISO);
+    const isWeekend = (dowNum === 0 || dowNum === 6);
+
+    // Insert a "week of" divider at the start of every 7-day block,
+    // so the list reads as chunked weeks instead of one long scroll.
+    if(idx % 7 === 0){
+      const divider = document.createElement('div');
+      divider.className = 'week-divider';
+      divider.textContent = 'Week of ' + dateLabel;
+      dayList.appendChild(divider);
+    }
 
     const card = document.createElement('div');
-    card.className = 'day-card' + (dISO===todayISO ? ' today' : '');
+    card.className = 'day-card' + (dISO===todayISO ? ' today' : '') + (isWeekend ? ' weekend' : '') + (idx % 2 === 1 ? ' alt' : '');
     card.dataset.dateIso = dISO;
 
     const head = document.createElement('div');
     head.className = 'day-head';
-    head.innerHTML = '<div><span class="dow">'+dow+'</span><span class="date">'+dateLabel+'</span>'+(dISO===todayISO?' <span class="today-badge">TODAY</span>':'')+'</div>'+
+    head.innerHTML = '<div><span class="dow">'+dow+'</span><span class="date">'+dateLabel+'</span>'+
+      (dISO===todayISO?' <span class="today-badge">TODAY</span>':'')+
+      (isWeekend && dISO!==todayISO?' <span class="weekend-badge">WEEKEND</span>':'')+
+      '</div>'+
       '<span class="count-badge">'+list.length+' event'+(list.length===1?'':'s')+'</span>';
     card.appendChild(head);
 
