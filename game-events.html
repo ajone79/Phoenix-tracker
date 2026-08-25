@@ -310,12 +310,56 @@ const GRADE_BANDS = {G1:[1,20],G2:[21,30],G3:[31,40],G4:[41,50],G5:[51,60],G6:[6
    Update this block if capture windows/costs change in-game.
    ========================================================= */
 const TERRITORY_EVENTS = [
-  {name:'Nujord — Territory Capture', dayOfWeek:5, h:15, m:0, note:'PHX conquest window · cost 1 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
-  {name:'Duportas — Territory Capture', dayOfWeek:6, h:14, m:0, note:'PHX conquest window · cost 2 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
-  {name:"Ber'Tho — Territory Capture", dayOfWeek:6, h:19, m:0, note:'PHX conquest window · cost 2 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
-  {name:'Brellan — Territory Capture', dayOfWeek:0, h:19, m:0, note:'PHX conquest window · cost 3 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
-  {name:'Bimasa — Territory Capture', dayOfWeek:2, h:17, m:0, note:'PHX conquest window · cost 2 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'}
+  {name:'Nujord — Territory Capture', displayType:'territory', eventSubType:null, dayOfWeek:5, h:15, m:0, durationDays:0, note:'PHX conquest window · cost 1 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Duportas — Territory Capture', displayType:'territory', eventSubType:null, dayOfWeek:6, h:14, m:0, durationDays:0, note:'PHX conquest window · cost 2 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:"Ber'Tho — Territory Capture", displayType:'territory', eventSubType:null, dayOfWeek:6, h:19, m:0, durationDays:0, note:'PHX conquest window · cost 2 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Brellan — Territory Capture', displayType:'territory', eventSubType:null, dayOfWeek:0, h:19, m:0, durationDays:0, note:'PHX conquest window · cost 3 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Bimasa — Territory Capture', displayType:'territory', eventSubType:null, dayOfWeek:2, h:17, m:0, durationDays:0, note:'PHX conquest window · cost 2 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'}
 ];
+
+/* =========================================================
+   RECURRING VOYAGE ACROSS THE VOID WINDOWS
+   Per the official STFC blog schedule and events-data.js: this
+   runs on a fixed weekly cadence indefinitely, independent of
+   any arc — so like Territory Capture, it's hand-defined here
+   rather than relying on however many weeks the scraped feed
+   happens to return. All times are 5:00 PM UK local.
+   Update this block only if Scopely changes the weekly schedule.
+   ========================================================= */
+const VOYAGE_EVENTS = [
+  {name:'Voyage Across the Void — Into the Unknown', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:1, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Into the Unknown'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage Across the Void — Perimeter Breach', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:2, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Perimeter Breach'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage Across the Void — Singular Strike', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:3, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Singular Strike'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage Across the Void — United Offensive', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:4, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['United Offensive'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage Across the Void — Command Mobilization', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:5, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Command Mobilization'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage Across the Void — Subspace Surge', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:6, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Subspace Surge'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage Across the Void — Echoes of War', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:0, h:17, m:0, durationDays:1, note:VOYAGE_NOTES['Echoes of War'], validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Voyage Across the Void (Meta)', displayType:'voyage', eventSubType:'voyage_across_the_void', dayOfWeek:1, h:17, m:0, durationDays:7, note:'Complete Voyage Across the Void feeder events. No scoring changes vs. the daily variants.', validFrom:'2025-01-01', validTo:'2027-12-31'}
+];
+
+/* =========================================================
+   GENERIC WEEKLY-RECURRENCE EXPANDER — used by both Territory
+   Capture and Voyage Across the Void, so they share one code
+   path (and one set of filters) instead of diverging.
+   ========================================================= */
+function generateRecurringEvents(defs, winStartISO, winEndISO){
+  const out = [];
+  dateRangeList(winStartISO, winEndISO).forEach(dISO => {
+    defs.forEach(d => {
+      if(dISO < d.validFrom || dISO > d.validTo) return;
+      if(dowOf(dISO) !== d.dayOfWeek) return;
+      const startUTC = ukLocalToUTC(dISO, d.h, d.m);
+      const endUTC = d.durationDays > 0 ? ukLocalToUTC(addDays(dISO, d.durationDays), d.h, d.m) : null;
+      out.push({
+        title: d.name, description: d.note, displayType: d.displayType,
+        eventSubType: d.eventSubType, priority: 'normal',
+        minOpsLevel: 1, maxOpsLevel: 999, formats: [],
+        startUTC, endUTC
+      });
+    });
+  });
+  return out;
+}
 
 let activeTypes = new Set();
 let selectedGrade = null; // null = show all grades; otherwise a single 'G1'..'G8'
@@ -498,14 +542,30 @@ function render(){
 
   const byDay = {};
 
-  // --- Absolute events from the stfc.cfd feed (format-merged) ---
-  const mergedEvents = buildMergedEvents(GAME_EVENTS);
-  mergedEvents.forEach(ev => {
+  // Window used for expanding the two hand-defined recurring series.
+  // Falls back to today→+30 days if the date fields are ever cleared.
+  const todayFallback = toZoned(new Date().toISOString(), tzValue).dateISO;
+  const winStart = rangeStart || todayFallback;
+  const winEnd = rangeEnd || addDays(winStart, 30);
+
+  // One combined candidate list: scraped+merged feed events (minus Voyage,
+  // which is hand-defined below instead) + recurring Territory Capture +
+  // recurring Voyage Across the Void. All three go through the exact same
+  // filter pass so behavior (grade bands, heroic/incursion, search, etc.)
+  // never silently diverges between sources.
+  const candidateEvents = [
+    ...buildMergedEvents(GAME_EVENTS).filter(e => e.eventSubType !== 'voyage_across_the_void'),
+    ...generateRecurringEvents(TERRITORY_EVENTS, winStart, winEnd),
+    ...generateRecurringEvents(VOYAGE_EVENTS, winStart, winEnd)
+  ];
+
+  candidateEvents.forEach(ev => {
     if(!activeTypes.has(ev.displayType)) return;
     if(heroicOnly && ev.eventSubType !== 'heroic') return;
     if(incursionOnly && ev.priority !== 'incursion') return;
     if(search && !ev.title.toLowerCase().includes(search)) return;
     if(hidePast && ev.endUTC && new Date(ev.endUTC).getTime() < nowMs) return;
+    if(hidePast && !ev.endUTC && ev.startUTC && new Date(ev.startUTC).getTime() < nowMs) return;
 
     const opsMin = ev.minOpsLevel == null ? 1 : ev.minOpsLevel;
     const opsMax = ev.maxOpsLevel == null ? 999 : ev.maxOpsLevel;
@@ -523,29 +583,9 @@ function render(){
     (byDay[startZ.dateISO] = byDay[startZ.dateISO] || []).push({ev, startZ, endZ, opsMin, opsMax});
   });
 
-  // --- Recurring Territory Capture windows ---
-  if(activeTypes.has('territory') && !heroicOnly && !incursionOnly && (!selectedGrade)){
-    const winStart = rangeStart || addDays(new Date().toISOString().slice(0,10), 0);
-    const winEnd = rangeEnd || addDays(winStart, 30);
-    dateRangeList(winStart, winEnd).forEach(dISO => {
-      TERRITORY_EVENTS.forEach(t => {
-        if(dISO < t.validFrom || dISO > t.validTo) return;
-        if(dowOf(dISO) !== t.dayOfWeek) return;
-        if(search && !t.name.toLowerCase().includes(search)) return;
-        const startUTC = ukLocalToUTC(dISO, t.h, t.m);
-        if(hidePast && new Date(startUTC).getTime() < nowMs) return;
-        const startZ = toZoned(startUTC, tzValue);
-        const pseudoEv = {title:t.name, displayType:'territory', eventSubType:null, formats:[], priority:'normal', description:t.note};
-        (byDay[startZ.dateISO] = byDay[startZ.dateISO] || []).push({ev:pseudoEv, startZ, endZ:null, opsMin:1, opsMax:999});
-      });
-    });
-  }
-
   Object.values(byDay).forEach(list => list.sort((a,b) => a.startZ.h*60+a.startZ.m - (b.startZ.h*60+b.startZ.m)));
 
-  const todayISO = toZoned(new Date().toISOString(), tzValue).dateISO;
-  const winStart = rangeStart || todayISO;
-  const winEnd = rangeEnd || addDays(winStart, 30);
+  const todayISO = todayFallback;
   const daysToShow = dateRangeList(winStart, winEnd);
   const dayList = el('dayList');
   dayList.innerHTML = '';
@@ -626,9 +666,12 @@ function jumpToToday(){
    INIT
    ========================================================= */
 function init(){
-  if(!GAME_EVENTS || GAME_EVENTS.length === 0){
-    el('dayList').innerHTML = '<div class="empty-day">Event data hasn\'t loaded yet — events-data-game.json may be missing or the daily scrape hasn\'t run.</div>';
-    return;
+  // Territory Capture and Voyage Across the Void are hand-defined and don't
+  // depend on the scraped feed, so a missing/empty feed should only affect
+  // the stfc.cfd-sourced events, never block the page or the recurring series.
+  const feedLoaded = Array.isArray(GAME_EVENTS) && GAME_EVENTS.length > 0;
+  if(!feedLoaded){
+    console.warn('events-data-game.json missing or empty — showing recurring events only (Territory Capture, Voyage Across the Void).');
   }
 
   // Discover any event types present in the feed that aren't already
