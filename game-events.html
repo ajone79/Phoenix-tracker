@@ -119,7 +119,7 @@
   details.adv summary::-webkit-details-marker{display:none;}
   details.adv summary::before{content:"▸"; color:var(--amber); transition:transform .15s;}
   details.adv[open] summary::before{transform:rotate(90deg);}
-  details.adv .adv-body{padding:4px 12px 12px;}
+  details.adv .adv-body{padding:8px 12px 12px;}
 
   .legend{display:flex; flex-wrap:wrap; gap:10px; padding:10px 16px; font-family:var(--mono); font-size:11px; color:var(--muted);}
   .legend span{display:inline-flex; align-items:center; gap:5px;}
@@ -132,7 +132,7 @@
     border-radius:10px;
     margin-bottom:14px;
     overflow:hidden;
-    scroll-margin-top:170px;
+    scroll-margin-top:220px;
   }
   .day-head{
     display:flex; align-items:center; justify-content:space-between;
@@ -165,6 +165,7 @@
   }
   .tag.heroic{color:var(--red); border-color:var(--red);}
   .tag.incursion{color:var(--amber); border-color:var(--amber);}
+  .tag.voyage{color:#7FDBFF; border-color:#7FDBFF;}
   .ev-meta{
     font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:2px;
     display:flex; flex-wrap:wrap; gap:10px;
@@ -201,9 +202,9 @@
 <nav class="phx-nav"><span class="phx-nav-tag">PHX</span><a href="events-calendar.html">Events Calendar</a><a href="game-events.html" class="current">Game Events</a><a href="f2p-task-guide.html">F2P Task Guide</a><a href="index.html">Tracker</a></nav>
 
 <header>
-  <div class="eyebrow">Global Feed · stfc.cfd</div>
+  <div class="eyebrow">Global Feed · stfc.cfd + Territory Capture</div>
   <h1>Phoenix EU168 — Game-Wide Events</h1>
-  <div class="sub">Sourced from the community stfc.cfd events feed, refreshed daily · Content-creator/stream events excluded · This is a standalone page — your arc-specific Events Calendar is untouched</div>
+  <div class="sub">stfc.cfd feed refreshed daily, plus recurring PHX Territory Capture windows · Content-creator/stream events excluded · Standalone page — your arc Events Calendar is untouched</div>
 </header>
 
 <div class="controls">
@@ -214,18 +215,22 @@
     </div>
     <button class="btn" id="jumpToday">Jump to today</button>
   </div>
-  <div class="row" id="chipRow"></div>
   <div class="row">
-    <label class="toggle-row"><input type="checkbox" id="heroicOnly"> Heroic only</label>
-    <label class="toggle-row"><input type="checkbox" id="incursionOnly"> Incursions only</label>
-    <label class="toggle-row"><input type="checkbox" id="hidePast" checked> Hide events that have ended</label>
-    <label class="toggle-row"><input type="checkbox" id="hideEmpty"> Hide days with no matches</label>
+    <span class="field-label" style="width:100%;">Ops Level (click one to isolate it, click again to show all)</span>
   </div>
+  <div class="row" id="gradeChipRow"></div>
   <details class="adv">
-    <summary>Advanced filters (timezone, ops level, date range)</summary>
+    <summary>Advanced filters (event types, timezone, date range)</summary>
+    <div class="adv-body row" id="chipRow"></div>
+    <div class="adv-body row">
+      <label class="toggle-row"><input type="checkbox" id="heroicOnly"> Heroic only</label>
+      <label class="toggle-row"><input type="checkbox" id="incursionOnly"> Incursions only</label>
+      <label class="toggle-row"><input type="checkbox" id="hidePast" checked> Hide events that have ended</label>
+      <label class="toggle-row"><input type="checkbox" id="hideEmpty"> Hide days with no matches</label>
+    </div>
     <div class="adv-body row">
       <div>
-        <span class="field-label">Your Timezone</span>
+        <span class="field-label">Timezone</span>
         <select id="tzSelect"></select>
       </div>
       <div>
@@ -237,7 +242,6 @@
         <input type="date" id="rangeEnd">
       </div>
     </div>
-    <div class="adv-body row" id="gradeChipRow"></div>
   </details>
 </div>
 
@@ -245,12 +249,15 @@
 
 <main id="dayList"></main>
 
-<footer>Data sourced from the community stfc.cfd events API, refreshed daily via GitHub Actions · Content-creator/stream events filtered out at scrape time · Times default to GMT — change via the timezone selector above</footer>
+<footer>stfc.cfd events refreshed daily via GitHub Actions · Territory Capture windows are hand-maintained recurring data · Default timezone auto-tracks UK BST/GMT — change it under Advanced filters</footer>
 
 <script src="events-data-game.js"></script>
 <script>
 /* =========================================================
-   CATEGORY DEFINITIONS — keyed on eventType from the feed
+   CATEGORY DEFINITIONS — keyed on eventType from the feed.
+   Any type present in the data but not listed here gets a
+   fallback entry auto-generated at load time (see init()),
+   so nothing from the feed is ever silently hidden.
    ========================================================= */
 const GAME_CATS = {
   hostiles:     {label:'Hostiles',        color:'#FF6B6B'},
@@ -269,39 +276,66 @@ const GAME_CATS = {
   mining:       {label:'Mining',          color:'#C08552'},
   vengeance:    {label:'Vengeance',       color:'#C0392B'},
   aphelion:     {label:'Aphelion',        color:'#A5D8FF'},
+  territory:    {label:'Territory Capture', color:'#8CE071'},
   '':           {label:'Other',           color:'#7C8798'}
 };
+const FALLBACK_PALETTE = ['#E57373','#64B5F6','#81C784','#FFD54F','#BA68C8','#4DB6AC','#F06292','#A1887F'];
 const GRADE_BANDS = {G1:[1,20],G2:[21,30],G3:[31,40],G4:[41,50],G5:[51,60],G6:[61,70],G7:[71,80],G8:[81,90]};
 
-const TZ_OPTIONS = [
-  {label:'UTC−11 (Midway)', offset:-11}, {label:'UTC−10 (Hawaii)', offset:-10},
-  {label:'UTC−9 (Alaska)', offset:-9}, {label:'UTC−8 (Los Angeles / PDT)', offset:-8},
-  {label:'UTC−7 (Denver / MDT)', offset:-7}, {label:'UTC−6 (Chicago / CDT)', offset:-6},
-  {label:'UTC−5 (New York / EDT)', offset:-5}, {label:'UTC−4 (Halifax / AST)', offset:-4},
-  {label:'UTC−3 (São Paulo)', offset:-3}, {label:'UTC 0 (GMT) — default', offset:0},
-  {label:'UTC+1 (London, BST)', offset:1}, {label:'UTC+2 (Berlin / Cairo)', offset:2},
-  {label:'UTC+3 (Moscow)', offset:3}, {label:'UTC+4 (Dubai)', offset:4},
-  {label:'UTC+5:30 (Mumbai)', offset:5.5}, {label:'UTC+8 (Beijing / Singapore)', offset:8},
-  {label:'UTC+9 (Tokyo)', offset:9}, {label:'UTC+10 (Sydney / AEST)', offset:10},
-  {label:'UTC+12 (Auckland)', offset:12}
+/* =========================================================
+   RECURRING TERRITORY CAPTURE WINDOWS
+   Copied from events-data.js (hand-maintained, not arc-bound).
+   Times are UK local wall-clock — converted to true UTC per
+   occurrence via ukLocalToUTC() so BST/GMT is handled correctly
+   across the whole recurrence window.
+   dayOfWeek: 0=Sunday … 6=Saturday
+   Update this block if capture windows/costs change in-game.
+   ========================================================= */
+const TERRITORY_EVENTS = [
+  {name:'Nujord — Territory Capture', dayOfWeek:5, h:15, m:0, note:'PHX conquest window · cost 1 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Duportas — Territory Capture', dayOfWeek:6, h:14, m:0, note:'PHX conquest window · cost 2 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:"Ber'Tho — Territory Capture", dayOfWeek:6, h:19, m:0, note:'PHX conquest window · cost 2 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Brellan — Territory Capture', dayOfWeek:0, h:19, m:0, note:'PHX conquest window · cost 3 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Bimasa — Territory Capture', dayOfWeek:2, h:17, m:0, note:'PHX conquest window · cost 2 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'}
 ];
 
-let activeTypes = new Set(Object.keys(GAME_CATS));
-let activeGrades = new Set(['G1','G2','G3','G4','G5','G6','G7','G8']);
+let activeTypes = new Set();
+let selectedGrade = null; // null = show all grades; otherwise a single 'G1'..'G8'
 const el = id => document.getElementById(id);
 
 /* =========================================================
-   TIME HELPERS — GAME_EVENTS already carry true UTC instants,
-   so we just shift the epoch by the selected offset and read
-   the UTC-labeled components back out. No wall-clock guessing.
+   TIMEZONE HELPERS
+   'uk-auto' is a special tzSelect value: rather than a fixed
+   numeric offset, it resolves BST(+1)/GMT(+0) per the actual
+   date of each event/occurrence, so it stays correct across
+   the DST changeover without needing a code update.
    ========================================================= */
-function toZoned(isoUTC, offsetHours){
+function getOffsetForZone(date, timeZone){
+  try{
+    const dtf = new Intl.DateTimeFormat('en-US', {timeZone, timeZoneName:'shortOffset'});
+    const part = dtf.formatToParts(date).find(p => p.type === 'timeZoneName').value; // e.g. "GMT+1" or "GMT"
+    const match = part.match(/GMT([+-]\d+(?:\.\d+)?)?/);
+    return match ? (match[1] ? parseFloat(match[1]) : 0) : 0;
+  } catch(e){ return 0; }
+}
+function resolveOffset(isoUTC, tzValue){
+  if(tzValue === 'uk-auto') return getOffsetForZone(new Date(isoUTC), 'Europe/London');
+  return parseFloat(tzValue);
+}
+function toZoned(isoUTC, tzValue){
+  const offsetHours = resolveOffset(isoUTC, tzValue);
   const d = new Date(isoUTC);
   const shifted = new Date(d.getTime() + offsetHours*3600*1000);
   return {
     dateISO: shifted.getUTCFullYear()+'-'+String(shifted.getUTCMonth()+1).padStart(2,'0')+'-'+String(shifted.getUTCDate()).padStart(2,'0'),
     h: shifted.getUTCHours(), m: shifted.getUTCMinutes()
   };
+}
+function ukLocalToUTC(dateISO, h, m){
+  const [y,mo,d] = dateISO.split('-').map(Number);
+  const naiveUTC = Date.UTC(y, mo-1, d, h, m);
+  const offset = getOffsetForZone(new Date(naiveUTC), 'Europe/London');
+  return new Date(naiveUTC - offset*3600*1000).toISOString();
 }
 function fmtTime(h,m){
   const ap = h>=12?'PM':'AM';
@@ -319,13 +353,31 @@ function dateRangeList(startISO, endISO){
   while(cur<=endISO && guard<400){ out.push(cur); cur=addDays(cur,1); guard++; }
   return out;
 }
+function dowOf(dateISO){
+  const [y,mo,d]=dateISO.split('-').map(Number);
+  return new Date(Date.UTC(y,mo-1,d)).getUTCDay();
+}
+
+const TZ_OPTIONS = [
+  {label:'UK (auto — BST/GMT)', offset:'uk-auto'},
+  {label:'UTC−11 (Midway)', offset:-11}, {label:'UTC−10 (Hawaii)', offset:-10},
+  {label:'UTC−9 (Alaska)', offset:-9}, {label:'UTC−8 (Los Angeles / PDT)', offset:-8},
+  {label:'UTC−7 (Denver / MDT)', offset:-7}, {label:'UTC−6 (Chicago / CDT)', offset:-6},
+  {label:'UTC−5 (New York / EDT)', offset:-5}, {label:'UTC−4 (Halifax / AST)', offset:-4},
+  {label:'UTC−3 (São Paulo)', offset:-3}, {label:'UTC 0 (GMT, fixed)', offset:0},
+  {label:'UTC+1 (fixed)', offset:1}, {label:'UTC+2 (Berlin / Cairo)', offset:2},
+  {label:'UTC+3 (Moscow)', offset:3}, {label:'UTC+4 (Dubai)', offset:4},
+  {label:'UTC+5:30 (Mumbai)', offset:5.5}, {label:'UTC+8 (Beijing / Singapore)', offset:8},
+  {label:'UTC+9 (Tokyo)', offset:9}, {label:'UTC+10 (Sydney / AEST)', offset:10},
+  {label:'UTC+12 (Auckland)', offset:12}
+];
 
 /* =========================================================
    BUILD CONTROLS
    ========================================================= */
 function buildTzSelect(){
   const sel = el('tzSelect');
-  sel.innerHTML = TZ_OPTIONS.map(t => '<option value="'+t.offset+'"'+(t.offset===0?' selected':'')+'>'+t.label+'</option>').join('');
+  sel.innerHTML = TZ_OPTIONS.map(t => '<option value="'+t.offset+'"'+(t.offset==='uk-auto'?' selected':'')+'>'+t.label+'</option>').join('');
 }
 function buildChips(){
   const wrap = el('chipRow');
@@ -348,12 +400,12 @@ function buildGradeChips(){
   wrap.innerHTML = '';
   Object.keys(GRADE_BANDS).forEach(g => {
     const chip = document.createElement('div');
-    chip.className = 'chip' + (activeGrades.has(g) ? ' on' : '');
+    chip.className = 'chip' + (selectedGrade === g ? ' on' : '');
     chip.style.color = 'var(--blue)';
     chip.textContent = g;
-    chip.title = 'Ops ' + GRADE_BANDS[g][0] + '–' + GRADE_BANDS[g][1];
+    chip.title = 'Ops ' + GRADE_BANDS[g][0] + '–' + GRADE_BANDS[g][1] + ' — click to isolate, click again for all grades';
     chip.addEventListener('click', () => {
-      if(activeGrades.has(g)) activeGrades.delete(g); else activeGrades.add(g);
+      selectedGrade = (selectedGrade === g) ? null : g;
       buildGradeChips(); render();
     });
     wrap.appendChild(chip);
@@ -368,7 +420,7 @@ function buildLegend(){
    RENDER
    ========================================================= */
 function render(){
-  const offset = parseFloat(el('tzSelect').value);
+  const tzValue = el('tzSelect').value;
   const rangeStart = el('rangeStart').value;
   const rangeEnd = el('rangeEnd').value;
   const search = el('searchBox').value.trim().toLowerCase();
@@ -379,6 +431,8 @@ function render(){
   const nowMs = Date.now();
 
   const byDay = {};
+
+  // --- Absolute events from the stfc.cfd feed ---
   (GAME_EVENTS || []).forEach(ev => {
     if(!activeTypes.has(ev.eventType)) return;
     if(heroicOnly && ev.eventSubType !== 'heroic') return;
@@ -388,31 +442,46 @@ function render(){
 
     const opsMin = ev.minOpsLevel == null ? 1 : ev.minOpsLevel;
     const opsMax = ev.maxOpsLevel == null ? 999 : ev.maxOpsLevel;
-    const overlapsActiveGrade = Array.from(activeGrades).some(g => {
-      const [gMin,gMax] = GRADE_BANDS[g];
-      return opsMin <= gMax && opsMax >= gMin;
-    });
-    if(!overlapsActiveGrade) return;
+    if(selectedGrade){
+      const [gMin,gMax] = GRADE_BANDS[selectedGrade];
+      if(!(opsMin <= gMax && opsMax >= gMin)) return;
+    }
 
     if(!ev.startUTC) return;
-    const startZ = toZoned(ev.startUTC, offset);
+    const startZ = toZoned(ev.startUTC, tzValue);
     if(rangeStart && startZ.dateISO < rangeStart) return;
     if(rangeEnd && startZ.dateISO > rangeEnd) return;
 
-    const endZ = ev.endUTC ? toZoned(ev.endUTC, offset) : null;
+    const endZ = ev.endUTC ? toZoned(ev.endUTC, tzValue) : null;
     (byDay[startZ.dateISO] = byDay[startZ.dateISO] || []).push({ev, startZ, endZ, opsMin, opsMax});
   });
+
+  // --- Recurring Territory Capture windows ---
+  if(activeTypes.has('territory') && !heroicOnly && !incursionOnly && (!selectedGrade)){
+    const winStart = rangeStart || addDays(new Date().toISOString().slice(0,10), 0);
+    const winEnd = rangeEnd || addDays(winStart, 30);
+    dateRangeList(winStart, winEnd).forEach(dISO => {
+      TERRITORY_EVENTS.forEach(t => {
+        if(dISO < t.validFrom || dISO > t.validTo) return;
+        if(dowOf(dISO) !== t.dayOfWeek) return;
+        if(search && !t.name.toLowerCase().includes(search)) return;
+        const startUTC = ukLocalToUTC(dISO, t.h, t.m);
+        if(hidePast && new Date(startUTC).getTime() < nowMs) return;
+        const startZ = toZoned(startUTC, tzValue);
+        const pseudoEv = {title:t.name, eventType:'territory', eventSubType:null, eventFormat:null, priority:'normal', description:t.note};
+        (byDay[startZ.dateISO] = byDay[startZ.dateISO] || []).push({ev:pseudoEv, startZ, endZ:null, opsMin:1, opsMax:999});
+      });
+    });
+  }
+
   Object.values(byDay).forEach(list => list.sort((a,b) => a.startZ.h*60+a.startZ.m - (b.startZ.h*60+b.startZ.m)));
 
-  const todayISO = toZoned(new Date().toISOString(), offset).dateISO;
-  const daysToShow = (rangeStart && rangeEnd) ? dateRangeList(rangeStart, rangeEnd) : Object.keys(byDay).sort();
+  const todayISO = toZoned(new Date().toISOString(), tzValue).dateISO;
+  const winStart = rangeStart || todayISO;
+  const winEnd = rangeEnd || addDays(winStart, 30);
+  const daysToShow = dateRangeList(winStart, winEnd);
   const dayList = el('dayList');
   dayList.innerHTML = '';
-
-  if(daysToShow.length === 0){
-    dayList.innerHTML = '<div class="empty-day">No events match your filters. Try widening the date range or clearing a filter.</div>';
-    return;
-  }
 
   daysToShow.forEach(dISO => {
     const list = byDay[dISO] || [];
@@ -424,6 +493,7 @@ function render(){
 
     const card = document.createElement('div');
     card.className = 'day-card' + (dISO===todayISO ? ' today' : '');
+    card.dataset.dateIso = dISO;
 
     const head = document.createElement('div');
     head.className = 'day-head';
@@ -453,6 +523,7 @@ function render(){
               '<span class="tag" style="color:'+catDef.color+';border-color:'+catDef.color+'">'+catDef.label+'</span>'+
               (ev.eventFormat?'<span class="tag">'+ev.eventFormat+'</span>':'')+
               (ev.eventSubType==='heroic'?'<span class="tag heroic">Heroic</span>':'')+
+              (ev.eventSubType==='voyage_across_the_void'?'<span class="tag voyage">Voyage</span>':'')+
               (ev.priority==='incursion'?'<span class="tag incursion">Incursion</span>':'')+
             '</div>'+
             '<div class="ev-meta"><span>'+timeLabel+'</span><span>Ops '+opsLabel+'</span></div>'+
@@ -463,6 +534,10 @@ function render(){
     }
     dayList.appendChild(card);
   });
+
+  if(daysToShow.filter(dISO => !hideEmpty || (byDay[dISO]&&byDay[dISO].length)).length===0){
+    dayList.innerHTML = '<div class="empty-day">No events match your filters in this date range.</div>';
+  }
 }
 function dateLabelShort(dISO){
   const [y,mo,d] = dISO.split('-').map(Number);
@@ -476,6 +551,10 @@ function escapeHTML(str){
   div.textContent = str;
   return div.innerHTML;
 }
+function jumpToToday(){
+  const card = document.querySelector('.day-card.today');
+  if(card) card.scrollIntoView({behavior:'smooth', block:'start'});
+}
 
 /* =========================================================
    INIT
@@ -485,21 +564,36 @@ function init(){
     el('dayList').innerHTML = '<div class="empty-day">Event data hasn\'t loaded yet — events-data-game.js may be missing or the daily scrape hasn\'t run.</div>';
     return;
   }
+
+  // Discover any event types present in the feed that aren't already
+  // mapped, so nothing is ever silently excluded from the type list.
+  const seenTypes = new Set((GAME_EVENTS||[]).map(e => e.eventType || ''));
+  let paletteIdx = 0;
+  seenTypes.forEach(t => {
+    if(!(t in GAME_CATS)){
+      GAME_CATS[t] = {label: t ? (t.charAt(0).toUpperCase()+t.slice(1).replace(/_/g,' ')) : 'Other', color: FALLBACK_PALETTE[paletteIdx++ % FALLBACK_PALETTE.length]};
+    }
+  });
+  activeTypes = new Set(Object.keys(GAME_CATS));
+
   buildTzSelect();
   buildChips();
   buildGradeChips();
   buildLegend();
+
+  // Default date window: today (UK-local) through +30 days
+  const todayISO = toZoned(new Date().toISOString(), 'uk-auto').dateISO;
+  el('rangeStart').value = todayISO;
+  el('rangeEnd').value = addDays(todayISO, 30);
+
   render();
+  requestAnimationFrame(() => setTimeout(jumpToToday, 50));
 
   ['tzSelect','rangeStart','rangeEnd','searchBox','heroicOnly','incursionOnly','hidePast','hideEmpty'].forEach(id => {
     el(id).addEventListener('input', render);
     el(id).addEventListener('change', render);
   });
-  el('jumpToday').addEventListener('click', () => {
-    const todayCard = document.querySelector('.day-card.today');
-    if(todayCard) todayCard.scrollIntoView({behavior:'smooth', block:'start'});
-    else alert('Today has no events currently shown — try widening filters or the date range.');
-  });
+  el('jumpToday').addEventListener('click', jumpToToday);
 }
 init();
 </script>
