@@ -68,14 +68,29 @@
   }
   .chip.on{color:var(--text); border-color:currentColor; background:rgba(255,255,255,0.03);}
   .chip-sm{font-size:9.5px; padding:4px 8px;}
+  .chip-clear{color:var(--red); border-color:var(--red); font-weight:700;}
 
-  .detail-panel{
-    display:none; padding:10px 14px; margin:0 16px 4px; border:1px solid var(--border);
-    border-radius:8px; background:var(--panel-alt); font-size:12px; color:var(--muted);
+  .detail-overlay{
+    display:none; position:fixed; inset:0; z-index:500;
+    background:rgba(5,7,10,0.72); backdrop-filter:blur(2px);
+    align-items:flex-end; justify-content:center;
   }
-  .detail-panel.open{display:block;}
-  .detail-panel .dt-title{color:var(--text); font-weight:700; font-size:13px; margin-bottom:3px;}
-  .detail-panel .dt-meta{font-family:var(--mono); font-size:11px; margin-bottom:6px;}
+  .detail-overlay.open{display:flex;}
+  .detail-panel{
+    position:relative; width:100%; max-width:640px; max-height:72vh; overflow-y:auto;
+    padding:18px 18px 20px; border:1px solid var(--border); border-top-width:1px;
+    border-radius:14px 14px 0 0; background:var(--panel-alt); font-size:12.5px; color:var(--muted);
+    box-shadow:0 -8px 30px rgba(0,0,0,0.5);
+  }
+  .detail-panel .dt-title{color:var(--text); font-weight:700; font-size:14px; margin:2px 28px 4px 0;}
+  .detail-panel .dt-meta{font-family:var(--mono); font-size:11px; margin-bottom:8px;}
+  .detail-close-btn{
+    position:absolute; top:12px; right:12px; width:28px; height:28px; border-radius:50%;
+    border:1px solid var(--border); background:var(--panel); color:var(--text);
+    font-family:var(--mono); font-size:14px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .detail-close-btn:active{background:var(--border);}
 
   /* ===== Multi-week day-grid ===== */
   .gantt-scroll{overflow-x:auto; padding:14px 0 0 16px;}
@@ -164,7 +179,12 @@
   <div class="row" id="keyChipRow"></div>
 </div>
 
-<div id="detailPanel" class="detail-panel"></div>
+<div id="detailOverlay" class="detail-overlay">
+  <div id="detailPanel" class="detail-panel">
+    <button class="detail-close-btn" id="detailCloseBtn" aria-label="Close">✕</button>
+    <div id="detailContent"></div>
+  </div>
+</div>
 
 <div class="gantt-scroll">
   <div class="gantt-inner" id="ganttInner"></div>
@@ -230,7 +250,7 @@ const VOYAGE_EVENTS = [
 const WEEKS_SHOWN = 4;
 let activeTypes = new Set();
 let selectedGrade = null; // null = show all grades; otherwise a single 'G1'..'G8' (isolate on tap)
-let ticketedOnly = false;
+let ticketedVisible = true; // default-on, same as every type chip — click hides ticketed events specifically
 let rangeBlockOffset = 0; // shifts by WEEKS_SHOWN each Prev/Next click
 const el = id => document.getElementById(id);
 
@@ -378,8 +398,22 @@ function buildTzSelect(){
 }
 function buildChips(){
   // "Key" row: doubles as the color legend and the type filter, plus Ticketed.
+  // All pills work identically — inclusive, default-on, click hides that
+  // category, click again brings it back.
   const wrap = el('keyChipRow');
   wrap.innerHTML = '';
+
+  const clearChip = document.createElement('div');
+  clearChip.className = 'chip chip-sm chip-clear';
+  clearChip.textContent = 'Clear All';
+  clearChip.title = 'Hide everything, then pick just the ones you want';
+  clearChip.addEventListener('click', () => {
+    activeTypes.clear();
+    ticketedVisible = false;
+    buildChips(); render();
+  });
+  wrap.appendChild(clearChip);
+
   Object.keys(GAME_CATS).forEach(key => {
     const cat = GAME_CATS[key];
     const chip = document.createElement('div');
@@ -394,10 +428,11 @@ function buildChips(){
     wrap.appendChild(chip);
   });
   const ticketedChip = document.createElement('div');
-  ticketedChip.className = 'chip chip-sm' + (ticketedOnly ? ' on' : '');
+  ticketedChip.className = 'chip chip-sm' + (ticketedVisible ? ' on' : '');
   ticketedChip.style.color = '#FFD54F';
   ticketedChip.textContent = 'Ticketed';
-  ticketedChip.addEventListener('click', () => { ticketedOnly = !ticketedOnly; buildChips(); render(); });
+  ticketedChip.title = 'Toggle ticketed events on/off';
+  ticketedChip.addEventListener('click', () => { ticketedVisible = !ticketedVisible; buildChips(); render(); });
   wrap.appendChild(ticketedChip);
 }
 function buildGradeChips(){
@@ -456,7 +491,7 @@ function render(){
 
   const filtered = candidateEvents.filter(ev => {
     if(!activeTypes.has(ev.displayType)) return false;
-    if(ticketedOnly && ev.eventSubType !== 'ticketed') return false;
+    if(!ticketedVisible && ev.eventSubType === 'ticketed') return false;
     if(search && !ev.title.toLowerCase().includes(search)) return false;
     if(!ev.startUTC) return false;
     const opsMin = ev.minOpsLevel == null ? 1 : ev.minOpsLevel;
@@ -470,7 +505,7 @@ function render(){
 
   const inner = el('ganttInner');
   inner.innerHTML = '';
-  el('detailPanel').classList.remove('open');
+  el('detailOverlay').classList.remove('open');
 
   let anyEventsAtAll = false;
 
@@ -578,16 +613,44 @@ function showDetail(ev, opsMin, opsMax, tzValue, catDef){
   const timeLabel = endZ
     ? fmtTime(startZ.h,startZ.m) + ' → ' + fmtTime(endZ.h,endZ.m) + (endZ.dateISO!==startZ.dateISO?' ('+startZ.dateISO+' → '+endZ.dateISO+')':'')
     : fmtTime(startZ.h,startZ.m);
-  const panel = el('detailPanel');
-  panel.innerHTML =
+  el('detailContent').innerHTML =
     '<div class="dt-title">'+escapeHTML(ev.title)+'</div>'+
     '<div class="dt-meta" style="color:'+catDef.color+'">'+catDef.label+
       ((ev.formats&&ev.formats.length)?' · '+ev.formats.join('/'):'')+
       ' · '+timeLabel+' · Ops '+opsLabel+'</div>'+
     (ev.description ? '<div>'+escapeHTML(ev.description)+'</div>' : '');
-  panel.classList.add('open');
-  if(typeof panel.scrollIntoView === 'function') panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+  openDetailModal();
 }
+
+/* =========================================================
+   MODAL OPEN/CLOSE — a hardware/software back-button press
+   should close this overlay, not navigate away from the page.
+   We push one extra history entry when opening; the back button
+   then pops that entry first (firing 'popstate', which we use to
+   close the modal) rather than leaving the page. Closing via the
+   X button consumes that same entry via history.back(), so the
+   back-stack never grows unbounded from repeated opens/closes.
+   ========================================================= */
+let modalHistoryPushed = false;
+function openDetailModal(){
+  el('detailOverlay').classList.add('open');
+  if(!modalHistoryPushed){
+    history.pushState({ganttModal:true}, '', location.href);
+    modalHistoryPushed = true;
+  }
+}
+function closeDetailModal(fromPopState){
+  el('detailOverlay').classList.remove('open');
+  if(modalHistoryPushed){
+    modalHistoryPushed = false;
+    if(!fromPopState) history.back();
+  }
+}
+window.addEventListener('popstate', () => {
+  if(el('detailOverlay').classList.contains('open')){
+    closeDetailModal(true);
+  }
+});
 
 /* ===== Init ===== */
 async function loadDataAndInit(){
@@ -622,6 +685,10 @@ async function loadDataAndInit(){
   el('prevRange').addEventListener('click', () => { rangeBlockOffset -= 1; render(); });
   el('nextRange').addEventListener('click', () => { rangeBlockOffset += 1; render(); });
   el('todayRange').addEventListener('click', () => { rangeBlockOffset = 0; render(); });
+  el('detailCloseBtn').addEventListener('click', () => closeDetailModal(false));
+  el('detailOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'detailOverlay') closeDetailModal(false); // clicked the dark backdrop, not the panel itself
+  });
 }
 loadDataAndInit();
 </script>
