@@ -100,6 +100,7 @@
     transition:border-color .15s, color .15s, background .15s;
   }
   .chip.on{color:var(--text); border-color:currentColor; background:rgba(255,255,255,0.03);}
+  .chip-sm{font-size:9.5px; padding:4px 8px;}
   .search-wrap{flex:1; min-width:160px;}
   .search-wrap input{width:100%;}
   .btn{
@@ -108,22 +109,6 @@
     background:var(--panel-alt); color:var(--text); cursor:pointer;
   }
   .btn:hover{border-color:var(--blue);}
-  .toggle-row{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); font-family:var(--mono);}
-
-  details.adv{border:1px solid var(--border); border-radius:8px; background:var(--panel-alt);}
-  details.adv summary{
-    cursor:pointer; padding:8px 12px; font-family:var(--mono); font-size:11px;
-    text-transform:uppercase; letter-spacing:.08em; color:var(--muted); list-style:none;
-    display:flex; align-items:center; gap:6px;
-  }
-  details.adv summary::-webkit-details-marker{display:none;}
-  details.adv summary::before{content:"▸"; color:var(--amber); transition:transform .15s;}
-  details.adv[open] summary::before{transform:rotate(90deg);}
-  details.adv .adv-body{padding:8px 12px 12px;}
-
-  .legend{display:flex; flex-wrap:wrap; gap:10px; padding:10px 16px; font-family:var(--mono); font-size:11px; color:var(--muted);}
-  .legend span{display:inline-flex; align-items:center; gap:5px;}
-  .legend .dot{width:8px;height:8px;border-radius:50%;}
 
   main{padding:14px 16px 0;}
   .day-card{
@@ -233,39 +218,19 @@
     <button class="btn" id="jumpToday">Jump to today</button>
   </div>
   <div class="row">
-    <span class="field-label" style="width:100%;">Ops Level (click one to isolate it, click again to show all)</span>
+    <span class="field-label" style="width:100%;">Ops Level (tap one to isolate, tap again for all)</span>
   </div>
   <div class="row" id="gradeChipRow"></div>
-  <details class="adv">
-    <summary>Advanced filters (event types, timezone, date range)</summary>
-    <div class="adv-body row" id="chipRow"></div>
-    <div class="adv-body row">
-      <div class="chip" id="ticketedChip" style="color:#FFD54F;">Ticketed</div>
-      <label class="toggle-row"><input type="checkbox" id="hidePast" checked> Hide events that have ended</label>
-      <label class="toggle-row"><input type="checkbox" id="hideEmpty"> Hide days with no matches</label>
-    </div>
-    <div class="adv-body row">
-      <div>
-        <span class="field-label">Timezone</span>
-        <select id="tzSelect"></select>
-      </div>
-      <div>
-        <span class="field-label">From</span>
-        <input type="date" id="rangeStart">
-      </div>
-      <div>
-        <span class="field-label">To</span>
-        <input type="date" id="rangeEnd">
-      </div>
-    </div>
-  </details>
+  <div class="row">
+    <span class="field-label">Timezone</span>
+    <select id="tzSelect"></select>
+  </div>
+  <div class="row" id="keyChipRow"></div>
 </div>
-
-<div class="legend" id="legend"></div>
 
 <main id="dayList"></main>
 
-<footer id="footerText">stfc.cfd events refreshed daily via GitHub Actions · Territory Capture windows are hand-maintained recurring data · Default timezone auto-tracks UK BST/GMT — change it under Advanced filters</footer>
+<footer id="footerText">stfc.cfd events refreshed daily via GitHub Actions · Territory Capture windows are hand-maintained recurring data · Default timezone auto-tracks UK BST/GMT</footer>
 
 <script>
 let GAME_EVENTS = [];
@@ -379,9 +344,10 @@ function generateRecurringEvents(defs, winStartISO, winEndISO){
 }
 
 let activeTypes = new Set(); // multi-select — populated with all keys once GAME_CATS is finalized
-let activeGrades = new Set(Object.keys(GRADE_BANDS)); // all grades on by default
+let selectedGrade = null; // null = show all grades; otherwise a single 'G1'..'G8' (isolate on tap)
 let ticketedOnly = false;
 const el = id => document.getElementById(id);
+const DEFAULT_WINDOW_DAYS = 30; // fixed window, no manual date-range picker
 
 /* =========================================================
    TIMEZONE HELPERS
@@ -508,12 +474,14 @@ function buildTzSelect(){
   sel.innerHTML = TZ_OPTIONS.map(t => '<option value="'+t.offset+'"'+(t.offset==='uk-auto'?' selected':'')+'>'+t.label+'</option>').join('');
 }
 function buildChips(){
-  const wrap = el('chipRow');
+  // "Key" row: doubles as the color legend and the type filter, plus the
+  // Ticketed toggle. Multi-select — each pill toggles independently.
+  const wrap = el('keyChipRow');
   wrap.innerHTML = '';
   Object.keys(GAME_CATS).forEach(key => {
     const cat = GAME_CATS[key];
     const chip = document.createElement('div');
-    chip.className = 'chip' + (activeTypes.has(key) ? ' on' : '');
+    chip.className = 'chip chip-sm' + (activeTypes.has(key) ? ' on' : '');
     chip.style.color = cat.color;
     chip.textContent = cat.label;
     chip.title = 'Toggle this type on/off';
@@ -523,30 +491,28 @@ function buildChips(){
     });
     wrap.appendChild(chip);
   });
+  const ticketedChip = document.createElement('div');
+  ticketedChip.className = 'chip chip-sm' + (ticketedOnly ? ' on' : '');
+  ticketedChip.style.color = '#FFD54F';
+  ticketedChip.textContent = 'Ticketed';
+  ticketedChip.addEventListener('click', () => { ticketedOnly = !ticketedOnly; buildChips(); render(); });
+  wrap.appendChild(ticketedChip);
 }
 function buildGradeChips(){
   const wrap = el('gradeChipRow');
   wrap.innerHTML = '';
   Object.keys(GRADE_BANDS).forEach(g => {
     const chip = document.createElement('div');
-    chip.className = 'chip' + (activeGrades.has(g) ? ' on' : '');
+    chip.className = 'chip' + (selectedGrade === g ? ' on' : '');
     chip.style.color = 'var(--blue)';
     chip.textContent = g;
-    chip.title = 'Ops ' + GRADE_BANDS[g][0] + '–' + GRADE_BANDS[g][1] + ' — toggle on/off';
+    chip.title = 'Ops ' + GRADE_BANDS[g][0] + '–' + GRADE_BANDS[g][1] + ' — tap to isolate, tap again for all grades';
     chip.addEventListener('click', () => {
-      if(activeGrades.has(g)) activeGrades.delete(g); else activeGrades.add(g);
+      selectedGrade = (selectedGrade === g) ? null : g;
       buildGradeChips(); render();
     });
     wrap.appendChild(chip);
   });
-}
-function buildTicketedChip(){
-  const chip = el('ticketedChip');
-  chip.className = 'chip' + (ticketedOnly ? ' on' : '');
-}
-function buildLegend(){
-  el('legend').innerHTML = Object.values(GAME_CATS).map(c =>
-    '<span><span class="dot" style="background:'+c.color+'"></span>'+c.label+'</span>').join('');
 }
 
 /* =========================================================
@@ -554,20 +520,15 @@ function buildLegend(){
    ========================================================= */
 function render(){
   const tzValue = el('tzSelect').value;
-  const rangeStart = el('rangeStart').value;
-  const rangeEnd = el('rangeEnd').value;
   const search = el('searchBox').value.trim().toLowerCase();
-  const hidePast = el('hidePast').checked;
-  const hideEmpty = el('hideEmpty').checked;
   const nowMs = Date.now();
 
   const byDay = {};
 
-  // Window used for expanding the two hand-defined recurring series.
-  // Falls back to today→+30 days if the date fields are ever cleared.
-  const todayFallback = toZoned(new Date().toISOString(), tzValue).dateISO;
-  const winStart = rangeStart || todayFallback;
-  const winEnd = rangeEnd || addDays(winStart, 30);
+  // Fixed window: today (in the selected timezone) through +30 days.
+  // No manual date-range picker — kept simple and consistent with Gantt View.
+  const winStart = toZoned(new Date().toISOString(), tzValue).dateISO;
+  const winEnd = addDays(winStart, DEFAULT_WINDOW_DAYS);
 
   // One combined candidate list: scraped+merged feed events (minus Voyage,
   // which is hand-defined below instead) + recurring Territory Capture +
@@ -584,21 +545,20 @@ function render(){
     if(!activeTypes.has(ev.displayType)) return;
     if(ticketedOnly && ev.eventSubType !== 'ticketed') return;
     if(search && !ev.title.toLowerCase().includes(search)) return;
-    if(hidePast && ev.endUTC && new Date(ev.endUTC).getTime() < nowMs) return;
-    if(hidePast && !ev.endUTC && ev.startUTC && new Date(ev.startUTC).getTime() < nowMs) return;
+    // Past events are always hidden (baked-in default, previously a checkbox)
+    if(ev.endUTC && new Date(ev.endUTC).getTime() < nowMs) return;
+    if(!ev.endUTC && ev.startUTC && new Date(ev.startUTC).getTime() < nowMs) return;
 
     const opsMin = ev.minOpsLevel == null ? 1 : ev.minOpsLevel;
     const opsMax = ev.maxOpsLevel == null ? 999 : ev.maxOpsLevel;
-    const overlapsActiveGrade = Array.from(activeGrades).some(g => {
-      const [gMin,gMax] = GRADE_BANDS[g];
-      return opsMin <= gMax && opsMax >= gMin;
-    });
-    if(!overlapsActiveGrade) return;
+    if(selectedGrade){
+      const [gMin,gMax] = GRADE_BANDS[selectedGrade];
+      if(!(opsMin <= gMax && opsMax >= gMin)) return;
+    }
 
     if(!ev.startUTC) return;
     const startZ = toZoned(ev.startUTC, tzValue);
-    if(rangeStart && startZ.dateISO < rangeStart) return;
-    if(rangeEnd && startZ.dateISO > rangeEnd) return;
+    if(startZ.dateISO < winStart || startZ.dateISO > winEnd) return;
 
     const endZ = ev.endUTC ? toZoned(ev.endUTC, tzValue) : null;
     (byDay[startZ.dateISO] = byDay[startZ.dateISO] || []).push({ev, startZ, endZ, opsMin, opsMax});
@@ -606,14 +566,13 @@ function render(){
 
   Object.values(byDay).forEach(list => list.sort((a,b) => a.startZ.h*60+a.startZ.m - (b.startZ.h*60+b.startZ.m)));
 
-  const todayISO = todayFallback;
+  const todayISO = winStart;
   const daysToShow = dateRangeList(winStart, winEnd);
   const dayList = el('dayList');
   dayList.innerHTML = '';
 
   daysToShow.forEach((dISO, idx) => {
     const list = byDay[dISO] || [];
-    if(hideEmpty && list.length===0) return;
     const [y,mo,d] = dISO.split('-').map(Number);
     const jsDate = new Date(Date.UTC(y,mo-1,d));
     const dow = jsDate.toLocaleDateString('en-US', {weekday:'long', timeZone:'UTC'});
@@ -690,7 +649,8 @@ function render(){
     dayList.appendChild(card);
   });
 
-  if(daysToShow.filter(dISO => !hideEmpty || (byDay[dISO]&&byDay[dISO].length)).length===0){
+  const totalMatches = Object.values(byDay).reduce((sum, list) => sum + list.length, 0);
+  if(totalMatches === 0){
     dayList.innerHTML = '<div class="empty-day">No events match your filters in this date range.</div>';
   }
 }
@@ -737,22 +697,14 @@ function init(){
   buildTzSelect();
   buildChips();
   buildGradeChips();
-  buildTicketedChip();
-  buildLegend();
-
-  // Default date window: today (UK-local) through +30 days
-  const todayISO = toZoned(new Date().toISOString(), 'uk-auto').dateISO;
-  el('rangeStart').value = todayISO;
-  el('rangeEnd').value = addDays(todayISO, 30);
 
   render();
   requestAnimationFrame(() => setTimeout(jumpToToday, 50));
 
-  ['tzSelect','rangeStart','rangeEnd','searchBox','hidePast','hideEmpty'].forEach(id => {
+  ['tzSelect','searchBox'].forEach(id => {
     el(id).addEventListener('input', render);
     el(id).addEventListener('change', render);
   });
-  el('ticketedChip').addEventListener('click', () => { ticketedOnly = !ticketedOnly; buildTicketedChip(); render(); });
   el('jumpToday').addEventListener('click', jumpToToday);
 }
 
