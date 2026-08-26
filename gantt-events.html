@@ -320,7 +320,8 @@ function render(){
   const candidateEvents = [
     ...buildMergedEvents(GAME_EVENTS).filter(e => e.eventSubType !== 'voyage_across_the_void'),
     ...generateRecurringEvents(TERRITORY_EVENTS, genStart, genEnd),
-    ...generateRecurringEvents(VOYAGE_EVENTS, genStart, genEnd)
+    ...generateRecurringEvents(VOYAGE_EVENTS, genStart, genEnd),
+    ...generateRecurringEvents(TUESDAY_EVENTS, genStart, genEnd)
   ];
 
   const filtered = candidateEvents.filter(ev => {
