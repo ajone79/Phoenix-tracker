@@ -28,6 +28,7 @@ const GAME_CATS = {
   vengeance:    {label:'Vengeance',       color:'#C0392B'},
   aphelion:     {label:'Aphelion',        color:'#A5D8FF'},
   territory:    {label:'Territory Capture', color:'#8CE071'},
+  sector_strike: {label:'Sector Strike',    color:'#D65DB1'},
   voyage:       {label:'Voyage Across the Void', color:'#4FD1C5'},
   '':           {label:'Other',           color:'#7C8798'}
 };
@@ -67,16 +68,12 @@ const VOYAGE_EVENTS = [
 ];
 
 /* =========================================================
-   PLACEHOLDER — recurring Tuesday event, not in the stfc.cfd feed.
-   Add the definition here once details are confirmed (name, time,
-   scoring notes). Follows the exact same shape as TERRITORY_EVENTS/
-   VOYAGE_EVENTS above — dayOfWeek 2 = Tuesday. If it has SMS/ALB/SLB
-   variants that should merge into one event (like Voyage), give it
-   a single note describing the scoring differences, same pattern
-   as VOYAGE_NOTES.
+   SECTOR STRIKE — recurring weekly event, not in the stfc.cfd feed.
+   Every Tuesday 5pm UK, 24-hour window, G6+ only (ops 61+),
+   independent of arcs (indefinite validity window).
    ========================================================= */
 const TUESDAY_EVENTS = [
-  // {name:'TBD', displayType:'tuesday_special', eventSubType:'tuesday_special', dayOfWeek:2, h:0, m:0, durationDays:1, note:'TBD', validFrom:'2025-01-01', validTo:'2027-12-31'}
+  {name:'Sector Strike', displayType:'sector_strike', eventSubType:'sector_strike', dayOfWeek:2, h:17, m:0, durationDays:1, note:'Score by defeating Quantum Adjudicators & Quantum Guardians/Tesseract.', minOpsLevel:61, maxOpsLevel:999, validFrom:'2025-01-01', validTo:'2027-12-31'}
 ];
 
 const TZ_OPTIONS = [
@@ -191,7 +188,9 @@ function generateRecurringEvents(defs, winStartISO, winEndISO){
       out.push({
         title: d.name, description: d.note, displayType: d.displayType,
         eventSubType: d.eventSubType, priority: 'normal',
-        minOpsLevel: 1, maxOpsLevel: 999, formats: [], startUTC, endUTC
+        minOpsLevel: d.minOpsLevel != null ? d.minOpsLevel : 1,
+        maxOpsLevel: d.maxOpsLevel != null ? d.maxOpsLevel : 999,
+        formats: [], startUTC, endUTC
       });
     });
   });
@@ -237,6 +236,6 @@ function isNotableForTicker(ev){
   if(ev.eventSubType === 'heroic') return true;
   if(ev.eventSubType === 'ticketed') return true;
   if(ev.displayType === 'meta') return true;
-  if(ev.displayType === 'tuesday_special') return true;
+  if(ev.displayType === 'sector_strike') return true;
   return false;
 }
