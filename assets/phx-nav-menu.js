@@ -2,7 +2,7 @@
   const LINKS = [
     {href:'/index.html', label:'🏠 Home'},
     {href:'/alb-participation.html', label:'📊 ALB Participation'},
-    {href:'/events-calendar.html', label:'🗓️ Events Calendar'},
+    {href:'/game-events.html', label:'🗓️ Events Calendar'},
     {href:'/crewing.html', label:'🖖 Crewing'},
     {href:'/idiq-hints-and-tips.html', label:'💡 IDIQ Hints & Tips'},
     {href:'/credits.html', label:'🔗 Links & Credits'},
