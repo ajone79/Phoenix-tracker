@@ -101,6 +101,7 @@
   }
   .chip.on{color:var(--text); border-color:currentColor; background:rgba(255,255,255,0.03);}
   .chip-sm{font-size:9.5px; padding:4px 8px;}
+  .chip-clear{color:var(--red); border-color:var(--red); font-weight:700;}
   .search-wrap{flex:1; min-width:160px;}
   .search-wrap input{width:100%;}
   .btn{
@@ -345,7 +346,7 @@ function generateRecurringEvents(defs, winStartISO, winEndISO){
 
 let activeTypes = new Set(); // multi-select — populated with all keys once GAME_CATS is finalized
 let selectedGrade = null; // null = show all grades; otherwise a single 'G1'..'G8' (isolate on tap)
-let ticketedOnly = false;
+let ticketedVisible = true; // default-on, same as every type chip — click hides ticketed events specifically
 const el = id => document.getElementById(id);
 const DEFAULT_WINDOW_DAYS = 30; // fixed window, no manual date-range picker
 
@@ -475,9 +476,22 @@ function buildTzSelect(){
 }
 function buildChips(){
   // "Key" row: doubles as the color legend and the type filter, plus the
-  // Ticketed toggle. Multi-select — each pill toggles independently.
+  // Ticketed toggle. All pills work identically — inclusive, default-on,
+  // click hides that category, click again brings it back.
   const wrap = el('keyChipRow');
   wrap.innerHTML = '';
+
+  const clearChip = document.createElement('div');
+  clearChip.className = 'chip chip-sm chip-clear';
+  clearChip.textContent = 'Clear All';
+  clearChip.title = 'Hide everything, then pick just the ones you want';
+  clearChip.addEventListener('click', () => {
+    activeTypes.clear();
+    ticketedVisible = false;
+    buildChips(); render();
+  });
+  wrap.appendChild(clearChip);
+
   Object.keys(GAME_CATS).forEach(key => {
     const cat = GAME_CATS[key];
     const chip = document.createElement('div');
@@ -492,10 +506,11 @@ function buildChips(){
     wrap.appendChild(chip);
   });
   const ticketedChip = document.createElement('div');
-  ticketedChip.className = 'chip chip-sm' + (ticketedOnly ? ' on' : '');
+  ticketedChip.className = 'chip chip-sm' + (ticketedVisible ? ' on' : '');
   ticketedChip.style.color = '#FFD54F';
   ticketedChip.textContent = 'Ticketed';
-  ticketedChip.addEventListener('click', () => { ticketedOnly = !ticketedOnly; buildChips(); render(); });
+  ticketedChip.title = 'Toggle ticketed events on/off';
+  ticketedChip.addEventListener('click', () => { ticketedVisible = !ticketedVisible; buildChips(); render(); });
   wrap.appendChild(ticketedChip);
 }
 function buildGradeChips(){
@@ -543,7 +558,7 @@ function render(){
 
   candidateEvents.forEach(ev => {
     if(!activeTypes.has(ev.displayType)) return;
-    if(ticketedOnly && ev.eventSubType !== 'ticketed') return;
+    if(!ticketedVisible && ev.eventSubType === 'ticketed') return;
     if(search && !ev.title.toLowerCase().includes(search)) return;
     // Past events are always hidden (baked-in default, previously a checkbox)
     if(ev.endUTC && new Date(ev.endUTC).getTime() < nowMs) return;
