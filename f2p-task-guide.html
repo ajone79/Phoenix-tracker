@@ -883,7 +883,8 @@ function recomputeTickerData(){
 
   const mergedFeed = buildMergedEvents(tickerFeedEvents).filter(e => e.eventSubType !== 'voyage_across_the_void');
   const voyageOccurrences = generateRecurringEvents(VOYAGE_EVENTS, winStart, winEnd);
-  const otherHits = [...mergedFeed, ...voyageOccurrences]
+  const sectorStrikeOccurrences = generateRecurringEvents(TUESDAY_EVENTS, winStart, winEnd);
+  const otherHits = [...mergedFeed, ...voyageOccurrences, ...sectorStrikeOccurrences]
     .filter(ev => ev.startUTC && new Date(ev.startUTC) > now)
     .filter(isNotableForTicker)
     .map(ev => ({ev: {name: ev.title}, utcDate: new Date(ev.startUTC)}))
