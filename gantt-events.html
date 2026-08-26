@@ -73,14 +73,14 @@
   .detail-overlay{
     display:none; position:fixed; inset:0; z-index:500;
     background:rgba(5,7,10,0.72); backdrop-filter:blur(2px);
-    align-items:flex-end; justify-content:center;
+    align-items:center; justify-content:center; padding:20px;
   }
   .detail-overlay.open{display:flex;}
   .detail-panel{
-    position:relative; width:100%; max-width:640px; max-height:72vh; overflow-y:auto;
-    padding:18px 18px 20px; border:1px solid var(--border); border-top-width:1px;
-    border-radius:14px 14px 0 0; background:var(--panel-alt); font-size:12.5px; color:var(--muted);
-    box-shadow:0 -8px 30px rgba(0,0,0,0.5);
+    position:relative; width:100%; max-width:520px; max-height:80vh; overflow-y:auto;
+    padding:18px 18px 20px; border:1px solid var(--border);
+    border-radius:14px; background:var(--panel-alt); font-size:12.5px; color:var(--muted);
+    box-shadow:0 12px 40px rgba(0,0,0,0.5);
   }
   .detail-panel .dt-title{color:var(--text); font-weight:700; font-size:14px; margin:2px 28px 4px 0;}
   .detail-panel .dt-meta{font-family:var(--mono); font-size:11px; margin-bottom:8px;}
@@ -672,6 +672,9 @@ async function loadDataAndInit(){
     }
   });
   activeTypes = new Set(Object.keys(GAME_CATS));
+  // These are noisy/high-volume by default — start hidden, easy to turn back on
+  ['territory', 'battlepass', 'voyage'].forEach(k => activeTypes.delete(k));
+  ticketedVisible = false;
 
   buildTzSelect();
   buildChips();
