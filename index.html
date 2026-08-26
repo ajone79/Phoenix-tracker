@@ -10,7 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/tracker-auth.js"></script>
 <script src="assets/phx-nav-menu.js"></script>
-<script src="events-data.js"></script>
+<script src="assets/game-events-data.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -193,6 +193,7 @@
   let tickerOtherQueue = [];
   let tickerRotateIdx = 0;
   let tickerStarted = false;
+  let tickerFeedEvents = [];
 
   function fmtCountdown(utcDate){
     const diffMs = utcDate - new Date();
@@ -209,23 +210,28 @@
     return 'in ' + parts.join(' ');
   }
 
+  /* Sources from the same data as Game Events / Gantt View (assets/game-events-data.js
+     + events-data-game.json), instead of the retired events-data.js arc calendar. */
   function recomputeTickerData(){
-    if(typeof EVENTS === 'undefined') return;
     const now = new Date();
+    const todayISO = toZoned(now.toISOString(), 'uk-auto').dateISO;
+    const winStart = todayISO;
+    const winEnd = addDays(winStart, 14);
 
-    const territoryHits = EVENTS
-      .filter(e => e.category === 'TERRITORY')
-      .map(ev => ({ev, occ: nextOccurrenceUTC(ev, now)}))
-      .filter(x => x.occ);
-    territoryHits.sort((a,b) => a.occ.utcDate - b.occ.utcDate);
-    tickerNextTerritory = territoryHits.slice(0, 2).map(x => ({ev: x.ev, utcDate: x.occ.utcDate}));
+    const territoryHits = generateRecurringEvents(TERRITORY_EVENTS, winStart, winEnd)
+      .map(ev => ({ev: {name: ev.title}, utcDate: new Date(ev.startUTC)}))
+      .filter(x => x.utcDate > now)
+      .sort((a,b) => a.utcDate - b.utcDate);
+    tickerNextTerritory = territoryHits.slice(0, 2);
 
-    const otherHits = EVENTS
-      .filter(e => e.category !== 'TERRITORY')
-      .map(ev => ({ev, occ: nextOccurrenceUTC(ev, now)}))
-      .filter(x => x.occ);
-    otherHits.sort((a,b) => a.occ.utcDate - b.occ.utcDate);
-    tickerOtherQueue = otherHits.slice(0, 10).map(x => ({ev: x.ev, utcDate: x.occ.utcDate, label: x.occ.label}));
+    const mergedFeed = buildMergedEvents(tickerFeedEvents).filter(e => e.eventSubType !== 'voyage_across_the_void');
+    const voyageOccurrences = generateRecurringEvents(VOYAGE_EVENTS, winStart, winEnd);
+    const otherHits = [...mergedFeed, ...voyageOccurrences]
+      .filter(ev => ev.startUTC && new Date(ev.startUTC) > now)
+      .filter(isNotableForTicker)
+      .map(ev => ({ev: {name: ev.title}, utcDate: new Date(ev.startUTC)}))
+      .sort((a,b) => a.utcDate - b.utcDate);
+    tickerOtherQueue = otherHits.slice(0, 10);
     if(tickerRotateIdx >= tickerOtherQueue.length) tickerRotateIdx = 0;
   }
 
@@ -277,13 +283,22 @@
   function startHeaderTicker(){
     if(tickerStarted) return;
     tickerStarted = true;
-    recomputeTickerData();
-    updateTickerDOM();
+    loadGameEventsFeed().then(({events}) => {
+      tickerFeedEvents = events;
+      recomputeTickerData();
+      updateTickerDOM();
+    });
     setInterval(rotateTicker, 5500);
-    setInterval(() => { recomputeTickerData(); updateTickerDOM(); }, 60000);
+    setInterval(() => {
+      loadGameEventsFeed().then(({events}) => {
+        tickerFeedEvents = events;
+        recomputeTickerData();
+        updateTickerDOM();
+      });
+    }, 60000);
   }
 
-  startHeaderTicker(); // independent of Supabase/login state — runs off events-data.js
+  startHeaderTicker(); // independent of Supabase/login state — runs off assets/game-events-data.js + events-data-game.json
 </script>
 </body>
 </html>
