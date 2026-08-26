@@ -217,10 +217,10 @@ async function loadGameEventsFeed(){
     const res = await fetch('events-data-game.json?t=' + Date.now(), {cache:'no-store'});
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const payload = await res.json();
-    return payload.events || [];
+    return {events: payload.events || [], generatedAt: payload.generatedAt || null};
   } catch(e){
     console.warn('events-data-game.json missing or empty — recurring events (Territory Capture, Voyage, etc.) still work.', e);
-    return [];
+    return {events: [], generatedAt: null};
   }
 }
 
