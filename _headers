@@ -1,0 +1,14 @@
+# Cloudflare Workers Static Assets supports this file (same syntax as Cloudflare Pages)
+# to set response headers per path. Without this, HTML pages were being cached
+# aggressively enough that updates required an incognito window or manual cache
+# clear to see — this forces every page load to revalidate with the origin first.
+#
+# "no-cache" does NOT mean "never cache" — it means the browser must revalidate
+# (a fast conditional request) before using any cached copy, so repeat visits
+# stay quick but never show stale content after a deploy.
+
+/*.html
+  Cache-Control: no-cache, must-revalidate
+
+/*.json
+  Cache-Control: no-cache, must-revalidate
