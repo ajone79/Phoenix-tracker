@@ -1,0 +1,43 @@
+name: Roster Sync (stfc.pro -> Supabase)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (true = report only, no writes to Supabase)"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+  # Once we've reviewed a few live runs and are happy with the results,
+  # uncomment this to run automatically:
+  # schedule:
+  #   - cron: "0 */6 * * *"  # every 6 hours
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run roster sync
+        env:
+          SUPABASE_URL: https://mmzizgsanwqjpiumpqay.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "false" ]; then
+            python scripts/sync_roster.py
+          else
+            python scripts/sync_roster.py --dry-run
+          fi
