@@ -7,8 +7,7 @@
 <script src="assets/tracker-auth.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Phoenix EU168 — ALB Participation</title>
-<meta name="description" content="Event scores, completion rates, and grade breakdowns for Phoenix EU168.">
+<title>Phoenix EU168 Events</title>
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/icon-eu168.png">
 <link rel="apple-touch-icon" href="/icon-eu168.png">
@@ -274,6 +273,53 @@ let rosterSort = {key:'status', dir:'asc'};
 let powerSnapshots = {}; // roster_id -> this month's baseline power, for growth % calc
 let lbSort = {key:'rank', dir:'asc'};
 let compSort = {key:'pct', dir:'desc'};
+
+/* ---------------- SAVED PREFERENCES (per-user, server-side) ---------------- */
+let preferencesLoaded = false; // gate saving until a restore attempt has happened first
+let savePrefsTimeout = null;
+
+function currentPreferences(){
+  return {
+    view, arcFilterId, compIncludeTest,
+    lbGradeFilters: Array.from(lbGradeFilters),
+    compGradeFilters: Array.from(compGradeFilters),
+    rosterSort, lbSort, compSort
+  };
+}
+
+function applyPreferences(prefs){
+  if(!prefs || typeof prefs !== 'object') return;
+  if(typeof prefs.view === 'string') view = prefs.view;
+  if(typeof prefs.arcFilterId === 'string') arcFilterId = prefs.arcFilterId;
+  if(typeof prefs.compIncludeTest === 'boolean') compIncludeTest = prefs.compIncludeTest;
+  if(Array.isArray(prefs.lbGradeFilters)) lbGradeFilters = new Set(prefs.lbGradeFilters);
+  if(Array.isArray(prefs.compGradeFilters)) compGradeFilters = new Set(prefs.compGradeFilters);
+  if(prefs.rosterSort && prefs.rosterSort.key) rosterSort = prefs.rosterSort;
+  if(prefs.lbSort && prefs.lbSort.key) lbSort = prefs.lbSort;
+  if(prefs.compSort && prefs.compSort.key) compSort = prefs.compSort;
+}
+
+function schedulePreferencesSave(){
+  if(!preferencesLoaded || !window.__trackerSb) return; // don't save until restore has happened, and only if authenticated
+  clearTimeout(savePrefsTimeout);
+  savePrefsTimeout = setTimeout(async ()=>{
+    try{
+      await window.__trackerSb.rpc('update_my_preferences', { new_prefs: currentPreferences() });
+    }catch(e){
+      console.error('Failed to save preferences', e);
+    }
+  }, 600);
+}
+
+document.addEventListener('tracker-auth-ready', ()=>{
+  applyPreferences(window.__trackerProfile && window.__trackerProfile.preferences);
+  preferencesLoaded = true;
+  render();
+});
+if (window.__trackerProfile) {
+  applyPreferences(window.__trackerProfile.preferences);
+  preferencesLoaded = true;
+}
 
 const app = document.getElementById('app');
 const toastEl = document.getElementById('toast');
@@ -739,6 +785,7 @@ function render(){
   else if(view==='arcCompletion') renderArcCompletion(main);
   else if(view==='overallCompletion') renderOverallCompletion(main);
   else if(view==='members') renderRoster(main);
+  schedulePreferencesSave();
 }
 
 /* ---------------- ARC COMPLETION (locked to current active arc) ---------------- */
