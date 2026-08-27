@@ -250,45 +250,68 @@ def main():
         candidates = by_norm_name.get(norm, [])
 
         if not candidates:
-            # Exact normalized match failed - try a low-confidence fuzzy
-            # fallback (handles edge cases like transliteration quirks,
-            # e.g. Cyrillic "Я" -> "Ia" instead of the "Ya" someone typed
-            # manually). Only accepted if exactly one unlinked roster row
-            # is a near-identical (<=2 edit distance) match - anything
-            # more ambiguous than that falls through to a manual flag.
-            candidate_names = [
-                (row, cand_norm)
-                for cand_norm, rows in by_norm_name.items()
-                for row in rows
+            # Exact normalized match failed - try low-confidence fallbacks,
+            # in order, stopping at the first that yields exactly one
+            # unambiguous, not-yet-linked roster row:
+            #   1. Small edit distance (handles transliteration quirks,
+            #      e.g. Cyrillic "Я" -> "Ia" instead of a manually typed "Ya")
+            #   2. Substring containment (handles decorative wrapping,
+            #      e.g. "oO一Riker一Oo" containing the core name "Riker")
+            # Anything more ambiguous than "exactly one candidate" falls
+            # through to a manual flag rather than guessing.
+            unlinked = [
+                r for r in roster
+                if not r.get("stfc_player_id") and r["id"] not in matched_roster_ids
             ]
+            candidate_norms = [(r, normalize_name(r["name"])) for r in unlinked]
+
             fuzzy_matches = [
-                (row, edit_distance(norm, cand_norm))
-                for row, cand_norm in candidate_names
-                if cand_norm and edit_distance(norm, cand_norm) <= 2
+                (r, cn, edit_distance(norm, cn))
+                for r, cn in candidate_norms
+                if cn and edit_distance(norm, cn) <= 2
             ]
             if len(fuzzy_matches) == 1:
-                match_row, dist = fuzzy_matches[0]
+                match_row, cn, dist = fuzzy_matches[0]
                 matched_roster_ids.add(match_row["id"])
                 print(
                     f"FUZZY BOOTSTRAP: linking '{member['name']}' -> roster id={match_row['id']} "
                     f"(stfc_player_id={pid}, was stored as '{match_row['name']}', edit distance={dist})"
                 )
                 insert_review(
-                    "rename",
-                    stfc_player_id=pid,
-                    roster_id=match_row["id"],
-                    scraped_name=member["name"],
-                    scraped_level=member["level"],
+                    "rename", stfc_player_id=pid, roster_id=match_row["id"],
+                    scraped_name=member["name"], scraped_level=member["level"],
                     previous_name=match_row["name"],
                     detail=f"Low-confidence fuzzy name match (edit distance={dist}) - please double-check.",
                     dry_run=dry_run,
                 )
                 update_roster_row(
-                    match_row["id"],
-                    name=member["name"],
-                    level=member["level"],
-                    stfc_player_id=pid,
+                    match_row["id"], name=member["name"], level=member["level"],
+                    stfc_player_id=pid, dry_run=dry_run,
+                )
+                bootstrapped += 1
+                continue
+
+            substring_matches = [
+                (r, cn) for r, cn in candidate_norms
+                if cn and len(cn) >= 4 and (cn in norm or norm in cn)
+            ]
+            if len(substring_matches) == 1:
+                match_row, cn = substring_matches[0]
+                matched_roster_ids.add(match_row["id"])
+                print(
+                    f"FUZZY BOOTSTRAP (substring): linking '{member['name']}' -> roster id={match_row['id']} "
+                    f"(stfc_player_id={pid}, was stored as '{match_row['name']}')"
+                )
+                insert_review(
+                    "rename", stfc_player_id=pid, roster_id=match_row["id"],
+                    scraped_name=member["name"], scraped_level=member["level"],
+                    previous_name=match_row["name"],
+                    detail="Low-confidence substring name match - please double-check.",
                     dry_run=dry_run,
+                )
+                update_roster_row(
+                    match_row["id"], name=member["name"], level=member["level"],
+                    stfc_player_id=pid, dry_run=dry_run,
                 )
                 bootstrapped += 1
                 continue
