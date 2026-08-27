@@ -115,8 +115,6 @@ let extractedRows = []; // {name, score, playerId, existingScore}
 let extractStatus = { loading: false, message: '', kind: '' };
 let guideOpen = false;
 let thresholdsOpen = false;
-let rosterOpen = false;
-let rosterSearch = '';
 let stitchedPreviews = []; // {id, dataUrl, sourceCount}
 let screensPerStitch = 5;
 let selectedEventId = '';
@@ -155,46 +153,6 @@ function eventThresholdRowHtml(e){
 function rerenderThresholdsTable(){
   document.querySelector('#eventThresholdsTable tbody').innerHTML = events.map(e => eventThresholdRowHtml(e)).join('');
   wireThresholdsTable();
-}
-
-function rosterTableRowsHtml(){
-  const q = rosterSearch.trim().toLowerCase();
-  const filtered = roster.filter(p => !q || p.name.toLowerCase().includes(q));
-  if (filtered.length === 0) return `<tr><td colspan="3" style="color:var(--text-faint);">No matches.</td></tr>`;
-  return filtered.map(p => `
-    <tr data-rosterrow="${p.id}">
-      <td>
-        <input type="text" data-namemedit="${p.id}" value="${escapeHtml(p.name)}">
-        <div style="font-size:9px;color:var(--text-faint);margin-top:2px;">${escapeHtml(p.id)}</div>
-      </td>
-      <td><input type="number" data-levelmedit="${p.id}" value="${p.level ?? ''}" min="1" style="width:70px;"></td>
-      <td><button class="btn save" data-saveroster="${p.id}">Save</button></td>
-    </tr>
-  `).join('');
-}
-
-function rerenderRosterTable(){
-  document.querySelector('#rosterTable tbody').innerHTML = rosterTableRowsHtml();
-  wireRosterTable();
-}
-
-function wireRosterTable(){
-  document.querySelectorAll('[data-saveroster]').forEach(b => b.addEventListener('click', async () => {
-    const playerId = b.dataset.saveroster;
-    const nameInput = document.querySelector(`[data-namemedit="${playerId}"]`);
-    const levelInput = document.querySelector(`[data-levelmedit="${playerId}"]`);
-    const newName = nameInput.value.trim();
-    if (!newName) { alert('Name cannot be blank.'); return; }
-    const levelRaw = levelInput.value.trim();
-    const newLevel = levelRaw === '' ? null : Number(levelRaw);
-    if (levelRaw !== '' && (!Number.isFinite(newLevel) || newLevel <= 0)) { alert('Level must be a positive number.'); return; }
-    const { error } = await sb.from('roster').update({ name: newName, level: newLevel }).eq('id', playerId);
-    if (error) { alert(`Error saving: ${error.message}`); return; }
-    const p = roster.find(r => r.id === playerId);
-    if (p) { p.name = newName; p.level = newLevel; }
-    b.textContent = 'Saved ✓';
-    setTimeout(() => { b.textContent = 'Save'; }, 1500);
-  }));
 }
 
 function wireThresholdsTable(){
@@ -341,17 +299,9 @@ function render(){
         </div>
       </div>
 
-      <button class="btn admin" id="rosterToggle" style="margin:18px 0 4px;">Manage roster / player names ${rosterOpen ? '▲ (hide)' : '▼ (show)'}</button>
-      <div id="rosterBox" style="${rosterOpen ? '' : 'display:none;'}">
-        <div class="import-box">
-          <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">
-            Each player has a permanent hidden ID (shown faded below) that all their scores are tied to — editing the name here only changes how they're displayed everywhere on the site. Past and future scores stay correctly attached to them automatically.
-          </div>
-          <input type="text" id="rosterSearchInput" placeholder="Search roster…" value="${escapeHtml(rosterSearch)}" style="width:100%;margin-bottom:10px;">
-          <table class="review-table" id="rosterTable">
-            <thead><tr><th>Player</th><th>Level</th><th></th></tr></thead>
-            <tbody>${rosterTableRowsHtml()}</tbody>
-          </table>
+      <div class="import-box" style="margin:18px 0 4px;">
+        <div style="font-size:12px;color:var(--text-dim);">
+          ⚙️ AJ worked some magic — player names and levels now auto-update from stfc.pro every 6 hours. No manual editing needed here anymore.
         </div>
       </div>
 
@@ -383,21 +333,7 @@ function render(){
     thresholdsToggle.textContent = `Manage event thresholds ${thresholdsOpen ? '▲ (hide)' : '▼ (show)'}`;
   });
 
-  const rosterToggle = document.getElementById('rosterToggle');
-  if (rosterToggle) rosterToggle.addEventListener('click', () => {
-    rosterOpen = !rosterOpen;
-    const box = document.getElementById('rosterBox');
-    box.style.display = rosterOpen ? '' : 'none';
-    rosterToggle.textContent = `Manage roster / player names ${rosterOpen ? '▲ (hide)' : '▼ (show)'}`;
-  });
-  const rosterSearchInput = document.getElementById('rosterSearchInput');
-  if (rosterSearchInput) rosterSearchInput.addEventListener('input', () => {
-    rosterSearch = rosterSearchInput.value;
-    rerenderRosterTable();
-  });
-
   wireThresholdsTable();
-  wireRosterTable();
 
   if (window.__phxInitNavMenu) window.__phxInitNavMenu();
 }
