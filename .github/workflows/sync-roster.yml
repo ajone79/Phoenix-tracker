@@ -11,10 +11,10 @@ on:
         options:
           - "true"
           - "false"
-  # Once we've reviewed a few live runs and are happy with the results,
-  # uncomment this to run automatically:
-  # schedule:
-  #   - cron: "0 */6 * * *"  # every 6 hours
+  # Runs automatically every 6 hours, and can also be triggered manually
+  # from the Actions tab (with an explicit dry-run choice) for testing.
+  schedule:
+    - cron: "0 */6 * * *"  # every 6 hours
 
 jobs:
   sync:
@@ -36,8 +36,11 @@ jobs:
           SUPABASE_URL: https://mmzizgsanwqjpiumpqay.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          if [ "${{ github.event.inputs.dry_run }}" = "false" ]; then
-            python scripts/sync_roster.py
-          else
+          # Scheduled runs (cron) always go live. Manual runs (workflow_dispatch)
+          # respect the dry_run choice - defaulting to dry-run for safety if
+          # that input is ever missing for some reason.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.dry_run }}" != "false" ]; then
             python scripts/sync_roster.py --dry-run
+          else
+            python scripts/sync_roster.py
           fi
