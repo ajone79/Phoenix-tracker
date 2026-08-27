@@ -167,7 +167,7 @@ function rosterTableRowsHtml(){
         <input type="text" data-namemedit="${p.id}" value="${escapeHtml(p.name)}">
         <div style="font-size:9px;color:var(--text-faint);margin-top:2px;">${escapeHtml(p.id)}</div>
       </td>
-      <td>${p.level ?? ''}</td>
+      <td><input type="number" data-levelmedit="${p.id}" value="${p.level ?? ''}" min="1" style="width:70px;"></td>
       <td><button class="btn save" data-saveroster="${p.id}">Save</button></td>
     </tr>
   `).join('');
@@ -181,13 +181,17 @@ function rerenderRosterTable(){
 function wireRosterTable(){
   document.querySelectorAll('[data-saveroster]').forEach(b => b.addEventListener('click', async () => {
     const playerId = b.dataset.saveroster;
-    const input = document.querySelector(`[data-namemedit="${playerId}"]`);
-    const newName = input.value.trim();
+    const nameInput = document.querySelector(`[data-namemedit="${playerId}"]`);
+    const levelInput = document.querySelector(`[data-levelmedit="${playerId}"]`);
+    const newName = nameInput.value.trim();
     if (!newName) { alert('Name cannot be blank.'); return; }
-    const { error } = await sb.from('roster').update({ name: newName }).eq('id', playerId);
-    if (error) { alert(`Error saving name: ${error.message}`); return; }
+    const levelRaw = levelInput.value.trim();
+    const newLevel = levelRaw === '' ? null : Number(levelRaw);
+    if (levelRaw !== '' && (!Number.isFinite(newLevel) || newLevel <= 0)) { alert('Level must be a positive number.'); return; }
+    const { error } = await sb.from('roster').update({ name: newName, level: newLevel }).eq('id', playerId);
+    if (error) { alert(`Error saving: ${error.message}`); return; }
     const p = roster.find(r => r.id === playerId);
-    if (p) p.name = newName;
+    if (p) { p.name = newName; p.level = newLevel; }
     b.textContent = 'Saved ✓';
     setTimeout(() => { b.textContent = 'Save'; }, 1500);
   }));
