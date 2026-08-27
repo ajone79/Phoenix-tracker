@@ -285,29 +285,64 @@ let activeTypes = new Set(); // multi-select — populated with all keys once GA
 let selectedGrade = null; // null = show all grades; otherwise a single 'G1'..'G8' (isolate on tap)
 let ticketedVisible = true; // default-on, same as every type chip — click hides ticketed events specifically
 
-/* ---------------- SAVED FILTER PREFERENCES (localStorage — this page has no login) ---------------- */
-const PREFS_KEY = 'phx-events-calendar-prefs';
+/* ---------------- SAVED FILTER PREFERENCES (server-side, per logged-in user) ---------------- */
+let filterPrefsLoaded = false; // gate saving until a restore attempt has happened first
+let saveFilterPrefsTimeout = null;
+
+function currentFilterPrefs(){
+  return {
+    activeTypes: Array.from(activeTypes),
+    selectedGrade,
+    ticketedVisible,
+    tz: el('tzSelect') ? el('tzSelect').value : undefined,
+    search: el('searchBox') ? el('searchBox').value : undefined
+  };
+}
+
+function applyFilterPrefs(prefs){
+  if(!prefs || typeof prefs !== 'object') return;
+  if(Array.isArray(prefs.activeTypes)){
+    // Only keep types that still exist — a category could have been renamed/removed since saving.
+    activeTypes = new Set(prefs.activeTypes.filter(t => GAME_CATS[t]));
+  }
+  if(prefs.selectedGrade === null || (typeof prefs.selectedGrade === 'string' && GRADE_BANDS[prefs.selectedGrade])){
+    selectedGrade = prefs.selectedGrade;
+  }
+  if(typeof prefs.ticketedVisible === 'boolean') ticketedVisible = prefs.ticketedVisible;
+  if(prefs.tz && el('tzSelect') && Array.from(el('tzSelect').options).some(o => o.value === prefs.tz)){
+    el('tzSelect').value = prefs.tz;
+  }
+  if(typeof prefs.search === 'string' && el('searchBox')){
+    el('searchBox').value = prefs.search;
+  }
+}
 
 function saveFilterPrefs(){
-  try{
-    const prefs = {
-      activeTypes: Array.from(activeTypes),
-      selectedGrade,
-      ticketedVisible,
-      tz: el('tzSelect') ? el('tzSelect').value : undefined,
-      search: el('searchBox') ? el('searchBox').value : undefined
-    };
-    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
-  }catch(e){ /* localStorage unavailable (private browsing, etc.) — fail silently */ }
+  if(!filterPrefsLoaded || !window.__trackerSb) return; // don't save until restore has happened, and only if authenticated
+  clearTimeout(saveFilterPrefsTimeout);
+  saveFilterPrefsTimeout = setTimeout(async ()=>{
+    try{
+      await window.__trackerSb.rpc('update_my_preferences', { new_prefs: { eventsCalendar: currentFilterPrefs() } });
+    }catch(e){
+      console.error('Failed to save filter preferences', e);
+    }
+  }, 600);
 }
 
-function loadFilterPrefs(){
-  try{
-    const raw = localStorage.getItem(PREFS_KEY);
-    if(!raw) return null;
-    return JSON.parse(raw);
-  }catch(e){ return null; }
+document.addEventListener('tracker-auth-ready', ()=>{
+  const saved = window.__trackerProfile && window.__trackerProfile.preferences && window.__trackerProfile.preferences.eventsCalendar;
+  applyFilterPrefs(saved);
+  filterPrefsLoaded = true;
+  buildChips();
+  buildGradeChips();
+  render();
+});
+if (window.__trackerProfile) {
+  const saved = window.__trackerProfile.preferences && window.__trackerProfile.preferences.eventsCalendar;
+  applyFilterPrefs(saved);
+  filterPrefsLoaded = true;
 }
+
 const el = id => document.getElementById(id);
 const DEFAULT_WINDOW_DAYS = 30; // fixed window, no manual date-range picker
 
@@ -572,30 +607,6 @@ function init(){
   buildTzSelect();
   buildChips();
   buildGradeChips();
-
-  // Restore saved filter selections (if any), then rebuild the chip UI so
-  // the on/off highlighting reflects the restored state before first render.
-  const savedPrefs = loadFilterPrefs();
-  if(savedPrefs){
-    if(Array.isArray(savedPrefs.activeTypes)){
-      // Only keep types that still exist — a category could have been renamed/removed since saving.
-      activeTypes = new Set(savedPrefs.activeTypes.filter(t => GAME_CATS[t]));
-    }
-    if(typeof savedPrefs.selectedGrade === 'string' && GRADE_BANDS[savedPrefs.selectedGrade]){
-      selectedGrade = savedPrefs.selectedGrade;
-    }
-    if(typeof savedPrefs.ticketedVisible === 'boolean'){
-      ticketedVisible = savedPrefs.ticketedVisible;
-    }
-    if(savedPrefs.tz && el('tzSelect') && Array.from(el('tzSelect').options).some(o => o.value === savedPrefs.tz)){
-      el('tzSelect').value = savedPrefs.tz;
-    }
-    if(typeof savedPrefs.search === 'string' && el('searchBox')){
-      el('searchBox').value = savedPrefs.search;
-    }
-    buildChips();
-    buildGradeChips();
-  }
 
   render();
   requestAnimationFrame(() => setTimeout(jumpToToday, 50));
