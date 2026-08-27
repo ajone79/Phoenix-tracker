@@ -605,7 +605,7 @@ function init(){
   // Only default to "all types on" if a restore hasn't already happened -
   // otherwise this would unconditionally wipe out a restored selection
   // whenever tracker-auth-ready fires before this data fetch completes.
-  // (redeploy nudge)
+  // (redeploy trigger test after Cloudflare Git integration reconnect)
   if(!filterPrefsLoaded){
     activeTypes = new Set(Object.keys(GAME_CATS));
   }
