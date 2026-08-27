@@ -12,7 +12,7 @@
 
   function loginUrl(){
     const next = encodeURIComponent(location.pathname + location.search);
-    return `login.html?next=${next}`;
+    return `/login.html?next=${next}`;
   }
 
   function renderScreen(innerHtml){
@@ -80,7 +80,7 @@
         <p>You're signed in as <b class="accent">${escapeHtml((profile && profile.discord_username) || user.email || 'a member')}</b>, but an alliance admin hasn't whitelisted you yet.<br><br>Ping an officer in Discord and they'll approve your access — no need to log in again once they do.</p>
         <button class="btn ghost" id="signout">Sign out</button>
       `);
-      document.getElementById('signout').addEventListener('click', async ()=>{ await sb.auth.signOut(); location.href='login.html'; });
+      document.getElementById('signout').addEventListener('click', async ()=>{ await sb.auth.signOut(); location.href='/login.html'; });
       return;
     }
 
@@ -102,7 +102,7 @@
       document.getElementById('tracker-signout').addEventListener('click', async (e)=>{
         e.preventDefault();
         await sb.auth.signOut();
-        location.href='login.html';
+        location.href='/login.html';
       });
     }
   }
