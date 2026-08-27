@@ -57,10 +57,24 @@ def normalize_name(name: str) -> str:
     return re.sub(r"[^a-zA-Z0-9]", "", stripped).lower()
 
 
+# Matches player records embedded in the page's React Server Components
+# flight payload, e.g.:
+#   \"playerid\":904585196,\"shaplayerid\":\"...\",\"owner\":\"ajone79\", ... \"level\":72
+# This data appears escaped inside inline <script> chunks (self.__next_f.push(...)),
+# not in a clean __NEXT_DATA__ blob, and each player currently appears twice
+# (server-rendered + hydration payload) with identical values - deduped below.
+MEMBER_PATTERN = re.compile(
+    r'\\"playerid\\":(\d+),'
+    r'\\"shaplayerid\\":\\"[^\\"]*\\",'
+    r'\\"owner\\":\\"([^\\"]*)\\".*?'
+    r'\\"level\\":(\d+)'
+)
+
+
 def fetch_alliance_members():
-    """Fetch the alliance page and pull member data out of the embedded
-    Next.js __NEXT_DATA__ JSON blob. Returns a list of dicts with at
-    least: name, level, stfc_player_id."""
+    """Fetch the alliance page and pull member data (playerid/owner/level)
+    out of the embedded React Server Components flight payload. Returns a
+    list of dicts with: stfc_player_id, name, level."""
     resp = requests.get(
         ALLIANCE_URL,
         headers={"User-Agent": "Mozilla/5.0 (compatible; PhoenixRosterSync/1.0)"},
@@ -69,73 +83,31 @@ def fetch_alliance_members():
     resp.raise_for_status()
     html = resp.text
 
-    match = re.search(
-        r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>',
-        html,
-        re.DOTALL,
-    )
-    if not match:
+    matches = MEMBER_PATTERN.findall(html)
+    if not matches:
         raise RuntimeError(
-            "Could not find __NEXT_DATA__ in the page. stfc.pro may have "
-            "changed how it renders this page - the parsing logic here "
+            "Could not find any player records in the page. stfc.pro may "
+            "have changed its page structure - the parsing logic here "
             "will need updating."
         )
 
-    data = json.loads(match.group(1))
-    members = _find_member_list(data)
-    if not members:
-        raise RuntimeError(
-            "Found __NEXT_DATA__ but could not locate a member list inside "
-            "it. Dumping top-level keys for debugging: "
-            + str(list(data.get("props", {}).get("pageProps", {}).keys()))
-        )
-
+    seen_ids = set()
     result = []
-    for m in members:
-        player_id = str(
-            m.get("id") or m.get("playerId") or m.get("player_id") or ""
-        ).strip()
-        name = (m.get("name") or "").strip()
-        level = m.get("level")
-        if not player_id or not name or level is None:
-            continue
+    for player_id, name, level in matches:
+        if player_id in seen_ids:
+            continue  # de-dupe (data currently appears twice per player)
+        seen_ids.add(player_id)
+        # The captured name may still contain JSON escape sequences
+        # (e.g. \\u1234) since it was pulled out of an escaped JSON string.
+        decoded_name = json.loads(f'"{name}"')
         result.append(
             {
                 "stfc_player_id": player_id,
-                "name": name,
+                "name": decoded_name.strip(),
                 "level": int(level),
             }
         )
     return result
-
-
-def _find_member_list(node, _depth=0):
-    """Recursively search the Next.js data tree for the list of alliance
-    members. We look for a list of dicts that each have a 'name' and a
-    'level' key, and pick the longest such list we find."""
-    if _depth > 12:
-        return None
-
-    best = None
-
-    if isinstance(node, list):
-        if node and all(
-            isinstance(item, dict) and "name" in item and "level" in item
-            for item in node
-        ):
-            best = node
-        for item in node:
-            candidate = _find_member_list(item, _depth + 1)
-            if candidate and (best is None or len(candidate) > len(best)):
-                best = candidate
-
-    elif isinstance(node, dict):
-        for value in node.values():
-            candidate = _find_member_list(value, _depth + 1)
-            if candidate and (best is None or len(candidate) > len(best)):
-                best = candidate
-
-    return best
 
 
 def fetch_roster():
