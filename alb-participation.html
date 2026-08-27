@@ -270,6 +270,7 @@ let arcFilterId = null; // 'ALL' or an arc id; initialized after load
 let lastLoadedAt = null;
 let dataUpdatedAt = null;
 let rosterSort = {key:'status', dir:'asc'};
+let powerSnapshots = {}; // roster_id -> this month's baseline power, for growth % calc
 let lbSort = {key:'rank', dir:'asc'};
 let compSort = {key:'pct', dir:'desc'};
 
@@ -412,6 +413,24 @@ function gradeForLevel(level){ level=Number(level); if(level<=20) return 'G1'; r
 function gradeClass(g){ return 'pill-'+g.toLowerCase(); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtDDMM(dateStr){ if(!dateStr) return ''; const parts=String(dateStr).split('-'); if(parts.length<3) return ''; return parts[2]+'/'+parts[1]; }
+function fmtPower(n){
+  if(n===null || n===undefined) return '—';
+  if(n>=1e9) return (n/1e9).toFixed(2)+'B';
+  if(n>=1e6) return (n/1e6).toFixed(2)+'M';
+  if(n>=1e3) return (n/1e3).toFixed(1)+'K';
+  return String(n);
+}
+function powerGrowthPct(p){
+  const baseline = powerSnapshots[p.id];
+  if(!baseline || p.power===null || p.power===undefined) return null;
+  return ((p.power - baseline) / baseline) * 100;
+}
+function fmtGrowthPct(pct){
+  if(pct===null) return '<span style="color:var(--text-faint);">—</span>';
+  const sign = pct>0 ? '+' : '';
+  const color = pct>0 ? 'var(--mint)' : pct<0 ? 'var(--alert)' : 'var(--text-faint)';
+  return `<span style="color:${color};">${sign}${pct.toFixed(1)}%</span>`;
+}
 
 async function sb(path){
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -435,15 +454,20 @@ function updateDbBadge(){
 async function loadAll(){
   setDbStatus('connecting');
   try{
-    const [rosterRows, eventRows, scoreRows, arcRows, latestScore, latestEvent] = await Promise.all([
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+    const [rosterRows, eventRows, scoreRows, arcRows, latestScore, latestEvent, snapshotRows] = await Promise.all([
       sb('roster?select=*&order=name.asc'),
       sb('events?select=*&order=date.desc'),
       sb('scores?select=*'),
       sb('arcs?select=*&order=end_date.desc'),
       sb('scores?select=updated_at&order=updated_at.desc&limit=1'),
-      sb('events?select=updated_at&order=updated_at.desc&limit=1')
+      sb('events?select=updated_at&order=updated_at.desc&limit=1'),
+      sb(`roster_power_snapshots?select=roster_id,power&snapshot_month=eq.${monthStart}`)
     ]);
     roster = rosterRows || [];
+    powerSnapshots = {};
+    (snapshotRows||[]).forEach(s=>{ powerSnapshots[s.roster_id] = s.power; });
     arcs = arcRows || [];
     const arcById = {}; arcs.forEach(a=>{ arcById[a.id]=a; });
     events = (eventRows||[]).map(e=>({...e, entries:{}, arc: arcById[e.arc_id]||null}));
@@ -951,13 +975,15 @@ function renderRoster(main){
     if(rosterSort.key==='name'){ av=a.name.toLowerCase(); bv=b.name.toLowerCase(); }
     else if(rosterSort.key==='level'){ av=a.level; bv=b.level; }
     else if(rosterSort.key==='grade'){ av=parseInt(gradeForLevel(a.level).slice(1)); bv=parseInt(gradeForLevel(b.level).slice(1)); }
+    else if(rosterSort.key==='power'){ av=a.power||0; bv=b.power||0; }
+    else if(rosterSort.key==='growth'){ av=powerGrowthPct(a); bv=powerGrowthPct(b); av=av===null?-Infinity:av; bv=bv===null?-Infinity:bv; }
     else { av=a.status; bv=b.status; }
     const c = cmp(av,bv,rosterSort.dir);
     return c!==0 ? c : a.name.localeCompare(b.name);
   });
   main.innerHTML = `
     <div class="section-head"><h1>Alliance <span class="accent">Members</span></h1></div>
-    <div class="section-desc" style="margin-bottom:16px;">Grade is calculated from level (G1 spans 1–20; every band after that is 10 levels wide). Click a column header to sort.</div>
+    <div class="section-desc" style="margin-bottom:16px;">Grade is calculated from level (G1 spans 1–20; every band after that is 10 levels wide). Power is each player's max power from stfc.pro, refreshed every 6 hours. Growth % compares current power against this month's baseline. Click a column header to sort.</div>
     ${updatedLine()}
     <div class="table-wrap">
       <div class="table-actions">
@@ -970,12 +996,15 @@ function renderRoster(main){
           <th class="sortable col-freeze" data-sort="name">Name${sortArrow(rosterSort,'name')}</th>
           <th class="sortable" data-sort="level">Level${sortArrow(rosterSort,'level')}</th>
           <th class="sortable" data-sort="grade">Grade${sortArrow(rosterSort,'grade')}</th>
+          <th class="sortable" data-sort="power">Power${sortArrow(rosterSort,'power')}</th>
+          <th class="sortable" data-sort="growth">Growth %${sortArrow(rosterSort,'growth')}</th>
           <th class="sortable" data-sort="status">Status${sortArrow(rosterSort,'status')}</th>
         </tr></thead>
         <tbody>
         ${sorted.map(p=>{
           const g=gradeForLevel(p.level); const inactive=p.status!=='active';
-          return `<tr class="${inactive?'status-inactive':''}"><td class="col-freeze">${escapeHtml(p.name)}</td><td>${p.level}</td><td><span class="pill ${gradeClass(g)}">${g}</span></td><td>${p.status==='active'?'Active':'Inactive'}</td></tr>`;
+          const growth = powerGrowthPct(p);
+          return `<tr class="${inactive?'status-inactive':''}"><td class="col-freeze">${escapeHtml(p.name)}</td><td>${p.level}</td><td><span class="pill ${gradeClass(g)}">${g}</span></td><td>${fmtPower(p.power)}</td><td>${fmtGrowthPct(growth)}</td><td>${p.status==='active'?'Active':'Inactive'}</td></tr>`;
         }).join('')}
         </tbody>
       </table>
