@@ -602,7 +602,12 @@ function init(){
   // Discover any event types present in the feed that aren't already
   // mapped, so nothing is ever silently excluded from the type list.
   augmentCategoriesFromEvents(buildMergedEvents(GAME_EVENTS));
-  activeTypes = new Set(Object.keys(GAME_CATS));
+  // Only default to "all types on" if a restore hasn't already happened -
+  // otherwise this would unconditionally wipe out a restored selection
+  // whenever tracker-auth-ready fires before this data fetch completes.
+  if(!filterPrefsLoaded){
+    activeTypes = new Set(Object.keys(GAME_CATS));
+  }
 
   buildTzSelect();
   buildChips();
