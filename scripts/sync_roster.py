@@ -26,6 +26,7 @@ anything to Supabase.
 """
 
 import argparse
+import datetime
 import json
 import os
 import re
@@ -83,7 +84,8 @@ MEMBER_PATTERN = re.compile(
     r'\\"playerid\\":(\d+),'
     r'\\"shaplayerid\\":\\"[^\\"]*\\",'
     r'\\"owner\\":\\"([^\\"]*)\\".*?'
-    r'\\"level\\":(\d+)'
+    r'\\"level\\":(\d+).*?'
+    r'\\"power\\":(\d+),\\"max_power\\":(\d+)'
 )
 
 
@@ -109,7 +111,7 @@ def fetch_alliance_members():
 
     seen_ids = set()
     result = []
-    for player_id, name, level in matches:
+    for player_id, name, level, power, max_power in matches:
         if player_id in seen_ids:
             continue  # de-dupe (data currently appears twice per player)
         seen_ids.add(player_id)
@@ -121,6 +123,7 @@ def fetch_alliance_members():
                 "stfc_player_id": player_id,
                 "name": decoded_name.strip(),
                 "level": int(level),
+                "power": int(max_power),  # max_power is the stable growth metric; power (current) fluctuates with active fleets
             }
         )
     return result
@@ -130,14 +133,14 @@ def fetch_roster():
     resp = requests.get(
         f"{SUPABASE_URL}/rest/v1/roster",
         headers=HEADERS_SUPABASE,
-        params={"select": "id,name,level,status,stfc_player_id"},
+        params={"select": "id,name,level,status,stfc_player_id,power"},
         timeout=30,
     )
     resp.raise_for_status()
     return resp.json()
 
 
-def update_roster_row(roster_id, name=None, level=None, stfc_player_id=None, dry_run=True):
+def update_roster_row(roster_id, name=None, level=None, stfc_player_id=None, power=None, dry_run=True):
     payload = {}
     if name is not None:
         payload["name"] = name
@@ -145,6 +148,8 @@ def update_roster_row(roster_id, name=None, level=None, stfc_player_id=None, dry
         payload["level"] = level
     if stfc_player_id is not None:
         payload["stfc_player_id"] = stfc_player_id
+    if power is not None:
+        payload["power"] = power
 
     if dry_run:
         print(f"  [DRY RUN] would PATCH roster id={roster_id} with {payload}")
@@ -155,6 +160,34 @@ def update_roster_row(roster_id, name=None, level=None, stfc_player_id=None, dry
         headers=HEADERS_SUPABASE,
         params={"id": f"eq.{roster_id}"},
         json=payload,
+        timeout=30,
+    )
+    resp.raise_for_status()
+
+
+def ensure_monthly_power_snapshot(roster_id, power, dry_run=True):
+    """Insert this month's power baseline for a player if one doesn't
+    already exist. Relies on the DB's unique (roster_id, snapshot_month)
+    constraint + ignore-duplicates to make this safe to call on every
+    run without checking first - only the first successful call each
+    month actually writes anything."""
+    today = datetime.date.today()
+    snapshot_month = today.replace(day=1).isoformat()
+
+    if dry_run:
+        print(f"  [DRY RUN] would ensure power snapshot for roster id={roster_id}, month={snapshot_month}, power={power}")
+        return
+
+    resp = requests.post(
+        f"{SUPABASE_URL}/rest/v1/roster_power_snapshots",
+        headers={**HEADERS_SUPABASE, "Prefer": "resolution=ignore-duplicates"},
+        params={"on_conflict": "roster_id,snapshot_month"},
+        json={
+            "roster_id": roster_id,
+            "snapshot_month": snapshot_month,
+            "captured_date": today.isoformat(),
+            "power": power,
+        },
         timeout=30,
     )
     resp.raise_for_status()
@@ -222,8 +255,10 @@ def main():
 
         if roster_row:
             matched_roster_ids.add(roster_row["id"])
-            # Known player - update name/level, detect renames.
-            changes = {}
+            # Known player - update name/level/power, detect renames.
+            # Power changes constantly (active fleets, combat, etc.) so it's
+            # always refreshed, unlike name/level which only write on change.
+            changes = {"power": member["power"]}
             if roster_row["name"] != member["name"]:
                 changes["name"] = member["name"]
                 print(f"RENAME: '{roster_row['name']}' -> '{member['name']}' (id={roster_row['id']})")
@@ -240,9 +275,9 @@ def main():
             if roster_row["level"] != member["level"]:
                 changes["level"] = member["level"]
 
-            if changes:
-                update_roster_row(roster_row["id"], dry_run=dry_run, **changes)
-                updates += 1
+            update_roster_row(roster_row["id"], dry_run=dry_run, **changes)
+            updates += 1
+            ensure_monthly_power_snapshot(roster_row["id"], member["power"], dry_run=dry_run)
             continue
 
         # No stfc_player_id match - try one-time bootstrap by normalised name.
@@ -286,8 +321,9 @@ def main():
                 )
                 update_roster_row(
                     match_row["id"], name=member["name"], level=member["level"],
-                    stfc_player_id=pid, dry_run=dry_run,
+                    stfc_player_id=pid, power=member["power"], dry_run=dry_run,
                 )
+                ensure_monthly_power_snapshot(match_row["id"], member["power"], dry_run=dry_run)
                 bootstrapped += 1
                 continue
 
@@ -311,8 +347,9 @@ def main():
                 )
                 update_roster_row(
                     match_row["id"], name=member["name"], level=member["level"],
-                    stfc_player_id=pid, dry_run=dry_run,
+                    stfc_player_id=pid, power=member["power"], dry_run=dry_run,
                 )
+                ensure_monthly_power_snapshot(match_row["id"], member["power"], dry_run=dry_run)
                 bootstrapped += 1
                 continue
 
@@ -325,8 +362,10 @@ def main():
                 name=member["name"],
                 level=member["level"],
                 stfc_player_id=pid,
+                power=member["power"],
                 dry_run=dry_run,
             )
+            ensure_monthly_power_snapshot(match_row["id"], member["power"], dry_run=dry_run)
             bootstrapped += 1
             continue
 
