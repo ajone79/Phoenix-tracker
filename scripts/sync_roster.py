@@ -30,9 +30,9 @@ import json
 import os
 import re
 import sys
-import unicodedata
 
 import requests
+from unidecode import unidecode
 
 ALLIANCE_URL = "https://stfc.pro/alliances/2469265874"
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
@@ -46,15 +46,31 @@ HEADERS_SUPABASE = {
 
 
 def normalize_name(name: str) -> str:
-    """Strip accents/diacritics/special marks and lowercase, for fuzzy
-    one-time bootstrap matching only. Not used once stfc_player_id is set."""
+    """Transliterate to closest ASCII equivalent (handles accents, Greek,
+    Cyrillic, decorative marks, etc.) and lowercase, for one-time bootstrap
+    matching only. Not used once stfc_player_id is set."""
     if not name:
         return ""
-    decomposed = unicodedata.normalize("NFKD", name)
-    stripped = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
-    # Drop anything that isn't a letter or digit (handles CJK-ish combining
-    # marks like ᄼ, decorative dashes like ー, etc.)
-    return re.sub(r"[^a-zA-Z0-9]", "", stripped).lower()
+    ascii_name = unidecode(name)
+    return re.sub(r"[^a-zA-Z0-9]", "", ascii_name).lower()
+
+
+def edit_distance(a: str, b: str) -> int:
+    """Standard Levenshtein distance, used only as a low-confidence
+    fallback when exact normalized-name matching finds nothing."""
+    if a == b:
+        return 0
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        curr = [i] + [0] * len(b)
+        for j, cb in enumerate(b, 1):
+            curr[j] = min(
+                prev[j] + 1,
+                curr[j - 1] + 1,
+                prev[j - 1] + (ca != cb),
+            )
+        prev = curr
+    return prev[-1]
 
 
 # Matches player records embedded in the page's React Server Components
@@ -232,6 +248,51 @@ def main():
         # No stfc_player_id match - try one-time bootstrap by normalised name.
         norm = normalize_name(member["name"])
         candidates = by_norm_name.get(norm, [])
+
+        if not candidates:
+            # Exact normalized match failed - try a low-confidence fuzzy
+            # fallback (handles edge cases like transliteration quirks,
+            # e.g. Cyrillic "Я" -> "Ia" instead of the "Ya" someone typed
+            # manually). Only accepted if exactly one unlinked roster row
+            # is a near-identical (<=2 edit distance) match - anything
+            # more ambiguous than that falls through to a manual flag.
+            candidate_names = [
+                (row, cand_norm)
+                for cand_norm, rows in by_norm_name.items()
+                for row in rows
+            ]
+            fuzzy_matches = [
+                (row, edit_distance(norm, cand_norm))
+                for row, cand_norm in candidate_names
+                if cand_norm and edit_distance(norm, cand_norm) <= 2
+            ]
+            if len(fuzzy_matches) == 1:
+                match_row, dist = fuzzy_matches[0]
+                matched_roster_ids.add(match_row["id"])
+                print(
+                    f"FUZZY BOOTSTRAP: linking '{member['name']}' -> roster id={match_row['id']} "
+                    f"(stfc_player_id={pid}, was stored as '{match_row['name']}', edit distance={dist})"
+                )
+                insert_review(
+                    "rename",
+                    stfc_player_id=pid,
+                    roster_id=match_row["id"],
+                    scraped_name=member["name"],
+                    scraped_level=member["level"],
+                    previous_name=match_row["name"],
+                    detail=f"Low-confidence fuzzy name match (edit distance={dist}) - please double-check.",
+                    dry_run=dry_run,
+                )
+                update_roster_row(
+                    match_row["id"],
+                    name=member["name"],
+                    level=member["level"],
+                    stfc_player_id=pid,
+                    dry_run=dry_run,
+                )
+                bootstrapped += 1
+                continue
+
         if len(candidates) == 1:
             match_row = candidates[0]
             matched_roster_ids.add(match_row["id"])
