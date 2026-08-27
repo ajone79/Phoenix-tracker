@@ -282,6 +282,30 @@ const DESC_TRUNCATE_LEN = 160;
 let activeTypes = new Set(); // multi-select — populated with all keys once GAME_CATS is finalized
 let selectedGrade = null; // null = show all grades; otherwise a single 'G1'..'G8' (isolate on tap)
 let ticketedVisible = true; // default-on, same as every type chip — click hides ticketed events specifically
+
+/* ---------------- SAVED FILTER PREFERENCES (localStorage — this page has no login) ---------------- */
+const PREFS_KEY = 'phx-events-calendar-prefs';
+
+function saveFilterPrefs(){
+  try{
+    const prefs = {
+      activeTypes: Array.from(activeTypes),
+      selectedGrade,
+      ticketedVisible,
+      tz: el('tzSelect') ? el('tzSelect').value : undefined,
+      search: el('searchBox') ? el('searchBox').value : undefined
+    };
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  }catch(e){ /* localStorage unavailable (private browsing, etc.) — fail silently */ }
+}
+
+function loadFilterPrefs(){
+  try{
+    const raw = localStorage.getItem(PREFS_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){ return null; }
+}
 const el = id => document.getElementById(id);
 const DEFAULT_WINDOW_DAYS = 30; // fixed window, no manual date-range picker
 
@@ -507,6 +531,7 @@ function render(){
   if(totalMatches === 0){
     dayList.innerHTML = '<div class="empty-day">No events match your filters in this date range.</div>';
   }
+  saveFilterPrefs();
 }
 function dateLabelShort(dISO){
   const [y,mo,d] = dISO.split('-').map(Number);
@@ -545,6 +570,30 @@ function init(){
   buildTzSelect();
   buildChips();
   buildGradeChips();
+
+  // Restore saved filter selections (if any), then rebuild the chip UI so
+  // the on/off highlighting reflects the restored state before first render.
+  const savedPrefs = loadFilterPrefs();
+  if(savedPrefs){
+    if(Array.isArray(savedPrefs.activeTypes)){
+      // Only keep types that still exist — a category could have been renamed/removed since saving.
+      activeTypes = new Set(savedPrefs.activeTypes.filter(t => GAME_CATS[t]));
+    }
+    if(typeof savedPrefs.selectedGrade === 'string' && GRADE_BANDS[savedPrefs.selectedGrade]){
+      selectedGrade = savedPrefs.selectedGrade;
+    }
+    if(typeof savedPrefs.ticketedVisible === 'boolean'){
+      ticketedVisible = savedPrefs.ticketedVisible;
+    }
+    if(savedPrefs.tz && el('tzSelect') && Array.from(el('tzSelect').options).some(o => o.value === savedPrefs.tz)){
+      el('tzSelect').value = savedPrefs.tz;
+    }
+    if(typeof savedPrefs.search === 'string' && el('searchBox')){
+      el('searchBox').value = savedPrefs.search;
+    }
+    buildChips();
+    buildGradeChips();
+  }
 
   render();
   requestAnimationFrame(() => setTimeout(jumpToToday, 50));
