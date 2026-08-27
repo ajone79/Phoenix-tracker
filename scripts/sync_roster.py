@@ -195,6 +195,7 @@ def main():
             by_norm_name.setdefault(normalize_name(r["name"]), []).append(r)
 
     seen_stfc_ids = set()
+    matched_roster_ids = set()
     renames = updates = bootstrapped = new_flags = 0
 
     for member in scraped:
@@ -204,6 +205,7 @@ def main():
         roster_row = by_stfc_id.get(pid)
 
         if roster_row:
+            matched_roster_ids.add(roster_row["id"])
             # Known player - update name/level, detect renames.
             changes = {}
             if roster_row["name"] != member["name"]:
@@ -232,6 +234,7 @@ def main():
         candidates = by_norm_name.get(norm, [])
         if len(candidates) == 1:
             match_row = candidates[0]
+            matched_roster_ids.add(match_row["id"])
             print(f"BOOTSTRAP: linking '{member['name']}' -> roster id={match_row['id']} (stfc_player_id={pid})")
             update_roster_row(
                 match_row["id"],
@@ -255,21 +258,31 @@ def main():
         )
         new_flags += 1
 
-    # Roster rows with a known stfc_player_id that weren't seen in this scrape.
+    # Any roster row that didn't end up linked to a scraped member this
+    # run - whether it already had an stfc_player_id that's now missing
+    # from the scrape, or it never had one and no name match was found -
+    # is flagged. This is the only way to make sure nobody silently falls
+    # through the cracks (e.g. a departed member who left before this
+    # sync ever ran, and so never had an stfc_player_id to begin with).
     left_flags = 0
     for r in roster:
+        if r["id"] in matched_roster_ids:
+            continue
         pid = r.get("stfc_player_id")
-        if pid and pid not in seen_stfc_ids:
-            print(f"POSSIBLY LEFT: '{r['name']}' (roster id={r['id']}) not found in current scrape")
-            insert_review(
-                "possibly_left",
-                stfc_player_id=pid,
-                roster_id=r["id"],
-                previous_name=r["name"],
-                detail="Player has a stored stfc_player_id but did not appear in the latest scrape.",
-                dry_run=dry_run,
-            )
-            left_flags += 1
+        print(f"POSSIBLY LEFT: '{r['name']}' (roster id={r['id']}) not found in current scrape")
+        insert_review(
+            "possibly_left",
+            stfc_player_id=pid,
+            roster_id=r["id"],
+            previous_name=r["name"],
+            detail=(
+                "Player has a stored stfc_player_id but did not appear in the latest scrape."
+                if pid else
+                "No stfc_player_id on file for this roster row, and no matching name found in the latest scrape."
+            ),
+            dry_run=dry_run,
+        )
+        left_flags += 1
 
     print("\nSummary:")
     print(f"  Renames applied:        {renames}")
