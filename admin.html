@@ -109,6 +109,7 @@ let roster = [];
 let allowlist = [];
 let events = [];
 let arcs = [];
+let reviewQueue = [];
 let me = null;
 let mySession = null;
 
@@ -214,18 +215,99 @@ async function init(){
 }
 
 async function loadData(){
-  const [{data:p}, {data:r}, {data:a}, {data:e}, {data:ar}] = await Promise.all([
+  const [{data:p}, {data:r}, {data:a}, {data:e}, {data:ar}, {data:rq}] = await Promise.all([
     sb.from('tracker_profiles').select('*').order('approved', {ascending:true}).order('created_at', {ascending:false}),
     sb.from('roster').select('id,name,level').order('name'),
     sb.from('tracker_admin_allowlist').select('*').order('in_game_name'),
     sb.from('events').select('id,name,date,arc_id,scoring_type,completion_mode,threshold,is_test').order('date', {ascending:false}),
-    sb.from('arcs').select('id,name,status').order('end_date', {ascending:false})
+    sb.from('arcs').select('id,name,status').order('end_date', {ascending:false}),
+    sb.from('roster_sync_review').select('*').eq('resolved', false).order('created_at', {ascending:false})
   ]);
   profiles = p || [];
   roster = r || [];
   allowlist = a || [];
   events = e || [];
   arcs = ar || [];
+  reviewQueue = rq || [];
+}
+
+function nextRosterId(){
+  const nums = roster.map(r => {
+    const m = /^p(\d+)$/.exec(r.id);
+    return m ? parseInt(m[1], 10) : 0;
+  });
+  const max = nums.length ? Math.max(...nums) : 0;
+  return 'p' + (max + 1);
+}
+
+function reviewQueueRowHtml(r){
+  const when = r.created_at ? new Date(r.created_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short'}) : '';
+  if(r.review_type === 'new_member'){
+    return `<tr>
+      <td><span class="tag" style="background:var(--mint);color:var(--void);padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">NEW</span></td>
+      <td>${escapeHtml(r.scraped_name || '')}</td>
+      <td>Level ${r.scraped_level ?? '?'}</td>
+      <td style="color:var(--text-faint);font-size:10px;">${when}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn save" data-addmember="${r.id}">Add to roster</button>
+        <button class="btn" data-dismissreview="${r.id}">Dismiss</button>
+      </td>
+    </tr>`;
+  }
+  if(r.review_type === 'possibly_left'){
+    return `<tr>
+      <td><span class="tag" style="background:var(--gold);color:var(--void);padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">LEFT?</span></td>
+      <td>${escapeHtml(r.previous_name || '')}</td>
+      <td style="color:var(--text-dim);font-size:10.5px;">${escapeHtml(r.detail || '')}</td>
+      <td style="color:var(--text-faint);font-size:10px;">${when}</td>
+      <td style="white-space:nowrap;">
+        ${r.roster_id ? `<button class="btn admin" data-markinactive="${r.id}" data-rosterid="${r.roster_id}">Mark inactive</button>` : ''}
+        <button class="btn" data-dismissreview="${r.id}">Dismiss</button>
+      </td>
+    </tr>`;
+  }
+  if(r.review_type === 'rename'){
+    return `<tr>
+      <td><span class="tag" style="background:var(--periwinkle);color:var(--void);padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">RENAME</span></td>
+      <td>${escapeHtml(r.previous_name || '')} → ${escapeHtml(r.scraped_name || '')}</td>
+      <td style="color:var(--text-dim);font-size:10.5px;">${escapeHtml(r.detail || 'Applied automatically.')}</td>
+      <td style="color:var(--text-faint);font-size:10px;">${when}</td>
+      <td style="white-space:nowrap;"><button class="btn" data-dismissreview="${r.id}">Dismiss</button></td>
+    </tr>`;
+  }
+  return '';
+}
+
+async function addMemberFromReview(reviewId){
+  const row = reviewQueue.find(r => r.id === reviewId);
+  if(!row) return;
+  const newId = nextRosterId();
+  const { error: insertErr } = await sb.from('roster').insert({
+    id: newId,
+    name: row.scraped_name,
+    level: row.scraped_level,
+    status: 'active',
+    stfc_player_id: row.stfc_player_id
+  });
+  if(insertErr){ alert(`Error adding to roster: ${insertErr.message}`); return; }
+  const { error: resolveErr } = await sb.from('roster_sync_review').update({resolved:true}).eq('id', reviewId);
+  if(resolveErr){ alert(`Added to roster (as ${newId}), but failed to clear the review flag: ${resolveErr.message}`); }
+  await loadData();
+  render();
+}
+
+async function markInactiveFromReview(reviewId, rosterId){
+  const { error: updErr } = await sb.from('roster').update({status:'inactive'}).eq('id', rosterId);
+  if(updErr){ alert(`Error updating roster: ${updErr.message}`); return; }
+  await sb.from('roster_sync_review').update({resolved:true}).eq('id', reviewId);
+  await loadData();
+  render();
+}
+
+async function dismissReview(reviewId){
+  await sb.from('roster_sync_review').update({resolved:true}).eq('id', reviewId);
+  await loadData();
+  render();
 }
 
 function render(){
@@ -247,6 +329,17 @@ function render(){
     </div>
     <main>
       <p style="font-size:11.5px;color:#8a8a94;">Signed in as <b>${escapeHtml(me.discord_username)}</b>. Approve pending Discord logins below and, since Discord names rarely match in-game names, type the correct in-game name next to each person yourself — matching this list against the roster.</p>
+
+      ${reviewQueue.length > 0 ? `
+      <h2>🔔 Roster Sync Review (${reviewQueue.length})</h2>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Flagged automatically by the stfc.pro sync every 6 hours — new/unmatched players, possible departures, and low-confidence name matches. Renames are applied automatically already (shown here just for your audit trail); everything else waits for you to act.</div>
+      <div style="background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:0;overflow:auto;margin-bottom:24px;">
+      <table class="review-table">
+        <thead><tr><th>Type</th><th>Player</th><th>Detail</th><th>When</th><th></th></tr></thead>
+        <tbody>${reviewQueue.map(reviewQueueRowHtml).join('')}</tbody>
+      </table>
+      </div>
+      ` : ''}
 
       <button class="btn admin" id="guideToggle" style="margin-bottom:10px;">📖 How to use this page ${guideOpen ? '(hide)' : '(show)'}</button>
       <div id="guideBox" style="${guideOpen ? '' : 'display:none;'}background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:16px 20px;margin-bottom:18px;font-size:11.5px;color:var(--text-dim);line-height:1.7;">
@@ -315,6 +408,10 @@ function render(){
   document.querySelectorAll('[data-revoke]').forEach(b=>b.addEventListener('click', ()=>setApproved(b.dataset.revoke, false)));
   document.querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click', ()=>saveName(b.dataset.save)));
   document.querySelectorAll('[data-admintoggle]').forEach(b=>b.addEventListener('click', ()=>toggleAdmin(b.dataset.admintoggle, b.dataset.current==='true')));
+
+  document.querySelectorAll('[data-addmember]').forEach(b=>b.addEventListener('click', ()=>addMemberFromReview(b.dataset.addmember)));
+  document.querySelectorAll('[data-markinactive]').forEach(b=>b.addEventListener('click', ()=>markInactiveFromReview(b.dataset.markinactive, b.dataset.rosterid)));
+  document.querySelectorAll('[data-dismissreview]').forEach(b=>b.addEventListener('click', ()=>dismissReview(b.dataset.dismissreview)));
 
   wireImportSection();
 
