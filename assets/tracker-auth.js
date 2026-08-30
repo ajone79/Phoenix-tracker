@@ -52,29 +52,29 @@
     }
 
     const user = session.user;
+    // A tracker_profiles row is created server-side (via a database trigger on auth.users)
+    // the instant someone signs up, so by the time this page loads it should always exist.
+    // We still retry briefly below in case of a rare race on the very first sign-in.
     let { data: profile } = await sb.from('tracker_profiles').select('*').eq('id', user.id).maybeSingle();
 
     if (!profile) {
-      const identity = (user.identities || [])[0]; // whichever identity exists (discord, email, etc.)
-      const provider = (identity && identity.provider) || 'email';
-      let displayName, avatar, providerId;
-      if (provider === 'discord') {
-        const meta = (identity && identity.identity_data) || user.user_metadata || {};
-        displayName = meta.full_name || meta.name || meta.user_name || meta.preferred_username || 'Unknown';
-        avatar = meta.avatar_url || null;
-        providerId = meta.provider_id || meta.sub || (identity && identity.id) || null;
-      } else {
-        displayName = user.email || 'Unknown';
-        avatar = null;
-        providerId = user.id;
+      for (let i = 0; i < 3 && !profile; i++) {
+        await new Promise(r => setTimeout(r, 700));
+        ({ data: profile } = await sb.from('tracker_profiles').select('*').eq('id', user.id).maybeSingle());
       }
-      const { data: inserted } = await sb.from('tracker_profiles').insert({
-        id: user.id, discord_id: providerId, discord_username: displayName, avatar_url: avatar, login_provider: provider
-      }).select().maybeSingle();
-      profile = inserted;
     }
 
-    if (!profile || !profile.approved) {
+    if (!profile) {
+      renderScreen(`
+        <h1>⏳ Setting up your profile</h1>
+        <p>This is taking longer than expected. Refresh in a few seconds — if it persists, ping an officer.</p>
+        <button class="btn ghost" id="signout">Sign out</button>
+      `);
+      document.getElementById('signout').addEventListener('click', async ()=>{ await sb.auth.signOut(); location.href='/login.html'; });
+      return;
+    }
+
+    if (!profile.approved) {
       renderScreen(`
         <h1>⏳ Pending approval</h1>
         <p>You're signed in as <b class="accent">${escapeHtml((profile && profile.discord_username) || user.email || 'a member')}</b>, but an alliance admin hasn't whitelisted you yet.<br><br>Ping an officer in Discord and they'll approve your access — no need to log in again once they do.</p>
