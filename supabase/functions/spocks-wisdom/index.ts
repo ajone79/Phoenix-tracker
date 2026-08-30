@@ -104,7 +104,7 @@ Deno.serve(async (req: Request) => {
     const today = new Date().toISOString().slice(0, 10);
     const { data: events } = await sb.from("events")
       .select("name,date,scoring_type,threshold")
-      .gte("date", today).order("date", { ascending: true }).limit(12);
+      .gte("date", today).eq("is_test", false).order("date", { ascending: true }).limit(12);
     if (events?.length) {
       contextParts.push(
         "UPCOMING/CURRENT EVENTS:\n" +
@@ -113,14 +113,16 @@ Deno.serve(async (req: Request) => {
     }
 
     // Crews — only pull rows that look relevant to the question, to keep this cheap.
-    const { data: allCrews } = await sb.from("crews").select("name,hostile_type,notes").limit(200);
+    const { data: allCrews } = await sb.from("crews").select("title,hostile_types,notes,warning").limit(300);
     const matchedCrews = (allCrews || []).filter((c) =>
-      keywords.length === 0 || anyMatch(`${c.name} ${c.hostile_type ?? ""} ${c.notes ?? ""}`, keywords)
+      keywords.length === 0 || anyMatch(`${c.title} ${(c.hostile_types || []).join(" ")} ${c.notes ?? ""}`, keywords)
     ).slice(0, 8);
     if (matchedCrews.length) {
       contextParts.push(
-        "RELEVANT CREW RECOMMENDATIONS:\n" +
-        matchedCrews.map((c) => `- ${c.name}${c.hostile_type ? ` [${c.hostile_type}]` : ""}: ${c.notes ?? "no notes"}`).join("\n")
+        "RELEVANT CREW RECOMMENDATIONS (from the alliance's own crew guide):\n" +
+        matchedCrews.map((c) =>
+          `- ${c.title}${c.hostile_types?.length ? ` [${c.hostile_types.join(", ")}]` : ""}: ${c.notes ?? "no notes"}${c.warning ? ` (WARNING: ${c.warning})` : ""}`
+        ).join("\n")
       );
     }
 
@@ -160,9 +162,15 @@ Deno.serve(async (req: Request) => {
       }
     } catch { /* sheets catalog is best-effort; never block the answer on it */ }
 
-    const systemPrompt = `You are "Spock's Wisdom," an assistant for the Phoenix EU168 alliance in Star Trek Fleet Command (STFC). Answer in a measured, logical, dryly-witted tone reminiscent of Spock — precise, unflustered, the occasional deadpan observation, but always genuinely helpful and never sacrificing clarity for character. You may answer general STFC gameplay questions from your own knowledge. When alliance-specific context is provided below (events, crews, F2P tasks, reference sheets), prefer it over guessing, and say plainly when something isn't in the provided context rather than inventing details. Keep answers reasonably concise unless the question calls for depth.
+    const systemPrompt = `You are "Spock's Wisdom," an assistant for the Phoenix EU168 alliance in Star Trek Fleet Command (STFC). Answer in a measured, logical, dryly-witted tone reminiscent of Spock — precise, unflustered, the occasional deadpan observation, but always genuinely helpful and never sacrificing clarity for character.
 
-${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data matched this question — answer from general STFC knowledge.)"}`;
+FORMATTING: This chat window displays plain text only — it does not render markdown. Never use asterisks, bold markers, pipe tables, or markdown headers. Write in plain prose and, if a list genuinely helps, use simple numbered lines or dashes with no other markup.
+
+ACCURACY: Never invent officer or crew names that are not real Star Trek Fleet Command content. If the alliance-specific crew data provided below does not cover the situation asked about, say so plainly and either answer from genuine, real STFC officer knowledge you are confident in, or state that you do not have a confirmed recommendation — do not fabricate a plausible-sounding crew to fill the gap. Precision matters more than always having an answer.
+
+When alliance-specific context is provided below (events, crews, F2P tasks, reference sheets), prefer it over your own general knowledge. Keep answers reasonably concise unless the question calls for depth.
+
+${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data matched this question — answer from genuine STFC knowledge only, or say you don't have a confirmed answer.)"}`;
 
     const groqKey = Deno.env.get("GROQ_API_KEY_SPOCKS");
     if (!groqKey) return json({ error: "GROQ_API_KEY_SPOCKS is not configured on this project" }, 500);
