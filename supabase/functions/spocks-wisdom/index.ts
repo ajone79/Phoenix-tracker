@@ -260,7 +260,7 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
           reasoning_format: "hidden",
         };
 
-    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    let groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${groqKey}`,
@@ -268,6 +268,31 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
       },
       body: JSON.stringify(requestBody),
     });
+
+    let usedFallback = false;
+    if (!groqRes.ok && useExternal) {
+      // groq/compound-mini has a known intermittent instability on Groq's side
+      // (fails even on trivial prompts sometimes) — rather than show a raw API
+      // error, fall back to a normal answer without web search this one time.
+      usedFallback = true;
+      const fallbackPrompt = systemPrompt + "\n\n(Note: web search was attempted for this question but the search tool failed. Answer from the context above and your own genuine knowledge, and mention briefly that live search wasn't available this time if that matters to the answer.)";
+      groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${groqKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          messages: [
+            { role: "system", content: fallbackPrompt },
+            ...messages.slice(-10),
+          ],
+          temperature: 0.6,
+          reasoning_format: "hidden",
+        }),
+      });
+    }
 
     if (!groqRes.ok) {
       const errText = await groqRes.text();
@@ -284,7 +309,7 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
 
     // Pull real URLs out of whichever external sites Compound actually visited,
     // so the client can render them as clickable source chips.
-    if (useExternal) {
+    if (useExternal && !usedFallback) {
       const executedTools = groqData?.choices?.[0]?.message?.executed_tools ?? [];
       const foundUrls = new Set<string>();
       const raw = JSON.stringify(executedTools);
@@ -299,7 +324,7 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
       }
     }
 
-    return json({ reply, sources }, 200);
+    return json({ reply, sources, searchFallback: usedFallback && useExternal }, 200);
   } catch (e) {
     return json({ error: `Unexpected error: ${(e as Error).message}` }, 500);
   }
