@@ -5,7 +5,7 @@ import Papa from "https://esm.sh/papaparse@5.4.1";
 const SUPABASE_URL = "https://mmzizgsanwqjpiumpqay.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM";
 
-const GROQ_MODEL = "openai/gpt-oss-120b";
+const GROQ_MODEL = "qwen/qwen3.6-27b";
 const SHEETS_CATALOG_URL =
   "https://docs.google.com/spreadsheets/d/1AHbQfUYpL3_DpRV-J0m2PbPVYCuzZe3P5t763xaJ5uA/export?format=csv";
 
@@ -188,6 +188,7 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
           ...messages.slice(-10), // keep recent turns only, bound the prompt
         ],
         temperature: 0.6,
+        reasoning_format: "hidden",
       }),
     });
 
@@ -197,7 +198,12 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
     }
 
     const groqData = await groqRes.json();
-    const reply = groqData?.choices?.[0]?.message?.content ?? "I have no response to offer at this time.";
+    let reply = groqData?.choices?.[0]?.message?.content ?? "I have no response to offer at this time.";
+    // Defensive: strip any reasoning leakage that occasionally slips through despite
+    // reasoning_format:"hidden" (the same issue previously seen with Groq's models
+    // in the screenshot-scoring feature).
+    reply = reply.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    if (!reply) reply = "I have no response to offer at this time.";
     return json({ reply }, 200);
   } catch (e) {
     return json({ error: `Unexpected error: ${(e as Error).message}` }, 500);
