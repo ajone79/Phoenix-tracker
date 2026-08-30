@@ -73,6 +73,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const params = new URLSearchParams(location.search);
 const next = params.get('next') || 'index.html';
+const invite = params.get('invite') || '';
 
 function showErr(msg){
   const e = document.getElementById('err');
@@ -87,10 +88,25 @@ function showOk(msg){
   document.getElementById('err').style.display = 'none';
 }
 
+if(invite){
+  const p = document.querySelector('.box p');
+  if(p) p.innerHTML = '<b style="color:#5fd068;">You have an invite link — your access will be approved automatically once you sign in, no need to wait for an officer.</b><br><br>' + p.innerHTML;
+}
+
+// Both sign-in methods bounce back through THIS page (with next/invite preserved),
+// rather than straight to the destination, so the invite can be redeemed here in
+// one place before finally forwarding the person on.
+function buildRedirect(){
+  const back = new URLSearchParams();
+  back.set('next', next);
+  if(invite) back.set('invite', invite);
+  return location.origin + '/login.html?' + back.toString();
+}
+
 document.getElementById('discordBtn').addEventListener('click', async ()=>{
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'discord',
-    options: { redirectTo: location.origin + '/' + next.replace(/^\//,'') }
+    options: { redirectTo: buildRedirect() }
   });
   if (error) showErr(error.message);
 });
@@ -98,7 +114,7 @@ document.getElementById('discordBtn').addEventListener('click', async ()=>{
 document.getElementById('googleBtn').addEventListener('click', async ()=>{
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: location.origin + '/' + next.replace(/^\//,'') }
+    options: { redirectTo: buildRedirect() }
   });
   if (error) showErr(error.message);
 });
@@ -111,7 +127,7 @@ document.getElementById('emailBtn').addEventListener('click', async ()=>{
   btn.textContent = 'Sending…';
   const { error } = await sb.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: location.origin + '/' + next.replace(/^\//,'') }
+    options: { emailRedirectTo: buildRedirect() }
   });
   btn.disabled = false;
   btn.textContent = 'Send link';
@@ -119,9 +135,46 @@ document.getElementById('emailBtn').addEventListener('click', async ()=>{
   showOk('Check your email — click the link we sent to sign in. (It can take a minute or two, and is worth checking spam.)');
 });
 
-// if already logged in, bounce straight through
-sb.auth.getSession().then(({data:{session}}) => {
-  if (session) location.href = next;
+// Surface any error Discord/Supabase attached to the return trip (they can land
+// either in the query string or the URL fragment depending on the failure point) —
+// previously these were silently ignored, which made a failed sign-in look like
+// nothing happened at all rather than showing what actually went wrong.
+const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+const authError = params.get('error_description') || params.get('error')
+  || hashParams.get('error_description') || hashParams.get('error');
+if (authError){
+  console.error('Auth error on return from provider:', authError);
+  showErr('Sign-in didn\'t complete: ' + authError);
+}
+
+// Whether this looks like a return trip from an OAuth/email redirect (a "code" or
+// "error" param present) as opposed to a fresh visit to this page — used below to
+// tell a genuine failed-return-trip apart from someone just landing here normally.
+const looksLikeReturnTrip = params.has('code') || hashParams.has('access_token') || !!authError;
+
+// Once signed in (whether just now via redirect, or already had a session), redeem
+// any invite token before forwarding on — a bad/expired/used-up token just means
+// they fall back to needing normal officer approval, it never blocks sign-in itself.
+sb.auth.getSession().then(async ({data:{session}}) => {
+  if (!session){
+    if (looksLikeReturnTrip && !authError){
+      // Discord/Supabase reported success, but no session actually got established —
+      // most often caused by starting the sign-in in one browser/app and finishing it
+      // in another (e.g. an in-app browser handing back to a different tab), so the
+      // one-time security code from the first step isn't available anymore.
+      console.error('Returned from provider but no session was established.');
+      showErr('Sign-in didn\'t complete. This usually happens if the sign-in started and finished in different browsers or apps (e.g. an in-app browser). Please try again, staying in the same browser tab the whole way through — and avoid using the Discord app\'s built-in browser if possible.');
+      const box = document.getElementById('helpBox');
+      box.style.display = 'block';
+      document.getElementById('helpToggle').textContent = 'Discord sign-in not working? Tap here ▴';
+    }
+    return;
+  }
+  if (invite){
+    try{ await sb.rpc('redeem_invite_token', { p_token: invite }); }
+    catch(e){ console.error('Invite redemption failed', e); }
+  }
+  location.href = next;
 });
 
 document.getElementById('helpToggle').addEventListener('click', ()=>{

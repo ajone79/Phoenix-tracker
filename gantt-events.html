@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Phoenix EU168 — Weekly Gantt View</title>
 <meta name="description" content="Weekly Gantt-style view of scheduled Star Trek Fleet Command events for Phoenix EU168.">
-<script src="assets/phx-nav-menu.js"></script>
+<script src="assets/phx-nav-rail.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/tracker-auth.js"></script>
 <style>
@@ -40,7 +40,7 @@
   .sub{color:var(--muted); font-size:13px; font-family:var(--mono);}
 
   .controls{
-    position:sticky; top:36px; z-index:20;
+    position:sticky; top:0; z-index:20;
     background:rgba(10,13,18,0.96); backdrop-filter:blur(6px);
     border-bottom:1px solid var(--border); padding:10px 16px;
     display:flex; flex-direction:column; gap:8px;
@@ -55,6 +55,16 @@
     border-radius:6px; padding:7px 9px; font-family:var(--mono); font-size:13px;
   }
   select:focus, input:focus{outline:2px solid var(--blue); outline-offset:1px;}
+
+  .adv-toggle{
+    font-family:var(--mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase;
+    background:transparent; border:1px solid var(--border); color:var(--muted);
+    border-radius:6px; padding:7px 12px; cursor:pointer; margin-left:auto;
+  }
+  .adv-toggle:hover{ color:var(--text); border-color:var(--muted); }
+  .adv-filters{ display:flex; flex-direction:column; gap:10px; }
+  .adv-filters.collapsed{ display:none; }
+
   .search-wrap{flex:1; min-width:140px;}
   .search-wrap input{width:100%;}
   .btn{
@@ -68,10 +78,10 @@
   .range-label{font-family:var(--mono); font-size:13px; font-weight:600; flex:1; text-align:center; min-width:180px;}
   .chip{
     font-family:var(--mono); font-size:11px; letter-spacing:.03em;
-    padding:6px 10px; border-radius:20px; border:1px solid var(--border); background:var(--panel-alt);
-    color:var(--muted); cursor:pointer; user-select:none;
+    padding:6px 10px; border-radius:20px; border:1px solid var(--chip-color, var(--border)); background:transparent;
+    color:var(--chip-color, var(--muted)); cursor:pointer; user-select:none;
   }
-  .chip.on{color:var(--text); border-color:currentColor; background:rgba(255,255,255,0.03);}
+  .chip.on{color:#05070a; border-color:var(--chip-color, currentColor); background:var(--chip-color, currentColor); font-weight:700;}
   .chip-sm{font-size:9.5px; padding:4px 8px;}
   .chip-clear{color:var(--red); border-color:var(--red); font-weight:700;}
 
@@ -155,8 +165,6 @@
 </style>
 </head>
 <body>
-<nav class="phx-nav"><span class="phx-nav-tag">PHX</span><a href="index.html">🏠 Home</a><a href="gantt-events.html" class="current">Weekly Gantt View</a></nav>
-
 <header>
   <div class="eyebrow">Global Feed · stfc.cfd + Territory Capture + Voyage</div>
   <h1>Phoenix EU168 — Weekly Gantt View</h1>
@@ -176,13 +184,16 @@
     <span class="range-label" id="rangeLabel"></span>
     <button class="btn primary" id="todayRange">Today</button>
     <button class="btn" id="nextRange">Later 4wk ›</button>
+    <button class="adv-toggle" id="advToggle">Advanced Filters ▾</button>
   </div>
-  <div class="row" id="gradeChipRow"></div>
-  <div class="row">
-    <span class="field-label">Timezone</span>
-    <select id="tzSelect"></select>
+  <div class="adv-filters collapsed" id="advFilters">
+    <div class="row" id="gradeChipRow"></div>
+    <div class="row">
+      <span class="field-label">Timezone</span>
+      <select id="tzSelect"></select>
+    </div>
+    <div class="row" id="keyChipRow"></div>
   </div>
-  <div class="row" id="keyChipRow"></div>
 </div>
 
 <div id="detailOverlay" class="detail-overlay">
@@ -208,6 +219,66 @@ let selectedGrade = null; // null = show all grades; otherwise a single 'G1'..'G
 let ticketedVisible = true; // default-on, same as every type chip — click hides ticketed events specifically
 let rangeBlockOffset = 0; // shifts by WEEKS_SHOWN each Prev/Next click
 const el = id => document.getElementById(id);
+
+/* ---------------- SAVED FILTER PREFERENCES (server-side, per logged-in user) ---------------- */
+/* Same pattern as game-events.html, stored under a separate 'eventsGantt' key so the two
+   pages' saved selections never overwrite each other. Date range position is intentionally
+   NOT persisted — always opens on the current week, like the calendar view does. */
+let filterPrefsLoaded = false; // gate saving until a restore attempt has happened first
+let saveFilterPrefsTimeout = null;
+
+function currentFilterPrefs(){
+  return {
+    activeTypes: Array.from(activeTypes),
+    selectedGrade,
+    ticketedVisible,
+    tz: el('tzSelect') ? el('tzSelect').value : undefined,
+    search: el('searchBox') ? el('searchBox').value : undefined
+  };
+}
+
+function applyFilterPrefs(prefs){
+  if(!prefs || typeof prefs !== 'object') return;
+  if(Array.isArray(prefs.activeTypes)){
+    activeTypes = new Set(prefs.activeTypes.filter(t => GAME_CATS[t]));
+  }
+  if(prefs.selectedGrade === null || (typeof prefs.selectedGrade === 'string' && GRADE_BANDS[prefs.selectedGrade])){
+    selectedGrade = prefs.selectedGrade;
+  }
+  if(typeof prefs.ticketedVisible === 'boolean') ticketedVisible = prefs.ticketedVisible;
+  if(prefs.tz && el('tzSelect') && Array.from(el('tzSelect').options).some(o => o.value === prefs.tz)){
+    el('tzSelect').value = prefs.tz;
+  }
+  if(typeof prefs.search === 'string' && el('searchBox')){
+    el('searchBox').value = prefs.search;
+  }
+}
+
+function saveFilterPrefs(){
+  if(!filterPrefsLoaded || !window.__trackerSb) return; // don't save until restore has happened, and only if authenticated
+  clearTimeout(saveFilterPrefsTimeout);
+  saveFilterPrefsTimeout = setTimeout(async ()=>{
+    try{
+      await window.__trackerSb.rpc('update_my_preferences', { new_prefs: { eventsGantt: currentFilterPrefs() } });
+    }catch(e){
+      console.error('Failed to save filter preferences', e);
+    }
+  }, 600);
+}
+
+document.addEventListener('tracker-auth-ready', ()=>{
+  const saved = window.__trackerProfile && window.__trackerProfile.preferences && window.__trackerProfile.preferences.eventsGantt;
+  applyFilterPrefs(saved);
+  filterPrefsLoaded = true;
+  buildChips();
+  buildGradeChips();
+  render();
+});
+if (window.__trackerProfile) {
+  const saved = window.__trackerProfile.preferences && window.__trackerProfile.preferences.eventsGantt;
+  applyFilterPrefs(saved);
+  filterPrefsLoaded = true;
+}
 
 /* ===== Time helpers ===== */
 /* ===== Format merging (same as game-events.html) ===== */
@@ -241,13 +312,19 @@ function buildChips(){
   const wrap = el('keyChipRow');
   wrap.innerHTML = '';
 
+  const allOff = activeTypes.size === 0 && !ticketedVisible;
   const clearChip = document.createElement('div');
   clearChip.className = 'chip chip-sm chip-clear';
-  clearChip.textContent = 'Clear All';
-  clearChip.title = 'Hide everything, then pick just the ones you want';
+  clearChip.textContent = allOff ? 'Select All' : 'Clear All';
+  clearChip.title = allOff ? 'Show every event type' : 'Hide everything, then pick just the ones you want';
   clearChip.addEventListener('click', () => {
-    activeTypes.clear();
-    ticketedVisible = false;
+    if(allOff){
+      activeTypes = new Set(Object.keys(GAME_CATS));
+      ticketedVisible = true;
+    } else {
+      activeTypes.clear();
+      ticketedVisible = false;
+    }
     buildChips(); render();
   });
   wrap.appendChild(clearChip);
@@ -256,7 +333,7 @@ function buildChips(){
     const cat = GAME_CATS[key];
     const chip = document.createElement('div');
     chip.className = 'chip chip-sm' + (activeTypes.has(key) ? ' on' : '');
-    chip.style.color = cat.color;
+    chip.style.setProperty('--chip-color', cat.color);
     chip.textContent = cat.label;
     chip.title = 'Toggle this type on/off';
     chip.addEventListener('click', () => {
@@ -267,7 +344,7 @@ function buildChips(){
   });
   const ticketedChip = document.createElement('div');
   ticketedChip.className = 'chip chip-sm' + (ticketedVisible ? ' on' : '');
-  ticketedChip.style.color = '#FFD54F';
+  ticketedChip.style.setProperty('--chip-color', '#FFD54F');
   ticketedChip.textContent = 'Ticketed';
   ticketedChip.title = 'Toggle ticketed events on/off';
   ticketedChip.addEventListener('click', () => { ticketedVisible = !ticketedVisible; buildChips(); render(); });
@@ -279,7 +356,7 @@ function buildGradeChips(){
   Object.keys(GRADE_BANDS).forEach(g => {
     const chip = document.createElement('div');
     chip.className = 'chip' + (selectedGrade === g ? ' on' : '');
-    chip.style.color = 'var(--blue)';
+    chip.style.setProperty('--chip-color', 'var(--blue)');
     chip.textContent = g;
     chip.title = 'Ops ' + GRADE_BANDS[g][0] + '–' + GRADE_BANDS[g][1] + ' — tap to isolate, tap again for all grades';
     chip.addEventListener('click', () => {
@@ -325,7 +402,8 @@ function render(){
     ...buildMergedEvents(GAME_EVENTS).filter(e => e.eventSubType !== 'voyage_across_the_void'),
     ...generateRecurringEvents(TERRITORY_EVENTS, genStart, genEnd),
     ...generateRecurringEvents(VOYAGE_EVENTS, genStart, genEnd),
-    ...generateRecurringEvents(TUESDAY_EVENTS, genStart, genEnd)
+    ...generateRecurringEvents(TUESDAY_EVENTS, genStart, genEnd),
+    ...generateMaverickEvents(genStart, genEnd)
   ];
 
   const filtered = candidateEvents.filter(ev => {
@@ -440,6 +518,7 @@ function render(){
   if(!anyEventsAtAll){
     inner.innerHTML = '<div class="empty-note">No events match your filters in this 4-week range.</div>';
   }
+  saveFilterPrefs();
 }
 function startLabelFor(dISO){
   const [y,mo,d] = dISO.split('-').map(Number);
@@ -497,10 +576,14 @@ async function loadDataAndInit(){
   GAME_EVENTS = events;
 
   augmentCategoriesFromEvents(buildMergedEvents(GAME_EVENTS));
-  activeTypes = new Set(Object.keys(GAME_CATS));
-  // These are noisy/high-volume by default — start hidden, easy to turn back on
-  ['territory', 'battlepass', 'voyage'].forEach(k => activeTypes.delete(k));
-  ticketedVisible = false;
+  // Only apply the hardcoded defaults if a restore hasn't already happened — otherwise this
+  // would wipe out a restored selection whenever tracker-auth-ready fires before this completes.
+  if(!filterPrefsLoaded){
+    activeTypes = new Set(Object.keys(GAME_CATS));
+    // These are noisy/high-volume by default — start hidden, easy to turn back on
+    ['territory', 'battlepass', 'voyage'].forEach(k => activeTypes.delete(k));
+    ticketedVisible = false;
+  }
 
   buildTzSelect();
   buildChips();
@@ -522,4 +605,21 @@ async function loadDataAndInit(){
 loadDataAndInit();
 </script>
 </body>
+<script>
+(function(){
+  const KEY = 'phx_advFiltersOpen_gantt';
+  const btn = document.getElementById('advToggle');
+  const panel = document.getElementById('advFilters');
+  function apply(open){
+    panel.classList.toggle('collapsed', !open);
+    btn.textContent = 'Advanced Filters ' + (open ? '▴' : '▾');
+  }
+  apply(localStorage.getItem(KEY) === '1');
+  btn.addEventListener('click', () => {
+    const nowOpen = panel.classList.contains('collapsed');
+    apply(nowOpen);
+    localStorage.setItem(KEY, nowOpen ? '1' : '0');
+  });
+})();
+</script>
 </html>

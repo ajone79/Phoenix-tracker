@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="/icon-eu168.png">
 <link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="assets/phx-nav-menu.js"></script>
+<script src="assets/phx-nav-rail.js"></script>
 <style>
   :root{--void:#050507;--panel:#111116;--panel-2:#17171e;--hair:#2a2a34;--signal:#ff9142;--periwinkle:#8fa3ff;--mint:#5fd068;--gold:#ffc857;--alert:#ff5a5f;--text:#e8e6e1;--text-dim:#8a8a94;--text-faint:#55555f;}
   *{box-sizing:border-box;}
@@ -74,6 +74,7 @@
   .btn.extract{background:var(--signal);color:var(--void);}
   .btn.save-all{background:var(--mint);color:var(--void);}
   .btn.force{background:transparent;border:1px solid var(--alert);color:var(--alert);padding:4px 10px;font-size:9.5px;}
+  .btn.copy{background:transparent;border:1px solid var(--periwinkle);color:var(--periwinkle);padding:7px 12px;font-size:11px;white-space:nowrap;flex-shrink:0;}
   .review-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:11.5px;}
   .review-table th{text-align:left;color:var(--text-faint);font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;padding:6px 8px;border-bottom:1px solid var(--hair);}
   .review-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;}
@@ -104,6 +105,20 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+// Members who sign in via email (no Discord/Google name available) have their raw email
+// stored as their display name. Mask it partially here for GDPR-minded display — full
+// email is still visible to Supabase admins directly in the database if ever needed.
+function displayName(s){
+  const str = String(s==null?'':s);
+  const at = str.indexOf('@');
+  if (at === -1) return escapeHtml(str);
+  const local = str.slice(0, at);
+  const domain = str.slice(at + 1);
+  const visible = local.slice(0, Math.min(2, local.length));
+  const masked = visible + '•'.repeat(Math.max(3, local.length - visible.length));
+  return escapeHtml(masked + '@' + domain);
+}
+
 let profiles = [];
 let roster = [];
 let allowlist = [];
@@ -117,6 +132,7 @@ let extractedRows = []; // {name, score, playerId, existingScore}
 let extractStatus = { loading: false, message: '', kind: '' };
 let guideOpen = false;
 let thresholdsOpen = false;
+let membersOpen = false;
 let stitchedPreviews = []; // {id, dataUrl, sourceCount}
 let screensPerStitch = 5;
 let selectedEventId = '';
@@ -124,6 +140,8 @@ let batchStatuses = []; // {label, state, message}  -- legacy, no longer used fo
 let pendingDeleteEventId = null;
 let activeJob = null;
 let jobPollTimer = null;
+let inviteTokens = [];
+let newInviteLabel = '';
 
 function eventThresholdRowHtml(e){
   const isPendingDelete = pendingDeleteEventId === e.id;
@@ -215,13 +233,14 @@ async function init(){
 }
 
 async function loadData(){
-  const [{data:p}, {data:r}, {data:a}, {data:e}, {data:ar}, {data:rq}] = await Promise.all([
+  const [{data:p}, {data:r}, {data:a}, {data:e}, {data:ar}, {data:rq}, {data:inv}] = await Promise.all([
     sb.from('tracker_profiles').select('*').order('approved', {ascending:true}).order('created_at', {ascending:false}),
     sb.from('roster').select('id,name,level').order('name'),
     sb.from('tracker_admin_allowlist').select('*').order('in_game_name'),
     sb.from('events').select('id,name,date,arc_id,scoring_type,completion_mode,threshold,is_test').order('date', {ascending:false}),
     sb.from('arcs').select('id,name,status').order('end_date', {ascending:false}),
-    sb.from('roster_sync_review').select('*').eq('resolved', false).order('created_at', {ascending:false})
+    sb.from('roster_sync_review').select('*').eq('resolved', false).order('created_at', {ascending:false}),
+    sb.from('invite_tokens').select('*').order('created_at', {ascending:false})
   ]);
   profiles = p || [];
   roster = r || [];
@@ -229,6 +248,83 @@ async function loadData(){
   events = e || [];
   arcs = ar || [];
   reviewQueue = rq || [];
+  inviteTokens = inv || [];
+}
+
+function inviteTokenRowHtml(t){
+  const link = location.origin + '/login.html?invite=' + encodeURIComponent(t.token);
+  const usesLabel = t.max_uses ? `${t.use_count}/${t.max_uses} uses` : `${t.use_count} use${t.use_count===1?'':'s'} (unlimited)`;
+  const expiredNow = t.expires_at && new Date(t.expires_at) < new Date();
+  const maxedOut = t.max_uses && t.use_count >= t.max_uses;
+  const dead = t.revoked || expiredNow || maxedOut;
+  const statusLabel = t.revoked ? 'Revoked' : expiredNow ? 'Expired' : maxedOut ? 'Used up' : 'Active';
+  return `
+    <div class="row" style="align-items:flex-start;flex-direction:column;gap:6px;${dead?'opacity:.55;':''}">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">
+        <span class="tag ${dead?'':'approved'}" style="padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:${dead?'var(--hair)':'var(--mint)'};color:${dead?'var(--text-dim)':'var(--void)'};">${statusLabel}</span>
+        <b style="font-size:12.5px;">${escapeHtml(t.label || '(no label)')}</b>
+        <span style="font-size:10.5px;color:var(--text-faint);">${usesLabel}</span>
+        ${t.expires_at ? `<span style="font-size:10.5px;color:var(--text-faint);">expires ${new Date(t.expires_at).toLocaleDateString('en-GB')}</span>` : ''}
+      </div>
+      <div style="display:flex;gap:6px;width:100%;">
+        <input type="text" readonly value="${escapeHtml(link)}" id="inviteLinkInput-${t.id}" style="flex:1;font-size:11px;" onclick="this.select();">
+        <button class="btn copy" data-copylink="${t.id}" data-link="${escapeHtml(link)}">📋 Copy</button>
+      </div>
+      <div class="row" style="gap:6px;">
+        ${!t.revoked ? `<button class="btn force" data-revokeinvite="${t.id}">Revoke</button>` : ''}
+        <button class="btn force" data-deleteinvite="${t.id}">Delete</button>
+      </div>
+    </div>
+  `;
+}
+
+function inviteSectionHtml(){
+  return `
+    <h2>🔗 Invite Links</h2>
+    <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Anyone who signs in via one of these links is approved automatically — no need to wait for an officer. Good for handing to a specific new recruit or a small batch, not for posting publicly.</div>
+    <div class="import-box" style="margin-bottom:14px;">
+      <div class="import-row">
+        <div class="field-group"><span class="field-label">Label</span><input type="text" id="newInviteLabelInput" placeholder="e.g. new recruits Aug 2026" style="width:220px;"></div>
+        <div class="field-group"><span class="field-label">Max uses (blank = unlimited)</span><input type="number" id="newInviteMaxUses" style="width:100px;" min="1"></div>
+        <div class="field-group"><span class="field-label">Expires in days (blank = never)</span><input type="number" id="newInviteExpiresDays" style="width:100px;" min="1"></div>
+        <button class="btn save-all" id="createInviteBtn">Create link</button>
+      </div>
+    </div>
+    <div id="inviteTokensList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
+      ${inviteTokens.length ? inviteTokens.map(inviteTokenRowHtml).join('') : '<div class="empty">No invite links yet.</div>'}
+    </div>
+  `;
+}
+
+async function createInviteToken(){
+  const label = document.getElementById('newInviteLabelInput').value.trim();
+  const maxUsesRaw = document.getElementById('newInviteMaxUses').value;
+  const expiresDaysRaw = document.getElementById('newInviteExpiresDays').value;
+  const payload = {
+    label,
+    created_by: me.id,
+    max_uses: maxUsesRaw ? parseInt(maxUsesRaw) : null,
+    expires_at: expiresDaysRaw ? new Date(Date.now() + parseInt(expiresDaysRaw) * 86400000).toISOString() : null,
+  };
+  const { error } = await sb.from('invite_tokens').insert(payload);
+  if (error) { alert('Failed to create invite link: ' + error.message); return; }
+  await loadData();
+  render();
+}
+
+async function revokeInviteToken(id){
+  const { error } = await sb.from('invite_tokens').update({ revoked: true }).eq('id', id);
+  if (error) { alert('Failed to revoke: ' + error.message); return; }
+  await loadData();
+  render();
+}
+
+async function deleteInviteToken(id){
+  if (!confirm('Delete this invite link permanently?')) return;
+  const { error } = await sb.from('invite_tokens').delete().eq('id', id);
+  if (error) { alert('Failed to delete: ' + error.message); return; }
+  await loadData();
+  render();
 }
 
 function nextRosterId(){
@@ -313,6 +409,8 @@ async function dismissReview(reviewId){
 function render(){
   const pending = profiles.filter(p=>!p.approved);
   const approved = profiles.filter(p=>p.approved);
+  const admins = approved.filter(p=>p.is_admin);
+  const regularMembers = approved.filter(p=>!p.is_admin);
 
   const allowChips = allowlist.map(a => {
     const match = profiles.find(p => (p.in_game_name||'').trim().toLowerCase() === a.in_game_name.trim().toLowerCase());
@@ -322,13 +420,14 @@ function render(){
   }).join('');
 
   document.getElementById('app').innerHTML = `
-    <nav class="phx-nav"><span class="phx-nav-tag">PHX</span><a href="index.html">🏠 Home</a><a href="admin.html" class="current">🛠️ Admin</a></nav>
     <div class="topbar">
       <div class="elbow"><span>PHX</span></div>
       <div class="topbar-bar"><div class="topbar-title"><b>PHOENIX</b> EU168 — ACCESS ADMIN</div></div>
     </div>
     <main>
       <p style="font-size:11.5px;color:#8a8a94;">Signed in as <b>${escapeHtml(me.discord_username)}</b>. Approve pending Discord logins below and, since Discord names rarely match in-game names, type the correct in-game name next to each person yourself — matching this list against the roster.</p>
+
+      ${inviteSectionHtml()}
 
       ${reviewQueue.length > 0 ? `
       <h2>🔔 Roster Sync Review (${reviewQueue.length})</h2>
@@ -399,8 +498,14 @@ function render(){
         </div>
       </div>
 
-      <h2>Approved members (${approved.length})</h2>
-      <div id="approvedList">${approved.length ? approved.map(rowHtml).join('') : '<div class="empty">No approved members yet.</div>'}</div>
+      <h2>👑 Admins (${admins.length})</h2>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Full access to this page. Kept separate and always visible so it's easy to spot who currently has it.</div>
+      <div id="adminsList">${admins.length ? admins.map(rowHtml).join('') : '<div class="empty">No admins yet.</div>'}</div>
+
+      <button class="btn admin" id="membersToggle" style="margin:22px 0 4px;">Approved members (${regularMembers.length}) ${membersOpen ? '▲ (hide)' : '▼ (show)'}</button>
+      <div id="membersBox" style="${membersOpen ? '' : 'display:none;'}margin-top:10px;">
+        <div id="approvedList">${regularMembers.length ? regularMembers.map(rowHtml).join('') : '<div class="empty">No approved members yet.</div>'}</div>
+      </div>
     </main>
   `;
 
@@ -412,6 +517,26 @@ function render(){
   document.querySelectorAll('[data-addmember]').forEach(b=>b.addEventListener('click', ()=>addMemberFromReview(b.dataset.addmember)));
   document.querySelectorAll('[data-markinactive]').forEach(b=>b.addEventListener('click', ()=>markInactiveFromReview(b.dataset.markinactive, b.dataset.rosterid)));
   document.querySelectorAll('[data-dismissreview]').forEach(b=>b.addEventListener('click', ()=>dismissReview(b.dataset.dismissreview)));
+
+  const createInviteBtn = document.getElementById('createInviteBtn');
+  if (createInviteBtn) createInviteBtn.addEventListener('click', createInviteToken);
+  document.querySelectorAll('[data-revokeinvite]').forEach(b=>b.addEventListener('click', ()=>revokeInviteToken(b.dataset.revokeinvite)));
+  document.querySelectorAll('[data-deleteinvite]').forEach(b=>b.addEventListener('click', ()=>deleteInviteToken(b.dataset.deleteinvite)));
+  document.querySelectorAll('[data-copylink]').forEach(b=>b.addEventListener('click', async ()=>{
+    const link = b.dataset.link;
+    const orig = b.textContent;
+    try{
+      await navigator.clipboard.writeText(link);
+      b.textContent = '✓ Copied';
+    }catch(e){
+      // Clipboard API unavailable (older browser / non-HTTPS context) — fall back to
+      // selecting the text field so the person can copy it manually instead.
+      const input = document.getElementById(`inviteLinkInput-${b.dataset.copylink}`);
+      if (input){ input.focus(); input.select(); }
+      b.textContent = 'Select & copy';
+    }
+    setTimeout(()=>{ b.textContent = orig; }, 1600);
+  }));
 
   wireImportSection();
 
@@ -431,6 +556,15 @@ function render(){
     thresholdsToggle.textContent = `Manage event thresholds ${thresholdsOpen ? '▲ (hide)' : '▼ (show)'}`;
   });
 
+  const membersToggle = document.getElementById('membersToggle');
+  if (membersToggle) membersToggle.addEventListener('click', () => {
+    membersOpen = !membersOpen;
+    const box = document.getElementById('membersBox');
+    box.style.display = membersOpen ? '' : 'none';
+    const count = profiles.filter(p=>p.approved && !p.is_admin).length;
+    membersToggle.textContent = `Approved members (${count}) ${membersOpen ? '▲ (hide)' : '▼ (show)'}`;
+  });
+
   wireThresholdsTable();
 
   if (window.__phxInitNavMenu) window.__phxInitNavMenu();
@@ -445,7 +579,7 @@ function rowHtml(p){
       <div class="row">
         ${p.avatar_url ? `<img class="avatar" src="${escapeHtml(p.avatar_url)}">` : '<div class="avatar"></div>'}
         <div class="who">
-          <div class="dname">${escapeHtml(p.discord_username||'Unknown')}</div>
+          <div class="dname">${displayName(p.discord_username||'Unknown')}</div>
           <div class="did">${escapeHtml(p.discord_id||'')}</div>
         </div>
         <input type="text" placeholder="In-game name" value="${escapeHtml(p.in_game_name||'')}" data-nameinput="${p.id}">
@@ -460,7 +594,7 @@ function rowHtml(p){
     <div class="row ${p.approved?'':'pending'}">
       ${p.avatar_url ? `<img class="avatar" src="${escapeHtml(p.avatar_url)}">` : '<div class="avatar"></div>'}
       <div class="who">
-        <div class="dname">${escapeHtml(p.discord_username||'Unknown')}</div>
+        <div class="dname">${displayName(p.discord_username||'Unknown')}</div>
         <div class="did">${escapeHtml(p.discord_id||'')}</div>
       </div>
       <input type="text" placeholder="In-game name" value="${escapeHtml(p.in_game_name||'')}" data-nameinput="${p.id}">
@@ -476,10 +610,19 @@ function rowHtml(p){
 }
 
 async function setApproved(id, val){
+  const p = profiles.find(pr=>pr.id===id);
+  const who = (p && (p.in_game_name || p.discord_username)) || 'this member';
+  if (!val && !confirm(`Revoke access for ${who}? They'll be signed out of the tracker immediately and will need to be re-approved to get back in.`)) return;
   await sb.from('tracker_profiles').update({approved: val, updated_at: new Date().toISOString()}).eq('id', id);
   await loadData(); render();
 }
 async function toggleAdmin(id, current){
+  const p = profiles.find(pr=>pr.id===id);
+  const who = (p && (p.in_game_name || p.discord_username)) || 'this member';
+  const msg = current
+    ? `Remove admin rights from ${who}? They'll keep normal member access but lose access to this admin page.`
+    : `Make ${who} an admin? They'll get full access to this page — approving members, editing events, and importing scores.`;
+  if (!confirm(msg)) return;
   await sb.from('tracker_profiles').update({is_admin: !current, updated_at: new Date().toISOString()}).eq('id', id);
   await loadData(); render();
 }

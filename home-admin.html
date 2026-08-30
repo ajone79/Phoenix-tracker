@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix EU168 — Home Screen Admin</title>
+<meta name="description" content="Manage the Phoenix EU168 home screen briefing, galleries, promo codes, and trivia.">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-eu168.png">
+<link rel="apple-touch-icon" href="/icon-eu168.png">
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/phx-nav-rail.js"></script>
+<style>
+  :root{--void:#050507;--panel:#111116;--panel-2:#17171e;--hair:#2a2a34;--signal:#ff9142;--periwinkle:#8fa3ff;--mint:#5fd068;--gold:#ffc857;--alert:#ff5a5f;--text:#e8e6e1;--text-dim:#8a8a94;--text-faint:#55555f;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;}
+  main{padding:26px 30px 80px;max-width:980px;margin:0 auto;}
+  .topbar{display:flex;align-items:stretch;height:60px;}
+  .elbow{width:110px;background:var(--signal);border-bottom-left-radius:30px;display:flex;align-items:center;justify-content:flex-end;padding-right:14px;}
+  .elbow span{font-family:'Antonio',sans-serif;font-weight:700;color:var(--void);font-size:12px;letter-spacing:.08em;}
+  .topbar-bar{flex:1;background:var(--panel);display:flex;align-items:center;padding:0 22px;border-bottom:2px solid var(--hair);}
+  .topbar-title{font-family:'Antonio',sans-serif;font-weight:700;font-size:20px;letter-spacing:.05em;}
+  .topbar-title b{color:var(--signal);}
+  .topbar-sub{font-size:10.5px;color:var(--text-dim);}
+  h2{font-family:'Antonio',sans-serif;font-size:15px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim);margin:30px 0 4px;}
+  .h2-sub{font-size:11px;color:var(--text-faint);margin-bottom:12px;}
+  .panel{background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:16px 18px;margin-bottom:14px;}
+  .field-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;}
+  .field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:180px;}
+  .field.narrow{flex:0 0 120px;min-width:120px;}
+  .field label{font-size:9.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;}
+  input[type=text], input[type=number], input[type=date], textarea, select{
+    background:var(--panel-2);border:1px solid var(--hair);color:var(--text);
+    font-family:'Space Mono',monospace;font-size:12.5px;padding:8px 10px;border-radius:6px;width:100%;
+  }
+  textarea{resize:vertical;min-height:56px;}
+  label.checkrow{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);cursor:pointer;}
+  .btn{font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:11px;padding:9px 16px;border-radius:6px;border:none;cursor:pointer;}
+  .btn.save{background:var(--mint);color:var(--void);}
+  .btn.add{background:var(--periwinkle);color:var(--void);}
+  .btn.del{background:transparent;border:1px solid var(--alert);color:var(--alert);padding:6px 12px;}
+  .btn.ghost{background:transparent;border:1px solid var(--hair);color:var(--text-dim);padding:6px 12px;}
+  .item-card{background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:12px 14px;margin-bottom:10px;}
+  .item-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .item-card-head .tag{font-size:9px;color:var(--text-faint);}
+  .empty{color:var(--text-faint);font-size:12px;padding:16px 0;}
+  .gate{min-height:100vh;display:flex;align-items:center;justify-content:center;}
+  .gate-box{max-width:400px;text-align:center;padding:30px;}
+  .save-status{font-size:11px;color:var(--mint);margin-left:10px;}
+  .editor-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;margin-bottom:6px;}
+  .editor-row .who{flex:1;font-size:12.5px;}
+  .editor-row .who .sub{font-size:10px;color:var(--text-faint);}
+  .owner-badge{font-size:9px;background:rgba(255,200,87,.15);color:var(--gold);padding:2px 8px;border-radius:20px;text-transform:uppercase;}
+  .sched-day-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px;}
+  .sched-day-box{background:var(--panel);border:1px solid var(--hair);border-radius:8px;padding:10px;}
+  .sched-day-box label{font-size:9px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;}
+  .sched-day-box textarea{min-height:44px;font-size:11.5px;}
+  .sched-day-box input[type=text]{font-size:11.5px;margin-bottom:6px;}
+</style>
+</head>
+<body>
+<div id="app"><div class="gate"><div class="gate-box">Loading…</div></div></div>
+
+<script>
+const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function uploadHomeImage(file, statusEl){
+  if(!file) return null;
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg';
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  if(statusEl) statusEl.textContent = 'Uploading…';
+  const { error } = await sb.storage.from('home-images').upload(path, file, { cacheControl: '3600', upsert: false });
+  if(error){ if(statusEl) statusEl.textContent = 'Upload failed: ' + error.message; return null; }
+  const { data } = sb.storage.from('home-images').getPublicUrl(path);
+  if(statusEl) statusEl.textContent = 'Uploaded ✓';
+  return data.publicUrl;
+}
+
+
+let me = null;
+let homeContent = null;
+let galleryItems = [];
+let promoCodes = [];
+let trivia = [];
+let profiles = [];
+let scheduleRows = [];
+let scheduleCells = [];
+
+async function init(){
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { location.href = 'login.html?next=home-admin.html'; return; }
+
+  const { data: myProfile } = await sb.from('tracker_profiles').select('*').eq('id', session.user.id).maybeSingle();
+  if (!myProfile || !(myProfile.is_owner || myProfile.is_home_editor)) {
+    document.getElementById('app').innerHTML = `<div class="gate"><div class="gate-box"><h2 style="color:#ff5a5f;font-family:'Antonio',sans-serif;">Not authorized</h2><p style="color:#8a8a94;font-size:12px;">This page is restricted to the alliance owner and people granted home-screen editing access.</p><a href="index.html" style="color:#ff9142;">← Back to home</a></div></div>`;
+    return;
+  }
+  me = myProfile;
+  await loadAll();
+  render();
+}
+
+async function loadAll(){
+  const tasks = [
+    sb.from('home_content').select('*').eq('id', 1).maybeSingle(),
+    sb.from('home_gallery_items').select('*').order('gallery').order('sort_order'),
+    sb.from('arc_promo_codes').select('*').order('sort_order'),
+    sb.from('arc_trivia').select('*').order('sort_order'),
+    sb.from('home_schedule_rows').select('*').order('sort_order'),
+    sb.from('home_schedule_cells').select('*'),
+  ];
+  if (me.is_owner) {
+    tasks.push(sb.from('tracker_profiles').select('*').eq('approved', true).order('in_game_name'));
+  }
+  const results = await Promise.all(tasks);
+  homeContent = results[0].data;
+  galleryItems = results[1].data || [];
+  promoCodes = results[2].data || [];
+  trivia = results[3].data || [];
+  scheduleRows = results[4].data || [];
+  scheduleCells = results[5].data || [];
+  if (me.is_owner) profiles = results[6].data || [];
+}
+
+function flashSaved(btn, label){
+  const original = btn.textContent;
+  btn.textContent = label || 'Saved ✓';
+  setTimeout(() => { btn.textContent = original; }, 1400);
+}
+
+/* ---------------- Briefing settings ---------------- */
+function briefingSectionHtml(){
+  const c = homeContent || {};
+  return `
+    <h2>Briefing Settings</h2>
+    <div class="h2-sub">Controls the heading, subtitle, work-in-progress banner, and which patch-notes page is embedded on the home screen.</div>
+    <div class="panel">
+      <div class="field-row">
+        <div class="field"><label>Heading</label><input type="text" id="fHeading" value="${escapeHtml(c.heading || '')}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Subtitle</label><input type="text" id="fSubtitle" value="${escapeHtml(c.subtitle || '')}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Patch notes page (path in repo, e.g. arc-content/m94-1-patch-notes.html)</label><input type="text" id="fPatchUrl" value="${escapeHtml(c.patch_notes_url || '')}"></div>
+      </div>
+      <div class="field-row" style="align-items:center;">
+        <label class="checkrow"><input type="checkbox" id="fWipEnabled" ${c.wip_banner_enabled ? 'checked' : ''}> Show work-in-progress banner</label>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>WIP banner text</label><textarea id="fWipText">${escapeHtml(c.wip_banner_text || '')}</textarea></div>
+      </div>
+      <button class="btn save" id="saveBriefing">Save Briefing Settings</button>
+      <span class="save-status" id="briefingStatus"></span>
+    </div>
+  `;
+}
+
+function wireBriefingSection(){
+  document.getElementById('saveBriefing').addEventListener('click', async (e) => {
+    const btn = e.target;
+    const payload = {
+      id: 1,
+      heading: document.getElementById('fHeading').value.trim(),
+      subtitle: document.getElementById('fSubtitle').value.trim(),
+      patch_notes_url: document.getElementById('fPatchUrl').value.trim(),
+      wip_banner_enabled: document.getElementById('fWipEnabled').checked,
+      wip_banner_text: document.getElementById('fWipText').value.trim(),
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await sb.from('home_content').upsert(payload);
+    if (error) { alert('Save failed: ' + error.message); return; }
+    homeContent = payload;
+    flashSaved(btn, 'Saved ✓');
+  });
+}
+
+/* ---------------- Galleries (Arc Overview / Suggested Crews) ---------------- */
+function galleryItemCardHtml(item){
+  return `
+    <div class="item-card" data-id="${item.id}">
+      <div class="item-card-head"><span class="tag">#${item.sort_order}</span><button class="btn del" data-delgallery="${item.id}">Delete</button></div>
+      <div class="field-row">
+        <div class="field"><label>Title</label><input type="text" data-g="title" value="${escapeHtml(item.title)}"></div>
+        <div class="field narrow"><label>Sort order</label><input type="number" data-g="sort_order" value="${item.sort_order}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Image URL (uploaded, or an existing path in the repo)</label><input type="text" data-g="image_url" value="${escapeHtml(item.image_url)}"></div>
+      </div>
+      <div class="field-row" style="align-items:center;">
+        <div class="field"><label>Or upload a new image</label><input type="file" accept="image/*" data-gfile="${item.id}"></div>
+        <span class="save-status" data-gfilestatus="${item.id}"></span>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Caption</label><textarea data-g="caption">${escapeHtml(item.caption)}</textarea></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Credit</label><input type="text" data-g="credit" value="${escapeHtml(item.credit)}"></div>
+      </div>
+      <button class="btn save" data-savegallery="${item.id}">Save</button>
+      <span class="save-status" data-gallerystatus="${item.id}"></span>
+    </div>
+  `;
+}
+
+function gallerySectionHtml(galleryKey, title, sub){
+  const items = galleryItems.filter(g => g.gallery === galleryKey);
+  return `
+    <h2>${title}</h2>
+    <div class="h2-sub">${sub}</div>
+    ${items.length ? items.map(galleryItemCardHtml).join('') : '<div class="empty">No items yet.</div>'}
+    <div class="panel">
+      <div class="item-card-head"><span class="tag">Add new</span></div>
+      <div class="field-row">
+        <div class="field"><label>Title</label><input type="text" id="new-${galleryKey}-title" placeholder="Card title"></div>
+        <div class="field narrow"><label>Sort order</label><input type="number" id="new-${galleryKey}-sort" value="${items.length}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Image URL (uploaded, or an existing path in the repo)</label><input type="text" id="new-${galleryKey}-image" placeholder="Upload below, or paste an existing repo path"></div>
+      </div>
+      <div class="field-row" style="align-items:center;">
+        <div class="field"><label>Upload image</label><input type="file" accept="image/*" id="new-${galleryKey}-imagefile"></div>
+        <span class="save-status" id="new-${galleryKey}-imagestatus"></span>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Caption</label><textarea id="new-${galleryKey}-caption"></textarea></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Credit</label><input type="text" id="new-${galleryKey}-credit"></div>
+      </div>
+      <button class="btn add" data-addgallery="${galleryKey}">Add Card</button>
+    </div>
+  `;
+}
+
+function wireGallerySection(galleryKey){
+  document.querySelectorAll(`[data-savegallery]`).forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = parseInt(e.target.dataset.savegallery);
+      const card = e.target.closest('.item-card');
+      const payload = {
+        title: card.querySelector('[data-g=title]').value.trim(),
+        sort_order: parseInt(card.querySelector('[data-g=sort_order]').value) || 0,
+        image_url: card.querySelector('[data-g=image_url]').value.trim(),
+        caption: card.querySelector('[data-g=caption]').value.trim(),
+        credit: card.querySelector('[data-g=credit]').value.trim(),
+      };
+      const { error } = await sb.from('home_gallery_items').update(payload).eq('id', id);
+      if (error) { alert('Save failed: ' + error.message); return; }
+      const idx = galleryItems.findIndex(g => g.id === id);
+      if (idx > -1) galleryItems[idx] = { ...galleryItems[idx], ...payload };
+      flashSaved(e.target, 'Saved ✓');
+    });
+  });
+  document.querySelectorAll(`[data-delgallery]`).forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = parseInt(e.target.dataset.delgallery);
+      if (!confirm('Delete this card? This cannot be undone.')) return;
+      const { error } = await sb.from('home_gallery_items').delete().eq('id', id);
+      if (error) { alert('Delete failed: ' + error.message); return; }
+      galleryItems = galleryItems.filter(g => g.id !== id);
+      render();
+    });
+  });
+  document.querySelectorAll('[data-gfile]').forEach(input => {
+    input.addEventListener('change', async (e) => {
+      const id = parseInt(e.target.dataset.gfile);
+      const statusEl = document.querySelector(`[data-gfilestatus="${id}"]`);
+      const url = await uploadHomeImage(e.target.files[0], statusEl);
+      if(url){
+        const card = e.target.closest('.item-card');
+        card.querySelector('[data-g=image_url]').value = url;
+      }
+    });
+  });
+  const newFileInput = document.getElementById(`new-${galleryKey}-imagefile`);
+  if(newFileInput) newFileInput.addEventListener('change', async (e) => {
+    const statusEl = document.getElementById(`new-${galleryKey}-imagestatus`);
+    const url = await uploadHomeImage(e.target.files[0], statusEl);
+    if(url) document.getElementById(`new-${galleryKey}-image`).value = url;
+  });
+  const addBtn = document.querySelector(`[data-addgallery="${galleryKey}"]`);
+  if (addBtn) addBtn.addEventListener('click', async () => {
+    const payload = {
+      gallery: galleryKey,
+      title: document.getElementById(`new-${galleryKey}-title`).value.trim(),
+      sort_order: parseInt(document.getElementById(`new-${galleryKey}-sort`).value) || 0,
+      image_url: document.getElementById(`new-${galleryKey}-image`).value.trim(),
+      caption: document.getElementById(`new-${galleryKey}-caption`).value.trim(),
+      credit: document.getElementById(`new-${galleryKey}-credit`).value.trim(),
+    };
+    if (!payload.title || !payload.image_url) { alert('Title and image path are required.'); return; }
+    const { data, error } = await sb.from('home_gallery_items').insert(payload).select().single();
+    if (error) { alert('Add failed: ' + error.message); return; }
+    galleryItems.push(data);
+    render();
+  });
+}
+
+/* ---------------- Promo Codes ---------------- */
+function promoCardHtml(p){
+  return `
+    <div class="item-card" data-id="${p.id}">
+      <div class="item-card-head"><span class="tag">#${p.sort_order}</span><button class="btn del" data-delpromo="${p.id}">Delete</button></div>
+      <div class="field-row">
+        <div class="field"><label>Arc name</label><input type="text" data-p="arc_name" value="${escapeHtml(p.arc_name)}"></div>
+        <div class="field"><label>Event name</label><input type="text" data-p="event_name" value="${escapeHtml(p.event_name)}"></div>
+        <div class="field narrow"><label>Event date</label><input type="date" data-p="event_date" value="${p.event_date || ''}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field narrow"><label>Grade label</label><input type="text" data-p="grade_label" value="${escapeHtml(p.grade_label)}"></div>
+        <div class="field"><label>Code</label><input type="text" data-p="code" value="${escapeHtml(p.code)}"></div>
+        <div class="field"><label>Reward</label><input type="text" data-p="reward" value="${escapeHtml(p.reward)}"></div>
+        <div class="field narrow"><label>Sort order</label><input type="number" data-p="sort_order" value="${p.sort_order}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Notes</label><input type="text" data-p="notes" value="${escapeHtml(p.notes)}"></div>
+      </div>
+      <button class="btn save" data-savepromo="${p.id}">Save</button>
+      <span class="save-status" data-promostatus="${p.id}"></span>
+    </div>
+  `;
+}
+
+function promoSectionHtml(){
+  return `
+    <h2>Promo Codes</h2>
+    <div class="h2-sub">Shown grouped by event on the home screen's Promo Codes block.</div>
+    ${promoCodes.length ? promoCodes.map(promoCardHtml).join('') : '<div class="empty">No promo codes yet.</div>'}
+    <div class="panel">
+      <div class="item-card-head"><span class="tag">Add new</span></div>
+      <div class="field-row">
+        <div class="field"><label>Arc name</label><input type="text" id="new-promo-arc"></div>
+        <div class="field"><label>Event name</label><input type="text" id="new-promo-event"></div>
+        <div class="field narrow"><label>Event date</label><input type="date" id="new-promo-date"></div>
+      </div>
+      <div class="field-row">
+        <div class="field narrow"><label>Grade label</label><input type="text" id="new-promo-grade" placeholder="ALL / G6-G8"></div>
+        <div class="field"><label>Code</label><input type="text" id="new-promo-code"></div>
+        <div class="field"><label>Reward</label><input type="text" id="new-promo-reward"></div>
+        <div class="field narrow"><label>Sort order</label><input type="number" id="new-promo-sort" value="${promoCodes.length}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Notes</label><input type="text" id="new-promo-notes"></div>
+      </div>
+      <button class="btn add" id="addPromo">Add Code</button>
+    </div>
+  `;
+}
+
+function wirePromoSection(){
+  document.querySelectorAll('[data-savepromo]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = parseInt(e.target.dataset.savepromo);
+      const card = e.target.closest('.item-card');
+      const payload = {
+        arc_name: card.querySelector('[data-p=arc_name]').value.trim(),
+        event_name: card.querySelector('[data-p=event_name]').value.trim(),
+        event_date: card.querySelector('[data-p=event_date]').value || null,
+        grade_label: card.querySelector('[data-p=grade_label]').value.trim(),
+        code: card.querySelector('[data-p=code]').value.trim(),
+        reward: card.querySelector('[data-p=reward]').value.trim(),
+        notes: card.querySelector('[data-p=notes]').value.trim(),
+        sort_order: parseInt(card.querySelector('[data-p=sort_order]').value) || 0,
+      };
+      const { error } = await sb.from('arc_promo_codes').update(payload).eq('id', id);
+      if (error) { alert('Save failed: ' + error.message); return; }
+      const idx = promoCodes.findIndex(p => p.id === id);
+      if (idx > -1) promoCodes[idx] = { ...promoCodes[idx], ...payload };
+      flashSaved(e.target, 'Saved ✓');
+    });
+  });
+  document.querySelectorAll('[data-delpromo]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = parseInt(e.target.dataset.delpromo);
+      if (!confirm('Delete this promo code?')) return;
+      const { error } = await sb.from('arc_promo_codes').delete().eq('id', id);
+      if (error) { alert('Delete failed: ' + error.message); return; }
+      promoCodes = promoCodes.filter(p => p.id !== id);
+      render();
+    });
+  });
+  const addBtn = document.getElementById('addPromo');
+  if (addBtn) addBtn.addEventListener('click', async () => {
+    const payload = {
+      arc_name: document.getElementById('new-promo-arc').value.trim(),
+      event_name: document.getElementById('new-promo-event').value.trim(),
+      event_date: document.getElementById('new-promo-date').value || null,
+      grade_label: document.getElementById('new-promo-grade').value.trim(),
+      code: document.getElementById('new-promo-code').value.trim(),
+      reward: document.getElementById('new-promo-reward').value.trim(),
+      notes: document.getElementById('new-promo-notes').value.trim(),
+      sort_order: parseInt(document.getElementById('new-promo-sort').value) || 0,
+    };
+    if (!payload.event_name || !payload.code) { alert('Event name and code are required.'); return; }
+    const { data, error } = await sb.from('arc_promo_codes').insert(payload).select().single();
+    if (error) { alert('Add failed: ' + error.message); return; }
+    promoCodes.push(data);
+    render();
+  });
+}
+
+/* ---------------- Trivia ---------------- */
+function triviaCardHtml(t){
+  return `
+    <div class="item-card" data-id="${t.id}">
+      <div class="item-card-head"><span class="tag">#${t.sort_order}</span><button class="btn del" data-deltrivia="${t.id}">Delete</button></div>
+      <div class="field-row">
+        <div class="field"><label>Arc name</label><input type="text" data-t="arc_name" value="${escapeHtml(t.arc_name)}"></div>
+        <div class="field"><label>Event name</label><input type="text" data-t="event_name" value="${escapeHtml(t.event_name)}"></div>
+        <div class="field narrow"><label>Day number</label><input type="number" data-t="day_number" value="${t.day_number ?? ''}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Label</label><input type="text" data-t="label" value="${escapeHtml(t.label)}"></div>
+        <div class="field"><label>Clue</label><input type="text" data-t="clue" value="${escapeHtml(t.clue)}"></div>
+        <div class="field"><label>Answer</label><input type="text" data-t="answer" value="${escapeHtml(t.answer)}"></div>
+        <div class="field narrow"><label>Sort order</label><input type="number" data-t="sort_order" value="${t.sort_order}"></div>
+      </div>
+      <button class="btn save" data-savetrivia="${t.id}">Save</button>
+      <span class="save-status" data-triviastatus="${t.id}"></span>
+    </div>
+  `;
+}
+
+function triviaSectionHtml(){
+  return `
+    <h2>Trivia Answers</h2>
+    <div class="h2-sub">Shown grouped by event, then by day, on the home screen's Trivia block.</div>
+    ${trivia.length ? trivia.map(triviaCardHtml).join('') : '<div class="empty">No trivia answers yet.</div>'}
+    <div class="panel">
+      <div class="item-card-head"><span class="tag">Add new</span></div>
+      <div class="field-row">
+        <div class="field"><label>Arc name</label><input type="text" id="new-trivia-arc"></div>
+        <div class="field"><label>Event name</label><input type="text" id="new-trivia-event"></div>
+        <div class="field narrow"><label>Day number</label><input type="number" id="new-trivia-day"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Label</label><input type="text" id="new-trivia-label" placeholder="e.g. Part 1"></div>
+        <div class="field"><label>Clue</label><input type="text" id="new-trivia-clue"></div>
+        <div class="field"><label>Answer</label><input type="text" id="new-trivia-answer"></div>
+        <div class="field narrow"><label>Sort order</label><input type="number" id="new-trivia-sort" value="${trivia.length}"></div>
+      </div>
+      <button class="btn add" id="addTrivia">Add Answer</button>
+    </div>
+  `;
+}
+
+function wireTriviaSection(){
+  document.querySelectorAll('[data-savetrivia]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = parseInt(e.target.dataset.savetrivia);
+      const card = e.target.closest('.item-card');
+      const payload = {
+        arc_name: card.querySelector('[data-t=arc_name]').value.trim(),
+        event_name: card.querySelector('[data-t=event_name]').value.trim(),
+        day_number: card.querySelector('[data-t=day_number]').value === '' ? null : parseInt(card.querySelector('[data-t=day_number]').value),
+        label: card.querySelector('[data-t=label]').value.trim(),
+        clue: card.querySelector('[data-t=clue]').value.trim(),
+        answer: card.querySelector('[data-t=answer]').value.trim(),
+        sort_order: parseInt(card.querySelector('[data-t=sort_order]').value) || 0,
+      };
+      const { error } = await sb.from('arc_trivia').update(payload).eq('id', id);
+      if (error) { alert('Save failed: ' + error.message); return; }
+      const idx = trivia.findIndex(t => t.id === id);
+      if (idx > -1) trivia[idx] = { ...trivia[idx], ...payload };
+      flashSaved(e.target, 'Saved ✓');
+    });
+  });
+  document.querySelectorAll('[data-deltrivia]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = parseInt(e.target.dataset.deltrivia);
+      if (!confirm('Delete this trivia answer?')) return;
+      const { error } = await sb.from('arc_trivia').delete().eq('id', id);
+      if (error) { alert('Delete failed: ' + error.message); return; }
+      trivia = trivia.filter(t => t.id !== id);
+      render();
+    });
+  });
+  const addBtn = document.getElementById('addTrivia');
+  if (addBtn) addBtn.addEventListener('click', async () => {
+    const payload = {
+      arc_name: document.getElementById('new-trivia-arc').value.trim(),
+      event_name: document.getElementById('new-trivia-event').value.trim(),
+      day_number: document.getElementById('new-trivia-day').value === '' ? null : parseInt(document.getElementById('new-trivia-day').value),
+      label: document.getElementById('new-trivia-label').value.trim(),
+      clue: document.getElementById('new-trivia-clue').value.trim(),
+      answer: document.getElementById('new-trivia-answer').value.trim(),
+      sort_order: parseInt(document.getElementById('new-trivia-sort').value) || 0,
+    };
+    if (!payload.event_name || !payload.answer) { alert('Event name and answer are required.'); return; }
+    const { data, error } = await sb.from('arc_trivia').insert(payload).select().single();
+    if (error) { alert('Add failed: ' + error.message); return; }
+    trivia.push(data);
+    render();
+  });
+}
+
+/* ---------------- Weekly Events schedule ---------------- */
+const SCHED_DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+function scheduleRowCardHtml(row){
+  const cellsByDay = {};
+  scheduleCells.filter(c => c.row_id === row.id).forEach(c => { cellsByDay[c.day_of_week] = c; });
+  const dayBoxes = SCHED_DAYS.map((label, d) => {
+    const cell = cellsByDay[d] || { cell_text: '', hint_text: '' };
+    return `
+      <div class="sched-day-box">
+        <label>${label}</label>
+        <input type="text" data-sday="${d}" data-sfield="cell_text" value="${escapeHtml(cell.cell_text)}" placeholder="What to do">
+        <textarea data-sday="${d}" data-sfield="hint_text" placeholder="Optional hint (tap-to-reveal on the home screen)">${escapeHtml(cell.hint_text)}</textarea>
+      </div>
+    `;
+  }).join('');
+  return `
+    <div class="item-card" data-rowid="${row.id}">
+      <div class="item-card-head"><span class="tag">#${row.sort_order}</span><button class="btn del" data-delschedrow="${row.id}">Delete Row</button></div>
+      <div class="field-row">
+        <div class="field"><label>Row label</label><input type="text" data-srowfield="label" value="${escapeHtml(row.label)}"></div>
+        <div class="field narrow"><label>Sort order</label><input type="number" data-srowfield="sort_order" value="${row.sort_order}"></div>
+      </div>
+      <div class="sched-day-grid">${dayBoxes}</div>
+      <button class="btn save" data-savesched="${row.id}" style="margin-top:10px;">Save Row</button>
+      <span class="save-status" data-schedstatus="${row.id}"></span>
+    </div>
+  `;
+}
+
+function scheduleSectionHtml(){
+  return `
+    <h2>Weekly Events</h2>
+    <div class="h2-sub">Independent of the current arc — shown as a day-by-day table on the home screen. Add a row for each recurring event; leave a day blank if nothing applies. Hints only show as a tap-to-reveal icon, so keep the main text short.</div>
+    ${scheduleRows.length ? scheduleRows.map(scheduleRowCardHtml).join('') : '<div class="empty">No weekly events yet.</div>'}
+    <div class="panel">
+      <button class="btn add" id="addScheduleRow">Add New Row</button>
+    </div>
+  `;
+}
+
+function wireScheduleSection(){
+  document.querySelectorAll('[data-savesched]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const rowId = parseInt(e.target.dataset.savesched);
+      const card = e.target.closest('.item-card');
+      const rowPayload = {
+        label: card.querySelector('[data-srowfield=label]').value.trim(),
+        sort_order: parseInt(card.querySelector('[data-srowfield=sort_order]').value) || 0,
+      };
+      const { error: rowErr } = await sb.from('home_schedule_rows').update(rowPayload).eq('id', rowId);
+      if (rowErr) { alert('Save failed: ' + rowErr.message); return; }
+
+      const cellPayloads = [];
+      for(let d = 0; d < 7; d++){
+        cellPayloads.push({
+          row_id: rowId,
+          day_of_week: d,
+          cell_text: card.querySelector(`[data-sday="${d}"][data-sfield=cell_text]`).value.trim(),
+          hint_text: card.querySelector(`[data-sday="${d}"][data-sfield=hint_text]`).value.trim(),
+        });
+      }
+      const { data: savedCells, error: cellErr } = await sb.from('home_schedule_cells')
+        .upsert(cellPayloads, { onConflict: 'row_id,day_of_week' }).select();
+      if (cellErr) { alert('Save failed: ' + cellErr.message); return; }
+
+      const rowIdx = scheduleRows.findIndex(r => r.id === rowId);
+      if (rowIdx > -1) scheduleRows[rowIdx] = { ...scheduleRows[rowIdx], ...rowPayload };
+      scheduleCells = scheduleCells.filter(c => c.row_id !== rowId).concat(savedCells || []);
+      flashSaved(e.target, 'Saved ✓');
+    });
+  });
+  document.querySelectorAll('[data-delschedrow]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const rowId = parseInt(e.target.dataset.delschedrow);
+      if (!confirm('Delete this whole row and all its days?')) return;
+      const { error } = await sb.from('home_schedule_rows').delete().eq('id', rowId);
+      if (error) { alert('Delete failed: ' + error.message); return; }
+      scheduleRows = scheduleRows.filter(r => r.id !== rowId);
+      scheduleCells = scheduleCells.filter(c => c.row_id !== rowId);
+      render();
+    });
+  });
+  const addBtn = document.getElementById('addScheduleRow');
+  if (addBtn) addBtn.addEventListener('click', async () => {
+    const { data: newRow, error } = await sb.from('home_schedule_rows')
+      .insert({ label: 'New Event', sort_order: scheduleRows.length })
+      .select().single();
+    if (error) { alert('Add failed: ' + error.message); return; }
+    const blankCells = [];
+    for(let d = 0; d < 7; d++) blankCells.push({ row_id: newRow.id, day_of_week: d, cell_text: '', hint_text: '' });
+    const { data: newCells, error: cellErr } = await sb.from('home_schedule_cells').insert(blankCells).select();
+    if (cellErr) { alert('Add failed: ' + cellErr.message); return; }
+    scheduleRows.push(newRow);
+    scheduleCells = scheduleCells.concat(newCells);
+    render();
+  });
+}
+
+/* ---------------- Home editors (owner only) ---------------- */
+function editorsSectionHtml(){
+  if (!me.is_owner) return '';
+  const rows = profiles.map(p => `
+    <div class="editor-row">
+      <div class="who">
+        ${escapeHtml(p.in_game_name || p.discord_username || p.id)}
+        ${p.is_owner ? '<span class="owner-badge">Owner</span>' : ''}
+        <div class="sub">${escapeHtml(p.discord_username || '')}</div>
+      </div>
+      ${p.is_owner
+        ? '<span style="color:var(--text-faint);font-size:11px;">Always has access</span>'
+        : `<label class="checkrow"><input type="checkbox" data-editortoggle="${p.id}" ${p.is_home_editor ? 'checked' : ''}> Can edit home screen</label>`
+      }
+    </div>
+  `).join('');
+  return `
+    <h2>Home Screen Editors</h2>
+    <div class="h2-sub">Owner-only. Grant trusted people access to this page without making them a full site admin.</div>
+    <div class="panel">
+      ${rows || '<div class="empty">No approved members found.</div>'}
+    </div>
+  `;
+}
+
+function wireEditorsSection(){
+  document.querySelectorAll('[data-editortoggle]').forEach(cb => {
+    cb.addEventListener('change', async (e) => {
+      const id = e.target.dataset.editortoggle;
+      const checked = e.target.checked;
+      const { error } = await sb.from('tracker_profiles').update({ is_home_editor: checked }).eq('id', id);
+      if (error) { alert('Update failed: ' + error.message); e.target.checked = !checked; return; }
+      const p = profiles.find(p => p.id === id);
+      if (p) p.is_home_editor = checked;
+    });
+  });
+}
+
+/* ---------------- Shell ---------------- */
+function render(){
+  document.getElementById('app').innerHTML = `
+    <div class="topbar">
+      <div class="elbow"><span>PHX</span></div>
+      <div class="topbar-bar">
+        <div>
+          <div class="topbar-title"><b>PHOENIX</b> Home Screen Admin</div>
+          <div class="topbar-sub">${me.is_owner ? 'Owner access' : 'Home editor access'} — changes here appear on the live home screen immediately.</div>
+        </div>
+      </div>
+    </div>
+    <main>
+      ${briefingSectionHtml()}
+      ${gallerySectionHtml('overview', 'Arc Overview Gallery', 'Cards shown in the Arc Overview block on the home screen.')}
+      ${gallerySectionHtml('crews', 'Suggested Crews Gallery', 'Cards shown in the Suggested Crews block on the home screen.')}
+      ${promoSectionHtml()}
+      ${triviaSectionHtml()}
+      ${scheduleSectionHtml()}
+      ${editorsSectionHtml()}
+    </main>
+  `;
+  wireBriefingSection();
+  wireGallerySection('overview');
+  wireGallerySection('crews');
+  wirePromoSection();
+  wireTriviaSection();
+  wireScheduleSection();
+  wireEditorsSection();
+}
+
+init();
+</script>
+</body>
+</html>

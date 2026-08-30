@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Phoenix EU168 — Events Calendar</title>
 <meta name="description" content="Every scheduled Star Trek Fleet Command event plus Phoenix EU168 Territory Capture windows, updated daily.">
-<script src="assets/phx-nav-menu.js"></script>
+<script src="assets/phx-nav-rail.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/tracker-auth.js"></script>
 <style>
@@ -73,7 +73,7 @@
   }
 
   .controls{
-    position:sticky; top:36px; z-index:20;
+    position:sticky; top:0; z-index:20;
     background:rgba(10,13,18,0.96);
     backdrop-filter:blur(6px);
     border-bottom:1px solid var(--border);
@@ -95,15 +95,25 @@
     font-size:13px;
   }
   select:focus, input:focus{outline:2px solid var(--blue); outline-offset:1px;}
+
+  .adv-toggle{
+    font-family:var(--mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase;
+    background:transparent; border:1px solid var(--border); color:var(--muted);
+    border-radius:6px; padding:7px 12px; cursor:pointer; margin-left:auto;
+  }
+  .adv-toggle:hover{ color:var(--text); border-color:var(--muted); }
+  .adv-filters{ display:flex; flex-direction:column; gap:10px; }
+  .adv-filters.collapsed{ display:none; }
+
   .chip{
     font-family:var(--mono); font-size:11px; letter-spacing:.03em;
     padding:6px 10px; border-radius:20px;
-    border:1px solid var(--border); background:var(--panel-alt);
-    color:var(--muted); cursor:pointer; user-select:none;
+    border:1px solid var(--chip-color, var(--border)); background:transparent;
+    color:var(--chip-color, var(--muted)); cursor:pointer; user-select:none;
     display:inline-flex; align-items:center; gap:6px;
     transition:border-color .15s, color .15s, background .15s;
   }
-  .chip.on{color:var(--text); border-color:currentColor; background:rgba(255,255,255,0.03);}
+  .chip.on{color:#05070a; border-color:var(--chip-color, currentColor); background:var(--chip-color, currentColor); font-weight:700;}
   .chip-sm{font-size:9.5px; padding:4px 8px;}
   .chip-clear{color:var(--red); border-color:var(--red); font-weight:700;}
   .search-wrap{flex:1; min-width:160px;}
@@ -208,8 +218,6 @@
 </style>
 </head>
 <body>
-<nav class="phx-nav"><span class="phx-nav-tag">PHX</span><a href="index.html">🏠 Home</a><a href="game-events.html" class="current">Events Calendar</a></nav>
-
 <header>
   <div class="eyebrow">Global Feed · stfc.cfd + Territory Capture · Auto-updated daily</div>
   <h1>Phoenix EU168 — Events Calendar</h1>
@@ -224,16 +232,19 @@
     </div>
     <button class="btn" id="jumpToday">Jump to today</button>
     <a class="btn primary" href="gantt-events.html">View as Gantt chart</a>
+    <button class="adv-toggle" id="advToggle">Advanced Filters ▾</button>
   </div>
-  <div class="row">
-    <span class="field-label" style="width:100%;">Ops Level (tap one to isolate, tap again for all)</span>
+  <div class="adv-filters collapsed" id="advFilters">
+    <div class="row">
+      <span class="field-label" style="width:100%;">Ops Level (tap one to isolate, tap again for all)</span>
+    </div>
+    <div class="row" id="gradeChipRow"></div>
+    <div class="row">
+      <span class="field-label">Timezone</span>
+      <select id="tzSelect"></select>
+    </div>
+    <div class="row" id="keyChipRow"></div>
   </div>
-  <div class="row" id="gradeChipRow"></div>
-  <div class="row">
-    <span class="field-label">Timezone</span>
-    <select id="tzSelect"></select>
-  </div>
-  <div class="row" id="keyChipRow"></div>
 </div>
 
 <main id="dayList"></main>
@@ -380,13 +391,19 @@ function buildChips(){
   const wrap = el('keyChipRow');
   wrap.innerHTML = '';
 
+  const allOff = activeTypes.size === 0 && !ticketedVisible;
   const clearChip = document.createElement('div');
   clearChip.className = 'chip chip-sm chip-clear';
-  clearChip.textContent = 'Clear All';
-  clearChip.title = 'Hide everything, then pick just the ones you want';
+  clearChip.textContent = allOff ? 'Select All' : 'Clear All';
+  clearChip.title = allOff ? 'Show every event type' : 'Hide everything, then pick just the ones you want';
   clearChip.addEventListener('click', () => {
-    activeTypes.clear();
-    ticketedVisible = false;
+    if(allOff){
+      activeTypes = new Set(Object.keys(GAME_CATS));
+      ticketedVisible = true;
+    } else {
+      activeTypes.clear();
+      ticketedVisible = false;
+    }
     buildChips(); render();
   });
   wrap.appendChild(clearChip);
@@ -395,7 +412,7 @@ function buildChips(){
     const cat = GAME_CATS[key];
     const chip = document.createElement('div');
     chip.className = 'chip chip-sm' + (activeTypes.has(key) ? ' on' : '');
-    chip.style.color = cat.color;
+    chip.style.setProperty('--chip-color', cat.color);
     chip.textContent = cat.label;
     chip.title = 'Toggle this type on/off';
     chip.addEventListener('click', () => {
@@ -406,7 +423,7 @@ function buildChips(){
   });
   const ticketedChip = document.createElement('div');
   ticketedChip.className = 'chip chip-sm' + (ticketedVisible ? ' on' : '');
-  ticketedChip.style.color = '#FFD54F';
+  ticketedChip.style.setProperty('--chip-color', '#FFD54F');
   ticketedChip.textContent = 'Ticketed';
   ticketedChip.title = 'Toggle ticketed events on/off';
   ticketedChip.addEventListener('click', () => { ticketedVisible = !ticketedVisible; buildChips(); render(); });
@@ -418,7 +435,7 @@ function buildGradeChips(){
   Object.keys(GRADE_BANDS).forEach(g => {
     const chip = document.createElement('div');
     chip.className = 'chip' + (selectedGrade === g ? ' on' : '');
-    chip.style.color = 'var(--blue)';
+    chip.style.setProperty('--chip-color', 'var(--blue)');
     chip.textContent = g;
     chip.title = 'Ops ' + GRADE_BANDS[g][0] + '–' + GRADE_BANDS[g][1] + ' — tap to isolate, tap again for all grades';
     chip.addEventListener('click', () => {
@@ -439,10 +456,13 @@ function render(){
 
   const byDay = {};
 
-  // Fixed window: today (in the selected timezone) through +30 days.
-  // No manual date-range picker — kept simple and consistent with Gantt View.
-  const winStart = toZoned(new Date().toISOString(), tzValue).dateISO;
-  const winEnd = addDays(winStart, DEFAULT_WINDOW_DAYS);
+  // Window: 3 days back (so recently-finished events, and anything that started
+  // the day before and ran past midnight, are still reachable by scrolling up)
+  // through today, through +30 days forward. No manual date-range picker.
+  const LOOKBACK_DAYS = 3;
+  const trueTodayISO = toZoned(new Date().toISOString(), tzValue).dateISO;
+  const winStart = addDays(trueTodayISO, -LOOKBACK_DAYS);
+  const winEnd = addDays(trueTodayISO, DEFAULT_WINDOW_DAYS);
 
   // One combined candidate list: scraped+merged feed events (minus Voyage,
   // which is hand-defined below instead) + recurring Territory Capture +
@@ -453,16 +473,14 @@ function render(){
     ...buildMergedEvents(GAME_EVENTS).filter(e => e.eventSubType !== 'voyage_across_the_void'),
     ...generateRecurringEvents(TERRITORY_EVENTS, winStart, winEnd),
     ...generateRecurringEvents(VOYAGE_EVENTS, winStart, winEnd),
-    ...generateRecurringEvents(TUESDAY_EVENTS, winStart, winEnd)
+    ...generateRecurringEvents(TUESDAY_EVENTS, winStart, winEnd),
+    ...generateMaverickEvents(winStart, winEnd)
   ];
 
   candidateEvents.forEach(ev => {
     if(!activeTypes.has(ev.displayType)) return;
     if(!ticketedVisible && ev.eventSubType === 'ticketed') return;
     if(search && !ev.title.toLowerCase().includes(search)) return;
-    // Past events are always hidden (baked-in default, previously a checkbox)
-    if(ev.endUTC && new Date(ev.endUTC).getTime() < nowMs) return;
-    if(!ev.endUTC && ev.startUTC && new Date(ev.startUTC).getTime() < nowMs) return;
 
     const opsMin = ev.minOpsLevel == null ? 1 : ev.minOpsLevel;
     const opsMax = ev.maxOpsLevel == null ? 999 : ev.maxOpsLevel;
@@ -473,15 +491,30 @@ function render(){
 
     if(!ev.startUTC) return;
     const startZ = toZoned(ev.startUTC, tzValue);
-    if(startZ.dateISO < winStart || startZ.dateISO > winEnd) return;
+    if(startZ.dateISO > winEnd) return;
+
+    // Normally an event is bucketed under its own start day, and the lookback window
+    // is what limits how much history shows. But a longer-running event (e.g. Maverick
+    // Tasks, which spans a full week) can still be currently active even though it
+    // started further back than the lookback reaches — rather than silently dropping
+    // it, show it on the earliest visible day instead. Something that's genuinely
+    // finished before the window even starts is still dropped.
+    let bucketDateISO = startZ.dateISO;
+    let startedBeforeVisibleWindow = false;
+    if(bucketDateISO < winStart){
+      const endMs = ev.endUTC ? new Date(ev.endUTC).getTime() : new Date(ev.startUTC).getTime();
+      if(endMs < nowMs) return;
+      bucketDateISO = winStart;
+      startedBeforeVisibleWindow = true;
+    }
 
     const endZ = ev.endUTC ? toZoned(ev.endUTC, tzValue) : null;
-    (byDay[startZ.dateISO] = byDay[startZ.dateISO] || []).push({ev, startZ, endZ, opsMin, opsMax});
+    (byDay[bucketDateISO] = byDay[bucketDateISO] || []).push({ev, startZ, endZ, opsMin, opsMax, startedBeforeVisibleWindow});
   });
 
   Object.values(byDay).forEach(list => list.sort((a,b) => a.startZ.h*60+a.startZ.m - (b.startZ.h*60+b.startZ.m)));
 
-  const todayISO = winStart;
+  const todayISO = trueTodayISO;
   const daysToShow = dateRangeList(winStart, winEnd);
   const dayList = el('dayList');
   dayList.innerHTML = '';
@@ -523,14 +556,15 @@ function render(){
       empty.textContent = 'No matching events for this day.';
       card.appendChild(empty);
     } else {
-      list.forEach(({ev, startZ, endZ, opsMin, opsMax}) => {
+      list.forEach(({ev, startZ, endZ, opsMin, opsMax, startedBeforeVisibleWindow}) => {
         const catDef = GAME_CATS[ev.displayType] || GAME_CATS[''];
         const row = document.createElement('div');
         row.className = 'event-row';
         const opsLabel = opsMax>=999 ? (opsMin+'+') : (opsMin+'–'+opsMax);
+        const startLabel = startedBeforeVisibleWindow ? dateLabelShort(startZ.dateISO)+' '+fmtTime(startZ.h, startZ.m) : fmtTime(startZ.h, startZ.m);
         const timeLabel = endZ
-          ? fmtTime(startZ.h, startZ.m) + ' → ' + (endZ.dateISO !== startZ.dateISO ? dateLabelShort(endZ.dateISO)+' ' : '') + fmtTime(endZ.h, endZ.m)
-          : fmtTime(startZ.h, startZ.m);
+          ? startLabel + ' → ' + (endZ.dateISO !== startZ.dateISO ? dateLabelShort(endZ.dateISO)+' ' : '') + fmtTime(endZ.h, endZ.m)
+          : startLabel;
         const fullDesc = ev.description || '';
         const isLong = fullDesc.length > DESC_TRUNCATE_LEN;
         const shortDesc = isLong ? truncate(fullDesc, DESC_TRUNCATE_LEN) : fullDesc;
@@ -642,4 +676,21 @@ async function loadDataAndInit(){
 loadDataAndInit();
 </script>
 </body>
+<script>
+(function(){
+  const KEY = 'phx_advFiltersOpen_calendar';
+  const btn = document.getElementById('advToggle');
+  const panel = document.getElementById('advFilters');
+  function apply(open){
+    panel.classList.toggle('collapsed', !open);
+    btn.textContent = 'Advanced Filters ' + (open ? '▴' : '▾');
+  }
+  apply(localStorage.getItem(KEY) === '1');
+  btn.addEventListener('click', () => {
+    const nowOpen = panel.classList.contains('collapsed');
+    apply(nowOpen);
+    localStorage.setItem(KEY, nowOpen ? '1' : '0');
+  });
+})();
+</script>
 </html>

@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M94.1 Cause & Effect Mid Arc Patch Notes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#020816;
+      --bg-2:#071328;
+      --panel:rgba(9, 20, 38, 0.72);
+      --panel-strong:rgba(6, 14, 28, 0.94);
+      --line:rgba(125, 205, 255, 0.22);
+      --line-strong:rgba(125, 205, 255, 0.45);
+      --cyan:#93e9ff;
+      --blue:#7fa9ff;
+      --gold:#ffd47a;
+      --violet:#a590ff;
+      --text:#eef7ff;
+      --muted:#a7bfd4;
+      --shadow:0 18px 48px rgba(0,0,0,.45);
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      min-height:100vh;
+      font-family:"Inter", sans-serif;
+      color:var(--text);
+      overflow-x:hidden;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(147,233,255,.12), transparent 18%),
+        radial-gradient(circle at 82% 18%, rgba(165,144,255,.10), transparent 22%),
+        radial-gradient(circle at 75% 80%, rgba(255,212,122,.08), transparent 18%),
+        linear-gradient(180deg, #01040b 0%, #030b17 30%, #071328 100%);
+    }
+
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      background:
+        radial-gradient(1.5px 1.5px at 8% 14%, rgba(255,255,255,.92) 0 55%, transparent 60%),
+        radial-gradient(1px 1px at 18% 62%, rgba(147,233,255,.7) 0 55%, transparent 60%),
+        radial-gradient(1.8px 1.8px at 36% 24%, rgba(255,255,255,.85) 0 55%, transparent 60%),
+        radial-gradient(1.2px 1.2px at 48% 82%, rgba(255,255,255,.75) 0 55%, transparent 60%),
+        radial-gradient(1.5px 1.5px at 68% 34%, rgba(127,169,255,.78) 0 55%, transparent 60%),
+        radial-gradient(1.3px 1.3px at 78% 70%, rgba(255,255,255,.82) 0 55%, transparent 60%),
+        radial-gradient(2px 2px at 90% 20%, rgba(255,255,255,.9) 0 55%, transparent 60%),
+        radial-gradient(1.2px 1.2px at 92% 88%, rgba(147,233,255,.7) 0 55%, transparent 60%);
+      background-size:380px 220px, 420px 260px, 460px 240px, 380px 260px, 500px 280px, 420px 260px, 560px 300px, 520px 320px;
+      opacity:.9;
+    }
+
+    body::after{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      opacity:.18;
+      background:
+        linear-gradient(115deg, transparent 0 46%, rgba(147,233,255,.22) 49%, transparent 52%),
+        linear-gradient(295deg, transparent 0 47%, rgba(127,169,255,.14) 50%, transparent 53%);
+      background-size:900px 420px, 1100px 520px;
+      mix-blend-mode:screen;
+    }
+
+    .sheet{
+      width:min(1400px, calc(100vw - 32px));
+      aspect-ratio:1.414 / 1;
+      min-height:calc(100vh - 32px);
+      margin:16px auto;
+      position:relative;
+      padding:28px;
+      border-radius:26px;
+      border:1px solid var(--line);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015)),
+        linear-gradient(145deg, rgba(8,16,30,.88), rgba(4,10,20,.84));
+      backdrop-filter: blur(10px);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    .sheet::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background:
+        radial-gradient(circle at 50% -10%, rgba(147,233,255,.14), transparent 32%),
+        radial-gradient(circle at 100% 100%, rgba(127,169,255,.10), transparent 28%);
+    }
+
+    .title-wrap{
+      text-align:center;
+      position:relative;
+      z-index:1;
+      animation:reveal .7s ease both;
+    }
+
+    .eyebrow{
+      font-family:"Orbitron", sans-serif;
+      color:var(--gold);
+      letter-spacing:.3em;
+      text-transform:uppercase;
+      font-size:.74rem;
+      margin-bottom:10px;
+      opacity:.9;
+    }
+
+    h1{
+      margin:0;
+      font-family:"Orbitron", sans-serif;
+      font-size:clamp(1.65rem, 2.35vw, 3rem);
+      line-height:1.05;
+      letter-spacing:.07em;
+      text-transform:uppercase;
+      text-shadow:0 0 30px rgba(147,233,255,.12);
+    }
+
+    .sub{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:.95rem;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(4, 1fr);
+      grid-template-rows:repeat(2, 1fr);
+      gap:16px;
+      margin-top:24px;
+      height:calc(100% - 118px);
+      position:relative;
+      z-index:1;
+    }
+
+    .topic{
+      position:relative;
+      border:1px solid var(--line);
+      border-radius:22px;
+      background:
+        linear-gradient(180deg, rgba(147,233,255,.045), rgba(255,255,255,.01)),
+        var(--panel);
+      padding:20px 18px 18px;
+      text-align:left;
+      cursor:pointer;
+      overflow:hidden;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 14px 30px rgba(0,0,0,.24);
+      transition:transform .28s ease, border-color .28s ease, box-shadow .28s ease, background .28s ease;
+      animation:reveal .7s ease both;
+    }
+
+    .topic:nth-child(1){animation-delay:.05s}
+    .topic:nth-child(2){animation-delay:.11s}
+    .topic:nth-child(3){animation-delay:.17s}
+    .topic:nth-child(4){animation-delay:.23s}
+    .topic:nth-child(5){animation-delay:.29s}
+    .topic:nth-child(6){animation-delay:.35s}
+    .topic:nth-child(7){animation-delay:.41s}
+    .topic:nth-child(8){animation-delay:.47s}
+
+    .topic:hover,
+    .topic:focus-visible{
+      transform:translateY(-6px);
+      border-color:var(--line-strong);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.08),
+        0 20px 38px rgba(0,0,0,.34),
+        0 0 0 1px rgba(147,233,255,.12);
+      outline:none;
+    }
+
+    .topic::before{
+      content:"";
+      position:absolute;
+      width:180px;
+      height:180px;
+      right:-56px;
+      bottom:-74px;
+      border-radius:50%;
+      background:radial-gradient(circle, rgba(147,233,255,.13), transparent 68%);
+      pointer-events:none;
+    }
+
+    .topic::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.045), transparent 28%);
+      opacity:.8;
+    }
+
+    .topic h2{
+      margin:0 0 12px;
+      font-family:"Orbitron", sans-serif;
+      font-size:clamp(1rem, 1.1vw, 1.3rem);
+      line-height:1.15;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      position:relative;
+      z-index:1;
+    }
+
+    .topic p{
+      margin:0;
+      color:var(--muted);
+      font-size:.94rem;
+      line-height:1.5;
+      max-width:28ch;
+      position:relative;
+      z-index:1;
+    }
+
+    .tap{
+      position:absolute;
+      left:18px;
+      bottom:14px;
+      font-size:.76rem;
+      color:var(--cyan);
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      z-index:1;
+    }
+
+    .modal{
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+      background:rgba(2,8,18,.76);
+      backdrop-filter: blur(10px);
+      opacity:0;
+      visibility:hidden;
+      transition:.25s ease;
+      z-index:50;
+    }
+
+    .modal.active{
+      opacity:1;
+      visibility:visible;
+    }
+
+    .dialog{
+      width:min(880px, 100%);
+      border-radius:28px;
+      border:1px solid rgba(147,233,255,.34);
+      background:
+        linear-gradient(180deg, rgba(147,233,255,.05), rgba(255,255,255,.015)),
+        var(--panel-strong);
+      overflow:hidden;
+      box-shadow:0 30px 90px rgba(0,0,0,.62);
+      transform:translateY(12px) scale(.98);
+      transition:.24s ease;
+    }
+
+    .modal.active .dialog{
+      transform:translateY(0) scale(1);
+    }
+
+    .dialog-top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      padding:18px 22px;
+      border-bottom:1px solid rgba(147,233,255,.16);
+      background:linear-gradient(90deg, rgba(127,169,255,.08), rgba(147,233,255,.08));
+    }
+
+    .dialog-top h3{
+      margin:0;
+      font-family:"Orbitron", sans-serif;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      font-size:1.14rem;
+    }
+
+    .close{
+      appearance:none;
+      border:1px solid rgba(147,233,255,.24);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      width:42px;
+      height:42px;
+      border-radius:50%;
+      font-size:1.15rem;
+      cursor:pointer;
+      transition:.2s ease;
+    }
+
+    .close:hover{
+      transform:scale(1.08);
+      background:rgba(147,233,255,.12);
+    }
+
+    .dialog-body{
+      padding:22px 24px 26px;
+    }
+
+    .dialog-body p{
+      margin:0 0 14px;
+      color:#dbeaf7;
+      line-height:1.65;
+    }
+
+    .dialog-body ul{
+      margin:0 0 20px;
+      padding-left:18px;
+      color:#dbeaf7;
+      line-height:1.65;
+    }
+
+    .dialog-body li+li{margin-top:10px}
+
+    .patch-link{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:12px 16px;
+      border-radius:999px;
+      text-decoration:none;
+      color:#031321;
+      font-weight:700;
+      background:linear-gradient(90deg, var(--gold), #ffe8a8);
+      box-shadow:0 10px 24px rgba(255,212,122,.18);
+      transition:transform .22s ease, box-shadow .22s ease, filter .22s ease;
+    }
+
+    .patch-link:hover{
+      transform:translateY(-2px);
+      box-shadow:0 16px 30px rgba(255,212,122,.24);
+      filter:brightness(1.03);
+    }
+
+    @keyframes reveal{
+      from{opacity:0; transform:translateY(20px)}
+      to{opacity:1; transform:translateY(0)}
+    }
+
+    @media (max-width: 1100px){
+      .sheet{
+        aspect-ratio:auto;
+        min-height:auto;
+      }
+      .grid{
+        height:auto;
+        grid-template-columns:repeat(2, 1fr);
+        grid-template-rows:auto;
+      }
+    }
+
+    @media (max-width: 680px){
+      .sheet{padding:18px}
+      .grid{grid-template-columns:1fr}
+      .topic{min-height:180px}
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet" aria-label="A4 landscape patch notes summary">
+    <header class="title-wrap">
+      <div class="eyebrow">Star Trek Fleet Command</div>
+      <h1>M94.1 Cause &amp; Effect Mid Arc Patch Notes</h1>
+      <div class="sub">Click any box to open the full summary</div>
+    </header>
+
+    <section class="grid" aria-label="Patch note topics">
+      <button class="topic" data-title="7-Day Login Streak Rework" data-content="
+        <p>Bulk Claim is now available to all Ops 25+ players without needing to maintain the login streak.</p>
+        <ul>
+          <li>Completing a 7-day login streak now grants a 24-hour Exocomp.</li>
+          <li>The Exocomp increases Warp Speed, Building Speed, and Research Speed.</li>
+          <li>For each day you continue your streak beyond day 7, you receive another 24-hour Exocomp on login.</li>
+          <li>If you miss a day, the Exocomp stops until you complete a fresh 7-day streak again.</li>
+        </ul>
+      ">
+        <h2>7-Day Login Update</h2>
+        <p>Bulk Claim is no longer locked behind the streak, and the streak reward is now a daily Exocomp after day 7.</p>
+        <div class="tap">Open Brief</div>
+      </button>
+
+      <button class="topic" data-title="Alliance Tournaments Update" data-content="
+        <p>Alliance Tournaments will not run during the Update 94: Cause &amp; Effect arc while the team continues improving the feature.</p>
+        <ul>
+          <li>Ra’Ul Raider Blueprints will instead be available through upcoming Star Trek Day and Labor Day event series.</li>
+          <li>The Alliance Tournament Store will open for a limited time.</li>
+          <li>A gift chest with Alliance Tournament currency will be sent before the end of Update 94.</li>
+        </ul>
+      ">
+        <h2>Alliance Tournaments</h2>
+        <p>Tournaments are paused for this arc, with blueprint access and compensation moved into events and limited store support.</p>
+        <div class="tap">Open Brief</div>
+      </button>
+
+      <button class="topic" data-title="Battle Pass Choice Token Reminder" data-content="
+        <p>The current Update 94 Choice Tokens will not carry over to the next Battle Pass cycle.</p>
+        <ul>
+          <li>Spend them before the Token Exchange ends on September 10.</li>
+          <li>Future Battle Passes will use a different token currency.</li>
+        </ul>
+      ">
+        <h2>Battle Pass Note</h2>
+        <p>Use your Update 94 Choice Tokens before the deadline, because they will not transfer into the next pass.</p>
+        <div class="tap">Open Brief</div>
+      </button>
+
+      <button class="topic" data-title="Chat Spam & Reward Claiming Improvements" data-content="
+        <p>This patch includes quality-of-life work focused on both account safety and smoother claiming.</p>
+        <ul>
+          <li>Additional checks and verifications were added to tackle chat spam.</li>
+          <li>Bundles can now be claimed more quickly.</li>
+          <li>Players can move through other screens while claims are processing.</li>
+          <li>Multiple Claim All, Bulk Claim, and single claim actions can now be combined without waiting for each to finish first.</li>
+        </ul>
+      ">
+        <h2>Claiming &amp; Chat QoL</h2>
+        <p>Reward collection is faster and more flexible, while new verification steps help reduce spam in chat.</p>
+        <div class="tap">Open Brief</div>
+      </button>
+
+      <button class="topic" data-title="Bulk Research & Wave Defense Improvements" data-content="
+        <p>Two core systems received practical polish updates.</p>
+        <ul>
+          <li>Bulk Research now sorts requirements by type instead of clustering them together.</li>
+          <li>Wave Defense spawning was optimized to reduce delays when new waves appear.</li>
+          <li>The result should be smoother and more consistent encounter flow.</li>
+        </ul>
+      ">
+        <h2>Research &amp; Wave Defense</h2>
+        <p>Research requirements are easier to scan, and Wave Defense should now feel more stable when waves spawn.</p>
+        <div class="tap">Open Brief</div>
+      </button>
+
+      <button class="topic" data-title="U.S.S. Athena & Academy Field Pass Changes" data-content="
+        <p>Owners of the U.S.S. Athena now have an additional path for blueprint progression, and Academy claims are easier to access.</p>
+        <ul>
+          <li>A new Academy Refinery exchange lets eligible players trade U.S.S. Athena Data Modules for Blueprints.</li>
+          <li>This creates another in-game route toward progression or unlocking an additional U.S.S. Athena.</li>
+          <li>Academy Field Pass claims were moved from the Athena Refinery to the Ship Resources Daily Claim in the Gift Section.</li>
+          <li>This makes bulk claiming these resources much easier.</li>
+        </ul>
+      ">
+        <h2>U.S.S. Athena Changes</h2>
+        <p>Athena owners get a new blueprint source, and Academy Field Pass rewards now sit in a more convenient claim location.</p>
+        <div class="tap">Open Brief</div>
+      </button>
+
+      <button class="topic" data-title="Abilities, Field Training & Reward Screen Fixes" data-content="
+        <p>Several smaller fixes improve clarity, consistency, and UI behaviour.</p>
+        <ul>
+          <li>Neelix and Harry Kim ability names were updated to be more lore-accurate after the M94 art swap.</li>
+          <li>Field Training milestone indicators were improved so task progress requirements are clearer.</li>
+          <li>The Event Milestone reward reveal screen should no longer get stuck on an infinite loading spinner.</li>
+          <li>Claiming multiple Officer Depot Recruit bundles should no longer cause the game to become unresponsive.</li>
+        </ul>
+      ">
+        <h2>UI, Abilities &amp; Rewards</h2>
+        <p>Smaller polish fixes improve naming, progress clarity, and reliability when revealing or claiming rewards.</p>
+        <div class="tap">Open Brief</div>
+      </button>
+
+      <button class="topic" data-title="Major Bug Fix Roundup" data-content="
+        <p>A wider bug-fix sweep touched ships, stores, Infinite Incursions, refinery progression, tutorials, localization, and popups.</p>
+        <ul>
+          <li>Ship cargo values now display exact amounts instead of rounded-down figures.</li>
+          <li>Bulk Research power updating and inconsistent naming issues were fixed.</li>
+          <li>Faction Store and Gifts claim errors were resolved.</li>
+          <li>Infinite Incursions fixes include relocation issues, 80% loading stalls, missing Return Home popup, and post-invasion mining problems.</li>
+          <li>Alliance leaderboard and Tournament Store scrolling issues were fixed.</li>
+          <li>Aggregation Refinery now unlocks at the intended level 45 instead of 24.</li>
+          <li>Tutorial repair progression, long mission text wrapping, and Latinum confirmation popup issues were also fixed.</li>
+        </ul>
+      ">
+        <h2>Major Bug Fix Roundup</h2>
+        <p>Broad fixes target Incursions, Stores, refinery unlocks, ship value display, tutorials, and popup behaviour.</p>
+        <div class="tap">Open Brief</div>
+      </button>
+    </section>
+  </main>
+
+  <div class="modal" id="modal" aria-hidden="true">
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="dialog-top">
+        <h3 id="modalTitle">Briefing</h3>
+        <button class="close" id="closeModal" aria-label="Close dialog">✕</button>
+      </div>
+      <div class="dialog-body" id="modalContent"></div>
+    </div>
+  </div>
+
+  <script>
+    const topics = document.querySelectorAll('.topic');
+    const modal = document.getElementById('modal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalContent = document.getElementById('modalContent');
+    const closeModal = document.getElementById('closeModal');
+    let lastTrigger = null;
+
+    const patchNotesUrl = "https://startrekfleetcommand.com/news/update-94-1-cause-effect-mid-arc-patch-notes/";
+
+    function openModal(title, content, trigger){
+      lastTrigger = trigger;
+      modalTitle.textContent = title;
+      modalContent.innerHTML = `
+        ${content}
+        <a class="patch-link" href="${patchNotesUrl}" target="_blank" rel="noopener noreferrer">
+          View Full Patch Notes
+        </a>
+      `;
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+      closeModal.focus();
+    }
+
+    function closeDialog(){
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+      if(lastTrigger) lastTrigger.focus();
+    }
+
+    topics.forEach(topic => {
+      topic.addEventListener('click', () => {
+        openModal(topic.dataset.title, topic.dataset.content, topic);
+      });
+    });
+
+    closeModal.addEventListener('click', closeDialog);
+
+    modal.addEventListener('click', (e) => {
+      if(e.target === modal) closeDialog();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if(e.key === 'Escape' && modal.classList.contains('active')){
+        closeDialog();
+      }
+    });
+  </script>
+</body>
+</html>

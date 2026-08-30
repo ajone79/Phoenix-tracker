@@ -30,6 +30,7 @@ const GAME_CATS = {
   territory:    {label:'Territory Capture', color:'#8CE071'},
   sector_strike: {label:'Sector Strike',    color:'#D65DB1'},
   voyage:       {label:'Voyage Across the Void', color:'#4FD1C5'},
+  maverick_tasks: {label:'Maverick Tasks',  color:'#FF922B'},
   '':           {label:'Other',           color:'#7C8798'}
 };
 const FALLBACK_PALETTE = ['#E57373','#64B5F6','#81C784','#FFD54F','#BA68C8','#4DB6AC','#F06292','#A1887F'];
@@ -75,6 +76,50 @@ const VOYAGE_EVENTS = [
 const TUESDAY_EVENTS = [
   {name:'Sector Strike', displayType:'sector_strike', eventSubType:'sector_strike', dayOfWeek:2, h:17, m:0, durationDays:1, note:'Score by defeating Quantum Adjudicators & Quantum Guardians/Tesseract.', minOpsLevel:61, maxOpsLevel:999, validFrom:'2025-01-01', validTo:'2027-12-31'}
 ];
+
+/* =========================================================
+   MAVERICK TASKS — recurring weekly event, not in the stfc.cfd feed.
+   Every Tuesday 5am UK, runs a full week until the next Tuesday 5am.
+   Independent of arcs (indefinite validity window, like Sector Strike).
+   Ops 55+ — doesn't cleanly align to a grade band boundary (G5 is 51-60),
+   so minOpsLevel:55/maxOpsLevel:999 is used as-is; the existing ops-badge
+   logic already renders this as "55+", and it naturally shows for G5 and
+   above via the normal min/max overlap check, same as Sector Strike does
+   for G6+.
+   The 4 tasks repeat in a fixed order on a 4-week cycle. MAVERICK_ANCHOR
+   is a Tuesday where the cycle sits at index 0 (FKR Hunt) — update this
+   only if the in-game rotation ever shifts out of sync with this date.
+   ========================================================= */
+const MAVERICK_TASKS = [
+  {name:'FKR Hunt', note:'Destroy FKR hostiles of Level 55 or higher.'},
+  {name:'Aggregation Hunt', note:'Destroy Aggregation hostiles of Level 55 or higher.'},
+  {name:'Transogen Hunt', note:'Destroy Transogen hostiles of Level 55 or higher.'},
+  {name:'Augment Exiles Hunt', note:'Destroy Augment Exiles hostiles of Level 55 or higher.'}
+];
+const MAVERICK_ANCHOR = '2026-08-25'; // Tuesday — FKR Hunt is active this week
+const MAVERICK_VALID_FROM = '2025-01-01';
+const MAVERICK_VALID_TO = '2027-12-31';
+
+function generateMaverickEvents(winStartISO, winEndISO){
+  const out = [];
+  dateRangeList(winStartISO, winEndISO).forEach(dISO => {
+    if(dISO < MAVERICK_VALID_FROM || dISO > MAVERICK_VALID_TO) return;
+    if(dowOf(dISO) !== 2) return; // Tuesday
+    const weeksSinceAnchor = Math.round(dayIndexBetween(MAVERICK_ANCHOR, dISO) / 7);
+    const taskIndex = ((weeksSinceAnchor % 4) + 4) % 4;
+    const task = MAVERICK_TASKS[taskIndex];
+    const startUTC = ukLocalToUTC(dISO, 5, 0);
+    const endUTC = ukLocalToUTC(addDays(dISO, 7), 5, 0);
+    out.push({
+      title: 'Maverick Tasks — ' + task.name,
+      description: task.note + ' Tasks rotate weekly in a fixed order (FKR Hunt \u2192 Aggregation Hunt \u2192 Transogen Hunt \u2192 Augment Exiles Hunt), then repeat.',
+      displayType: 'maverick_tasks', eventSubType: 'maverick_tasks', priority: 'normal',
+      minOpsLevel: 55, maxOpsLevel: 999,
+      formats: [], startUTC, endUTC
+    });
+  });
+  return out;
+}
 
 const TZ_OPTIONS = [
   {label:'UK (auto — BST/GMT)', offset:'uk-auto'},
@@ -237,5 +282,6 @@ function isNotableForTicker(ev){
   if(ev.eventSubType === 'ticketed') return true;
   if(ev.displayType === 'meta') return true;
   if(ev.displayType === 'sector_strike') return true;
+  if(ev.displayType === 'maverick_tasks') return true;
   return false;
 }

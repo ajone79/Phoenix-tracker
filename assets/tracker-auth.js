@@ -84,27 +84,13 @@
       return;
     }
 
-    // approved — inject a small identity/logout badge and let the page render normally
+    // approved — let the page render normally. Identity/sign-out now lives in the
+    // nav rail's "More" panel (assets/phx-nav-rail.js), which listens for this same
+    // event, rather than injecting into the old top nav strip (retired site-wide).
     clearTimeout(__failSafe);
     window.__trackerProfile = profile;
     document.documentElement.style.visibility = 'visible';
     document.dispatchEvent(new CustomEvent('tracker-auth-ready', { detail: profile }));
-    document.addEventListener('DOMContentLoaded', injectBadge, { once: true });
-    if (document.readyState !== 'loading') injectBadge();
-
-    function injectBadge(){
-      const nav = document.querySelector('.phx-nav');
-      if (!nav) return;
-      const badge = document.createElement('div');
-      badge.style.cssText = 'margin-left:auto;display:flex;align-items:center;gap:8px;padding:0 8px;flex-shrink:0;';
-      badge.innerHTML = `<span style="font-size:10px;color:#8a8a94;">${escapeHtml(profile.discord_username||'')}</span><a href="#" id="tracker-signout" style="font-size:10px;color:#ff9142;text-decoration:none;">Sign out</a>`;
-      nav.appendChild(badge);
-      document.getElementById('tracker-signout').addEventListener('click', async (e)=>{
-        e.preventDefault();
-        await sb.auth.signOut();
-        location.href='/login.html';
-      });
-    }
   }
 
   main();
