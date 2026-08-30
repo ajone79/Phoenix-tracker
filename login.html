@@ -172,12 +172,21 @@ sb.auth.getSession().then(async ({data:{session}}) => {
   }
   if (invite){
     try{
+      // Wait until the profile row genuinely exists (created server-side by a
+      // database trigger the instant sign-up completes) before ever attempting
+      // redemption — this removes the timing race entirely instead of guessing
+      // at a fixed delay, which was still failing for brand-new sign-ups.
+      let profileExists = false;
+      for (let i = 0; i < 8 && !profileExists; i++){
+        const { data: prof } = await sb.from('tracker_profiles').select('id').eq('id', session.user.id).maybeSingle();
+        if (prof){ profileExists = true; break; }
+        await new Promise(r => setTimeout(r, 400));
+      }
       const { data: redeemed } = await sb.rpc('redeem_invite_token', { p_token: invite });
       if (redeemed === false){
-        // Genuine failure (not yet approved) rather than the old silent-burn behavior —
-        // retry once after a brief pause in case this was a brand-new sign-up racing
-        // the profile-creation trigger.
-        await new Promise(r => setTimeout(r, 1200));
+        // One more attempt as a safety net, in the unlikely case the row appeared
+        // just after our poll gave up.
+        await new Promise(r => setTimeout(r, 1000));
         await sb.rpc('redeem_invite_token', { p_token: invite });
       }
     }
