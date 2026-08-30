@@ -164,8 +164,8 @@ Deno.serve(async (req: Request) => {
 
 ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data matched this question — answer from general STFC knowledge.)"}`;
 
-    const groqKey = Deno.env.get("GROQ_API_KEY");
-    if (!groqKey) return json({ error: "GROQ_API_KEY is not configured on this project" }, 500);
+    const groqKey = Deno.env.get("GROQ_API_KEY_SPOCKS");
+    if (!groqKey) return json({ error: "GROQ_API_KEY_SPOCKS is not configured on this project" }, 500);
 
     const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
