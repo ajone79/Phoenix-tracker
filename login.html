@@ -31,6 +31,11 @@
   .email-note{font-size:10.5px;color:var(--text-dim);line-height:1.5;margin-top:12px;text-align:left;}
   .ok{color:#5fd068;font-size:11.5px;margin-top:14px;display:none;line-height:1.5;}
   .err{color:#ff5a5f;font-size:11px;margin-top:14px;display:none;}
+  .help-toggle{background:none;border:none;color:var(--text-dim);font-family:'Space Mono',monospace;font-size:10.5px;text-decoration:underline;cursor:pointer;padding:0;margin-top:18px;}
+  .help-toggle:hover{color:var(--text);}
+  .help-box{display:none;text-align:left;font-size:10.5px;color:var(--text-dim);line-height:1.7;margin-top:10px;background:#17171e;border:1px solid var(--hair);border-radius:8px;padding:12px 14px;}
+  .help-box ol{margin:6px 0 0;padding-left:18px;}
+  .help-box li{margin-bottom:4px;}
 </style>
 </head>
 <body>
@@ -49,6 +54,16 @@
     <div class="email-note">Signing up with email? Send an in-game message to <b>ajone</b>, <b>Lenders</b>, <b>Spies</b>, or <b>Volley</b> so we can match your email to your in-game name and approve you.</div>
     <div class="ok" id="ok"></div>
     <div class="err" id="err"></div>
+    <button class="help-toggle" id="helpToggle">Discord sign-in not working? Tap here ▾</button>
+    <div class="help-box" id="helpBox">
+      Discord sign-in most often fails when it starts in one app/browser and finishes in another — the security check from step one isn't there anymore by the time it comes back. A few things that usually fix it:
+      <ol>
+        <li><b>Stay in one browser the whole way through.</b> Open the tracker in Chrome/Safari directly, then tap Sign in with Discord from there.</li>
+        <li><b>Avoid Discord's built-in browser.</b> If you tapped a link posted in Discord, it opens Discord's own in-app browser by default. Long-press the link (iOS) or use the "⋮" menu → "Open in Chrome/Safari" (Android) instead.</li>
+        <li><b>Try Sign in with Google</b> above instead — same result, doesn't have this problem.</li>
+        <li><b>Use email sign-in</b> below as a fallback — slower, but always works.</li>
+      </ol>
+    </div>
   </div>
 </div>
 <script>
@@ -107,6 +122,13 @@ document.getElementById('emailBtn').addEventListener('click', async ()=>{
 // if already logged in, bounce straight through
 sb.auth.getSession().then(({data:{session}}) => {
   if (session) location.href = next;
+});
+
+document.getElementById('helpToggle').addEventListener('click', ()=>{
+  const box = document.getElementById('helpBox');
+  const open = box.style.display === 'block';
+  box.style.display = open ? 'none' : 'block';
+  document.getElementById('helpToggle').textContent = `Discord sign-in not working? Tap here ${open ? '▾' : '▴'}`;
 });
 </script>
 </body>
