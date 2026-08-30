@@ -6,8 +6,31 @@ const SUPABASE_URL = "https://mmzizgsanwqjpiumpqay.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM";
 
 const GROQ_MODEL = "qwen/qwen3.6-27b";
+const COMPOUND_MODEL = "groq/compound-mini";
 const SHEETS_CATALOG_URL =
   "https://docs.google.com/spreadsheets/d/1AHbQfUYpL3_DpRV-J0m2PbPVYCuzZe3P5t763xaJ5uA/export?format=csv";
+
+// Restrict external web search to sites the alliance already trusts/links to,
+// plus Reddit and Scopely's own official pages — never the open web at large.
+const EXTERNAL_SEARCH_DOMAINS = [
+  "stfc.phd", "stfc.cfd", "stfc.pro", "territory.lol",
+  "reddit.com", "startrekfleetcommand.com", "scopely.helpshift.com",
+];
+
+// Only pay for a web-search-capable model when the question actually looks like
+// it needs something current/external — official patch notes, community discussion,
+// news — rather than routing every single question through the pricier tool-using model.
+const EXTERNAL_TRIGGER_WORDS = [
+  "patch", "patch notes", "update", "changelog", "release notes", "news",
+  "reddit", "official", "wiki", "bug", "known issue", "downtime", "maintenance",
+  "announcement", "latest version", "current version", "this week", "recently",
+  "just released", "new update",
+];
+
+function needsExternalSearch(text: string): boolean {
+  const t = text.toLowerCase();
+  return EXTERNAL_TRIGGER_WORDS.some((w) => t.includes(w));
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -95,6 +118,7 @@ Deno.serve(async (req: Request) => {
     const keywords = keywordsFrom(lastUserMsg);
     const contextParts: string[] = [];
     const sources: { type: string; title: string; url?: string; image?: string }[] = [];
+    const useExternal = needsExternalSearch(lastUserMsg);
 
     // Current arc — cheap and almost always useful context.
     const { data: activeArc } = await sb.from("arcs").select("name,status")
@@ -207,10 +231,34 @@ ACCURACY: Never invent officer or crew names that are not real Star Trek Fleet C
 
 When alliance-specific context is provided below (events, crews, F2P tasks, reference sheets), prefer it over your own general knowledge. Keep answers reasonably concise unless the question calls for depth.
 
+${useExternal ? "For THIS question, you have a web search tool available, restricted to Reddit, the official Star Trek Fleet Command site, Scopely's official support pages, and a short list of trusted STFC community tools. Use it if the question genuinely needs current information those sources would have; don't search if the context below already answers it." : ""}
+
 ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data matched this question — answer from genuine STFC knowledge only, or say you don't have a confirmed answer.)"}`;
 
     const groqKey = Deno.env.get("GROQ_API_KEY_SPOCKS");
     if (!groqKey) return json({ error: "GROQ_API_KEY_SPOCKS is not configured on this project" }, 500);
+
+    const requestBody: Record<string, unknown> = useExternal
+      ? {
+          model: COMPOUND_MODEL,
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...messages.slice(-10),
+          ],
+          temperature: 0.6,
+          citation_options: "disabled", // we build our own source chips instead of inline bracket citations
+          compound_custom: { tools: { enabled_tools: ["web_search"] } },
+          search_settings: { include_domains: EXTERNAL_SEARCH_DOMAINS },
+        }
+      : {
+          model: GROQ_MODEL,
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...messages.slice(-10),
+          ],
+          temperature: 0.6,
+          reasoning_format: "hidden",
+        };
 
     const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -218,15 +266,7 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
         "Authorization": `Bearer ${groqKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages.slice(-10), // keep recent turns only, bound the prompt
-        ],
-        temperature: 0.6,
-        reasoning_format: "hidden",
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!groqRes.ok) {
@@ -241,6 +281,24 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
     // in the screenshot-scoring feature).
     reply = reply.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
     if (!reply) reply = "I have no response to offer at this time.";
+
+    // Pull real URLs out of whichever external sites Compound actually visited,
+    // so the client can render them as clickable source chips.
+    if (useExternal) {
+      const executedTools = groqData?.choices?.[0]?.message?.executed_tools ?? [];
+      const foundUrls = new Set<string>();
+      const raw = JSON.stringify(executedTools);
+      const urlMatches = raw.match(/https?:\/\/[^\s"\\]+/g) || [];
+      for (const u of urlMatches) {
+        if (EXTERNAL_SEARCH_DOMAINS.some((d) => u.includes(d))) foundUrls.add(u.replace(/[),.]+$/, ""));
+      }
+      for (const u of [...foundUrls].slice(0, 4)) {
+        let title = u;
+        try { title = new URL(u).hostname.replace(/^www\./, ""); } catch { /* keep raw */ }
+        sources.push({ type: "web", title, url: u });
+      }
+    }
+
     return json({ reply, sources }, 200);
   } catch (e) {
     return json({ error: `Unexpected error: ${(e as Error).message}` }, 500);
