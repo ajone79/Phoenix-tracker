@@ -94,26 +94,55 @@ Deno.serve(async (req: Request) => {
 
     const keywords = keywordsFrom(lastUserMsg);
     const contextParts: string[] = [];
+    const sources: { type: string; title: string; url?: string; image?: string }[] = [];
 
     // Current arc — cheap and almost always useful context.
     const { data: activeArc } = await sb.from("arcs").select("name,status")
       .eq("status", "active").limit(1).maybeSingle();
     if (activeArc) contextParts.push(`CURRENT ARC: ${activeArc.name}`);
 
-    // Upcoming/current events.
+    // Upcoming/current alliance scoring events (the admin-curated threshold events).
     const today = new Date().toISOString().slice(0, 10);
     const { data: events } = await sb.from("events")
-      .select("name,date,scoring_type,threshold")
-      .gte("date", today).eq("is_test", false).order("date", { ascending: true }).limit(12);
-    if (events?.length) {
+      .select("name,date,end_date,scoring_type,threshold")
+      .eq("is_test", false).order("date", { ascending: true }).limit(60);
+    const activeOrUpcoming = (events || []).filter((e) => {
+      const endsOn = e.end_date || e.date;
+      return endsOn >= today; // still running or hasn't happened yet
+    }).slice(0, 12);
+    if (activeOrUpcoming.length) {
       contextParts.push(
-        "UPCOMING/CURRENT EVENTS:\n" +
-        events.map((e) => `- ${e.name} (${e.date})${e.threshold ? `, threshold ${e.threshold}` : ""}`).join("\n")
+        "UPCOMING/CURRENT ALLIANCE SCORING EVENTS:\n" +
+        activeOrUpcoming.map((e) => `- ${e.name} (${e.date}${e.end_date && e.end_date !== e.date ? ` to ${e.end_date}` : ""})${e.threshold ? `, threshold ${e.threshold}` : ""}`).join("\n")
       );
     }
 
+    // The broader live game event calendar (Territory Capture, Wave Defense, etc.) —
+    // auto-refreshed every 4 hours by a scraper, served as a public JSON file. This is
+    // NOT lazy or dependent on anyone having opened a page; it's fetched fresh here.
+    try {
+      const gameEventsRes = await fetch("https://stfc.phoenixeu168.space/events-data-game.json", { cache: "no-store" });
+      if (gameEventsRes.ok) {
+        const gameEventsData = await gameEventsRes.json();
+        const nowIso = new Date().toISOString();
+        const soonIso = new Date(Date.now() + 10 * 86400000).toISOString();
+        const relevant = (gameEventsData.events || [])
+          .filter((e: any) => e.endUTC >= nowIso && e.startUTC <= soonIso)
+          .sort((a: any, b: any) => a.startUTC.localeCompare(b.startUTC))
+          .slice(0, 15);
+        if (relevant.length) {
+          contextParts.push(
+            "LIVE GAME EVENT CALENDAR (currently active or starting within 10 days; refreshed every 4 hours):\n" +
+            relevant.map((e: any) =>
+              `- ${e.title}${e.eventFormat ? ` [${e.eventFormat}]` : ""}: ${e.startUTC.slice(0, 16).replace("T", " ")} UTC to ${e.endUTC.slice(0, 16).replace("T", " ")} UTC${e.description ? ` — ${e.description}` : ""}`
+            ).join("\n")
+          );
+        }
+      }
+    } catch { /* live calendar is best-effort; never block the answer on it */ }
+
     // Crews — only pull rows that look relevant to the question, to keep this cheap.
-    const { data: allCrews } = await sb.from("crews").select("title,hostile_types,notes,warning").limit(300);
+    const { data: allCrews } = await sb.from("crews").select("title,hostile_types,notes,warning,link_url,link_label,image_url").limit(300);
     const matchedCrews = (allCrews || []).filter((c) =>
       keywords.length === 0 || anyMatch(`${c.title} ${(c.hostile_types || []).join(" ")} ${c.notes ?? ""}`, keywords)
     ).slice(0, 8);
@@ -124,6 +153,11 @@ Deno.serve(async (req: Request) => {
           `- ${c.title}${c.hostile_types?.length ? ` [${c.hostile_types.join(", ")}]` : ""}: ${c.notes ?? "no notes"}${c.warning ? ` (WARNING: ${c.warning})` : ""}`
         ).join("\n")
       );
+      for (const c of matchedCrews.slice(0, 4)) {
+        if (c.link_url || c.image_url) {
+          sources.push({ type: "crew", title: c.link_label || c.title, url: c.link_url || undefined, image: c.image_url || undefined });
+        }
+      }
     }
 
     // F2P tasks — same keyword-relevance filter.
@@ -158,6 +192,7 @@ Deno.serve(async (req: Request) => {
           if (snippet) {
             contextParts.push(`SHEET "${sheet.Title}" (${sheet.Description ?? "no description"}), raw data excerpt:\n${snippet}`);
           }
+          sources.push({ type: "sheet", title: sheet.Title || "Reference sheet", url, image: sheet["Image Link"] || undefined });
         }
       }
     } catch { /* sheets catalog is best-effort; never block the answer on it */ }
@@ -165,6 +200,8 @@ Deno.serve(async (req: Request) => {
     const systemPrompt = `You are "Spock's Wisdom," an assistant for the Phoenix EU168 alliance in Star Trek Fleet Command (STFC). Answer in a measured, logical, dryly-witted tone reminiscent of Spock — precise, unflustered, the occasional deadpan observation, but always genuinely helpful and never sacrificing clarity for character.
 
 FORMATTING: This chat window displays plain text only — it does not render markdown. Never use asterisks, bold markers, pipe tables, or markdown headers. Write in plain prose and, if a list genuinely helps, use simple numbered lines or dashes with no other markup.
+
+FRESHNESS: The event, crew, task, and sheet information below (if any) was fetched fresh, right now, as part of answering this question — it is not stale training data and you do not need internet access to use it. Never say you lack "live" or "real-time" access when current data is provided below; just answer from it directly. Only say you don't have information if the relevant section below is genuinely absent or empty.
 
 ACCURACY: Never invent officer or crew names that are not real Star Trek Fleet Command content. If the alliance-specific crew data provided below does not cover the situation asked about, say so plainly and either answer from genuine, real STFC officer knowledge you are confident in, or state that you do not have a confirmed recommendation — do not fabricate a plausible-sounding crew to fill the gap. Precision matters more than always having an answer.
 
@@ -204,7 +241,7 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
     // in the screenshot-scoring feature).
     reply = reply.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
     if (!reply) reply = "I have no response to offer at this time.";
-    return json({ reply }, 200);
+    return json({ reply, sources }, 200);
   } catch (e) {
     return json({ error: `Unexpected error: ${(e as Error).message}` }, 500);
   }
