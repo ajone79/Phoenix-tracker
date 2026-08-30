@@ -105,18 +105,33 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-// Members who sign in via email (no Discord/Google name available) have their raw email
-// stored as their display name. Mask it partially here for GDPR-minded display — full
-// email is still visible to Supabase admins directly in the database if ever needed.
-function displayName(s){
+// Members who sign in via email have their raw email stored as their display name;
+// members who sign in via Google have their real full name. Both get partially
+// masked here for GDPR-minded display — the full value is still visible to
+// Supabase admins directly in the database if ever genuinely needed.
+function displayName(s, provider){
   const str = String(s==null?'':s);
   const at = str.indexOf('@');
-  if (at === -1) return escapeHtml(str);
-  const local = str.slice(0, at);
-  const domain = str.slice(at + 1);
-  const visible = local.slice(0, Math.min(2, local.length));
-  const masked = visible + '•'.repeat(Math.max(3, local.length - visible.length));
-  return escapeHtml(masked + '@' + domain);
+  if (at !== -1){
+    const local = str.slice(0, at);
+    const domain = str.slice(at + 1);
+    const visible = local.slice(0, Math.min(2, local.length));
+    const masked = visible + '•'.repeat(Math.max(3, local.length - visible.length));
+    return escapeHtml(masked + '@' + domain);
+  }
+  if (provider === 'google'){
+    const parts = str.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return escapeHtml(str);
+    if (parts.length === 1){
+      const w = parts[0];
+      const visible = w.slice(0, Math.min(2, w.length));
+      return escapeHtml(visible + '•'.repeat(Math.max(3, w.length - visible.length)));
+    }
+    const first = parts[0];
+    const lastInitial = parts[parts.length - 1].slice(0, 1);
+    return escapeHtml(`${first} ${lastInitial}.`);
+  }
+  return escapeHtml(str);
 }
 
 let profiles = [];
@@ -579,7 +594,7 @@ function rowHtml(p){
       <div class="row">
         ${p.avatar_url ? `<img class="avatar" src="${escapeHtml(p.avatar_url)}">` : '<div class="avatar"></div>'}
         <div class="who">
-          <div class="dname">${displayName(p.discord_username||'Unknown')}</div>
+          <div class="dname">${displayName(p.discord_username||'Unknown', p.login_provider)}</div>
           <div class="did">${escapeHtml(p.discord_id||'')}</div>
         </div>
         <input type="text" placeholder="In-game name" value="${escapeHtml(p.in_game_name||'')}" data-nameinput="${p.id}">
@@ -594,7 +609,7 @@ function rowHtml(p){
     <div class="row ${p.approved?'':'pending'}">
       ${p.avatar_url ? `<img class="avatar" src="${escapeHtml(p.avatar_url)}">` : '<div class="avatar"></div>'}
       <div class="who">
-        <div class="dname">${displayName(p.discord_username||'Unknown')}</div>
+        <div class="dname">${displayName(p.discord_username||'Unknown', p.login_provider)}</div>
         <div class="did">${escapeHtml(p.discord_id||'')}</div>
       </div>
       <input type="text" placeholder="In-game name" value="${escapeHtml(p.in_game_name||'')}" data-nameinput="${p.id}">
