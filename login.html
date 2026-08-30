@@ -171,7 +171,16 @@ sb.auth.getSession().then(async ({data:{session}}) => {
     return;
   }
   if (invite){
-    try{ await sb.rpc('redeem_invite_token', { p_token: invite }); }
+    try{
+      const { data: redeemed } = await sb.rpc('redeem_invite_token', { p_token: invite });
+      if (redeemed === false){
+        // Genuine failure (not yet approved) rather than the old silent-burn behavior —
+        // retry once after a brief pause in case this was a brand-new sign-up racing
+        // the profile-creation trigger.
+        await new Promise(r => setTimeout(r, 1200));
+        await sb.rpc('redeem_invite_token', { p_token: invite });
+      }
+    }
     catch(e){ console.error('Invite redemption failed', e); }
   }
   location.href = next;
