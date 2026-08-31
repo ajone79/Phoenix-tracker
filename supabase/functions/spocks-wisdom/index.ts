@@ -72,7 +72,7 @@ function extractSheetId(url: string): string | null {
 
 async function fetchSheetSnippet(sheetUrl: string): Promise<string | null> {
   const id = extractSheetId(sheetUrl);
-  if (!id) return null;
+  if (!id) { console.log("fetchSheetSnippet: could not extract sheet id from", sheetUrl); return null; }
   let gid = "";
   try {
     const u = new URL(sheetUrl);
@@ -81,12 +81,19 @@ async function fetchSheetSnippet(sheetUrl: string): Promise<string | null> {
   const exportUrl = `https://docs.google.com/spreadsheets/d/${id}/export?format=csv${gid ? `&gid=${gid}` : ""}`;
   try {
     const res = await fetch(exportUrl);
+    console.log("fetchSheetSnippet: fetched", exportUrl, "-> status", res.status);
     if (!res.ok) return null;
     const text = await res.text();
+    const looksLikeHtml = text.trimStart().slice(0, 15).toLowerCase().includes("<!doctype") || text.trimStart().slice(0, 5).toLowerCase() === "<html";
+    if (looksLikeHtml) {
+      console.log("fetchSheetSnippet: response looks like an HTML page (likely a Google sign-in/permission wall), not real CSV, for", sheetUrl);
+      return null;
+    }
     // Cap to the first ~60 rows so one sheet can't blow the whole prompt budget.
     const lines = text.split("\n").slice(0, 60);
     return lines.join("\n").slice(0, 4000);
-  } catch {
+  } catch (e) {
+    console.log("fetchSheetSnippet: fetch threw for", exportUrl, "->", (e as Error).message);
     return null;
   }
 }
@@ -201,25 +208,30 @@ Deno.serve(async (req: Request) => {
     // content visible to the bot even if nobody has opened that sheet today).
     try {
       const catRes = await fetch(`${SHEETS_CATALOG_URL}&_cacheBust=${Date.now()}`, { cache: "no-store" });
+      console.log("sheets catalog fetch status:", catRes.status, catRes.ok);
       if (catRes.ok) {
         const catText = await catRes.text();
+        console.log("sheets catalog CSV length:", catText.length, "first 200 chars:", catText.slice(0, 200));
         const parsed = Papa.parse(catText, { header: true, skipEmptyLines: "greedy" });
         const rows = (parsed.data as Record<string, string>[]).filter((r) => r.Title || r["Sheet URL"]);
+        console.log("sheets catalog rows parsed:", rows.length, "sample headers:", rows[0] ? Object.keys(rows[0]) : "none");
         const matched = rows.filter((r) =>
           keywords.length > 0 &&
           anyMatch(`${r.Title ?? ""} ${r.Category ?? ""} ${r.Description ?? ""} ${r.Tags ?? ""}`, keywords)
         ).slice(0, 2);
+        console.log("keywords used:", keywords, "| matched sheets:", matched.map(m => m.Title));
         for (const sheet of matched) {
           const url = sheet["Sheet URL"];
-          if (!url) continue;
+          if (!url) { console.log("matched sheet has no Sheet URL field:", sheet.Title); continue; }
           const snippet = await fetchSheetSnippet(url);
+          console.log("sheet snippet fetch for", sheet.Title, "-> length:", snippet ? snippet.length : 0, "| first 150 chars:", snippet ? snippet.slice(0, 150) : "(null)");
           if (snippet) {
             contextParts.push(`SHEET "${sheet.Title}" (${sheet.Description ?? "no description"}), raw data excerpt:\n${snippet}`);
           }
           sources.push({ type: "sheet", title: sheet.Title || "Reference sheet", url, image: sheet["Image Link"] || undefined });
         }
       }
-    } catch { /* sheets catalog is best-effort; never block the answer on it */ }
+    } catch (e) { console.error("sheets catalog fetch/parse error:", (e as Error).message); }
 
     const systemPrompt = `You are "Spock's Wisdom," an assistant for the Phoenix EU168 alliance in Star Trek Fleet Command (STFC). Answer in a measured, logical, dryly-witted tone reminiscent of Spock — precise, unflustered, the occasional deadpan observation, but always genuinely helpful and never sacrificing clarity for character.
 
