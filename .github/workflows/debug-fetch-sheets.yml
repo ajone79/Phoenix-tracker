@@ -18,16 +18,19 @@ jobs:
           echo "" >> debug/sheets-debug.txt
           echo "===== END CATALOG CSV =====" >> debug/sheets-debug.txt
 
-          SHEET_URL=$(python3 -c "
-import csv, sys
-with open('debug/sheets-debug.txt') as f:
-    lines = f.read().split('===== CATALOG CSV =====')[1].split('===== END CATALOG CSV =====')[0].strip().splitlines()
-reader = csv.DictReader(lines)
-for row in reader:
-    if row.get('Sheet URL'):
-        print(row['Sheet URL'])
-        break
-")
+          python3 > /tmp/sheet_url.txt << 'PYEOF'
+          import csv
+          with open('debug/sheets-debug.txt') as f:
+              content = f.read()
+          lines = content.split('===== CATALOG CSV =====')[1].split('===== END CATALOG CSV =====')[0].strip().splitlines()
+          reader = csv.DictReader(lines)
+          for row in reader:
+              if row.get('Sheet URL'):
+                  print(row['Sheet URL'])
+                  break
+          PYEOF
+          SHEET_URL=$(cat /tmp/sheet_url.txt)
+
           echo "" >> debug/sheets-debug.txt
           echo "===== FIRST SHEET URL: $SHEET_URL =====" >> debug/sheets-debug.txt
           if [ -n "$SHEET_URL" ]; then
