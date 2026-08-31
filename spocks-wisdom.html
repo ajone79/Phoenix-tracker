@@ -41,6 +41,18 @@
   .input-row button:disabled{opacity:.5;cursor:default;}
   .hint{font-size:10px;color:var(--text-dim);margin-top:6px;text-align:center;}
   .risk-banner{background:rgba(255,90,95,.08);border:1px solid var(--gold);color:var(--gold);border-radius:12px;padding:12px 16px;font-size:12px;line-height:1.5;margin-bottom:14px;text-align:center;}
+  .gate{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:18px;padding:20px;}
+  .gate .gate-badge{font-size:38px;}
+  .gate h2{font-family:'Antonio',sans-serif;font-size:18px;margin:0;letter-spacing:.03em;}
+  .gate p.gate-sub{color:var(--text-dim);font-size:11.5px;margin:0;max-width:420px;line-height:1.6;}
+  .gate .question{background:var(--panel);border:1px solid var(--hair);border-radius:12px;padding:20px;max-width:460px;width:100%;font-size:14px;line-height:1.6;}
+  .gate .answer-row{display:flex;gap:8px;max-width:460px;width:100%;}
+  .gate .answer-row input{flex:1;background:var(--panel-2);border:1px solid var(--hair);color:var(--text);font-family:'Space Mono',monospace;font-size:13px;padding:12px;border-radius:10px;}
+  .gate .answer-row button{background:var(--periwinkle);color:var(--void);font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:12px;padding:0 20px;border-radius:10px;border:none;cursor:pointer;}
+  .gate .gate-feedback{font-size:12px;min-height:16px;}
+  .gate .gate-feedback.wrong{color:var(--gold);}
+  .gate .gate-feedback.right{color:var(--mint);}
+  .hidden{display:none !important;}
 </style>
 </head>
 <body>
@@ -53,14 +65,27 @@
     </div>
   </div>
   <div class="risk-banner">⚠️ Enter at your own risk — this thing is still rough around the edges and will occasionally talk nonsense. Don't take anything it says as gospel.</div>
-  <div class="chat-window" id="chatWindow">
+
+  <div class="gate" id="gate">
+    <div class="gate-badge">🖖</div>
+    <h2>Vulcan Access Protocol</h2>
+    <p class="gate-sub">Answer correctly to proceed. Logic, not luck, will grant entry.</p>
+    <div class="question" id="gateQuestion"></div>
+    <div class="answer-row">
+      <input type="text" id="gateAnswer" placeholder="Your answer…" autocomplete="off">
+      <button id="gateSubmit">Confirm</button>
+    </div>
+    <div class="gate-feedback" id="gateFeedback"></div>
+  </div>
+
+  <div class="chat-window hidden" id="chatWindow">
     <div class="empty-hint" id="emptyHint">"Ask me about a crew, an upcoming event, a task, or anything else regarding Starfleet operations. I shall endeavour to be of use." — ask away below.</div>
   </div>
-  <div class="input-row">
+  <div class="input-row hidden" id="inputRow">
     <textarea id="questionInput" placeholder="Ask Spock's Wisdom…" rows="1"></textarea>
     <button id="sendBtn">Ask</button>
   </div>
-  <div class="hint">Answers may draw on current alliance data. Verify anything mission-critical.</div>
+  <div class="hint hidden" id="chatHint">Answers may draw on current alliance data. Verify anything mission-critical.</div>
 </main>
 <script>
 const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
@@ -68,6 +93,66 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let history = []; // {role, content}
+
+// ===== VULCAN ACCESS PROTOCOL — a fun trivia gate, not real security. =====
+const TRIVIA_BANK = [
+  { q: "What is Spock's home planet?", a: ["vulcan"] },
+  { q: "What is the name of Captain Kirk's ship?", a: ["enterprise", "uss enterprise"] },
+  { q: "What Vulcan hand gesture means \"live long and prosper\"?", a: ["vulcan salute", "the vulcan salute", "live long and prosper salute"] },
+  { q: "What is the Vulcan philosophy of suppressing emotion called?", a: ["logic", "vulcan logic"] },
+  { q: "Who is the android (later human) officer aboard the USS Enterprise-D?", a: ["data", "commander data"] },
+  { q: "What is the name of the Klingon home planet?", a: ["qonos", "kronos", "qo'nos"] },
+  { q: "What do Starfleet officers say instead of \"transport me down\"?", a: ["beam me up", "beam me down", "beam me up scotty"] },
+  { q: "What is the name of the Ferengi rules of business/profit?", a: ["rules of acquisition"] },
+  { q: "In STFC, what is the currency/resource ship crews consume to fight, alongside health?", a: ["shield", "shields"] },
+  { q: "What alien species assimilates other species into a collective?", a: ["borg", "the borg"] },
+  { q: "What is the name of the space station in Deep Space Nine?", a: ["deep space nine", "ds9", "deep space 9"] },
+  { q: "What rank did Spock hold for most of the original series?", a: ["commander"] },
+  { q: "What is the Prime Directive generally about?", a: ["non-interference", "noninterference", "non interference"] },
+];
+
+function pickTrivia(){
+  return TRIVIA_BANK[Math.floor(Math.random() * TRIVIA_BANK.length)];
+}
+
+function normalizeAnswer(s){
+  return String(s || '').toLowerCase().trim().replace(/[^a-z0-9\s']/g, '').replace(/\s+/g, ' ');
+}
+
+function unlockChat(){
+  document.getElementById('gate').classList.add('hidden');
+  document.getElementById('chatWindow').classList.remove('hidden');
+  document.getElementById('inputRow').classList.remove('hidden');
+  document.getElementById('chatHint').classList.remove('hidden');
+  document.getElementById('questionInput').focus();
+}
+
+function initGate(){
+  const current = pickTrivia();
+  document.getElementById('gateQuestion').textContent = current.q;
+  const answerInput = document.getElementById('gateAnswer');
+  const feedback = document.getElementById('gateFeedback');
+
+  function checkAnswer(){
+    const given = normalizeAnswer(answerInput.value);
+    const correct = current.a.some(a => normalizeAnswer(a) === given);
+    if (correct){
+      feedback.textContent = 'Correct. Access granted.';
+      feedback.className = 'gate-feedback right';
+      setTimeout(unlockChat, 500);
+    } else {
+      feedback.textContent = 'Illogical. That is not correct — try again.';
+      feedback.className = 'gate-feedback wrong';
+      answerInput.value = '';
+      answerInput.focus();
+    }
+  }
+
+  document.getElementById('gateSubmit').addEventListener('click', checkAnswer);
+  answerInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkAnswer(); });
+  answerInput.focus();
+}
+initGate();
 
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
