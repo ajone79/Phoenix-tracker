@@ -154,9 +154,10 @@ function initGate(){
 }
 
 async function initGateOrSkipForAdmin(){
+  const forceGate = new URLSearchParams(location.search).get('trivia') === '1';
   try{
     const { data: { session } } = await sb.auth.getSession();
-    if (session){
+    if (session && !forceGate){
       const { data: profile } = await sb.from('tracker_profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
       if (profile?.is_admin){ unlockChat(); return; }
     }
