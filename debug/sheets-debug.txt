@@ -11,11 +11,22 @@ Continuum (Revenant),Refinery,https://next.spoc
 ===== END CATALOG CSV FETCH =====
 
 ===== FIRST SHEET URL: https://docs.google.com/spreadsheets/d/e/2PACX-1vTWpWASGeWOwaZIpU7yi_XAfybh9bbFbfnk6dxGMb9EgHz3q2E-z8xvGbgaHpZawoWQoSip-8L68nXH/pubhtml?gid=103903467&single=false =====
-===== FETCHING: https://docs.google.com/spreadsheets/d/e/export?format=csv&gid=103903467 =====
-<!DOCTYPE html><html lang="en"><head><script nonce="wkXmcZaKcN_-Gg_bcZX8WA">window['ppConfig'] = {productName: '26981ed0d57bbad37e728ff58134270c', deleteIsEnforced:  false , sealIsEnforced:  false , heartbeatRate:  0.5 , periodicReportingRateMillis:  60000.0 , disableAllReporting:  false };(function(){'use strict';function k(a){var b=0;return function(){return b<a.length?{done:!1,value:a[b++]}:{done:!0}}}function l(a){var b=typeof Symbol!="undefined"&&Symbol.iterator&&a[Symbol.iterator];if(b)return b.call(a);if(typeof a.length=="number")return{next:k(a)};throw Error(String(a)+" is not an iterable or ArrayLike");}var m=typeof Object.defineProperties=="function"?Object.defineProperty:function(a,b,c){if(a==Array.prototype||a==Object.prototype)return a;a[b]=c.value;return a};
-function n(a){a=["object"==typeof globalThis&&globalThis,a,"object"==typeof window&&window,"object"==typeof self&&self,"object"==typeof global&&global];for(var b=0;b<a.length;++b){var c=a[b];if(c&&c.Math==Math)return c}throw Error("Cannot find global object");}var p=n(this);function q(a,b){if(b)a:{var c=p;a=a.split(".");for(var d=0;d<a.length-1;d++){var e=a[d];if(!(e in c))break a;c=c[e]}a=a[a.length-1];d=c[a];b=b(d);b!=d&&b!=null&&m(c,a,{configurable:!0,writable:!0,value:b})}}
-q("Object.is",function(a){return a?a:function(b,c){return b===c?b!==0||1/b===1/c:b!==b&&c!==c}});q("Array.prototype.includes",function(a){return a?a:function(b,c){var d=this;d instanceof String&&(d=String(d));var e=d.length;c=c||0;for(c<0&&(c=Math.max(c+e,0));c<e;c++){var f=d[c];if(f===b||Object.is(f,b))return!0}return!1}});
-q("String.prototype.includes",function(a){return a?a:function(b,c){if(this==null)throw new TypeError("The 'this' value for String.prototype.includes must not be null or undefined");if(b instanceof RegExp)throw new TypeError("First argument to String.prototype.includes must not be a regular expression");return this.indexOf(b,c||0)!==-1}});function r(a,b,c){a("https://csp.withgoogle.com/csp/proto/"+encodeURIComponent(b),JSON.stringify(c))}function t(){var a;if((a=window.ppConfig)==null?0:a.disableAllReporting)return function(){};var b,c,d,e;return(e=(b=window)==null?void 0:(c=b.navigator)==null?void 0:(d=c.sendBeacon)==null?void 0:d.bind(navigator))!=null?e:u}function u(a,b){var c=new XMLHttpRequest;c.open("POST",a);c.send(b)}
-function v(){var a=(w=Object.prototype)==null?void 0:w.__lookupGetter__("__proto__"),b=x,c=y;return function(){var d=a.call(this),e,f,g,h;r(c,b,{type:"ACCESS_GET",origin:(f=window.location.origin)!=null?f:"unknown",report:{className:(g=d==null?void 0:(e=d.constructor)==null?void 0:e.name)!=null?g:"unknown",stackTrace:(h=Error().stack)!=null?h:"unknown"}});return d}}
-function z(){var a=(A=Object.prototype)==null?void 0:A.__lookupSetter__("__proto__"),b=x,c=y;return function(d){d=a.call(this,d);var e,f,g,h;r(c,b,{type:"ACCESS_SET",origin:(f=window.location.origin)!=null?f:"unknown",report:{className:(g=d==null?void 0:(e=d.constructor)==null?void 0:e.name)!=null?g:"u
-===== END SAMPLE SHEET =====
+===== FETCHING (published format): https://docs.google.com/spreadsheets/d/e/2PACX-1vTWpWASGeWOwaZIpU7yi_XAfybh9bbFbfnk6dxGMb9EgHz3q2E-z8xvGbgaHpZawoWQoSip-8L68nXH/pub?output=csv&gid=103903467&single=true =====
+Published-format HTTP status: 200, bytes: 15328
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,2★ Materials,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,Materials and Ship Parts Refineries,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Materials Conversions,,,,,,,,,
+,,,,,,,,,,,,,,,Ops,1 chest,2 chest,3 chest,Common,,,Uncommon,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,10-11,"3,000",,,15,23,30,6,12,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,12-13,"3,000",15K,,62,93,124,5,7,18,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,14-15,"3,000",15K,,125,188,250,6,10,24,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,16-17,"3,000",15K,50K,150,225,300,7,12,30,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,18+,"3,000",15K,50K,300,340,600,8,15,40,,,,,,,,,Regular Converter (no tokens),,,,,,,,,,,,
+,,Refinery Buffs,,,,,,,,,,,,,No Buffs,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,2-Day Cooldown,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,3★ Materials,,,,,,,,,,,,,,,Grade,4★ Materials,,,,5★ Materials,,,,6★ Materials,,,
+,,Natural Inflation to Base,,,,Bajoran Favors,,,,Primes,,,,,,,,,,,,,,,,,,,,,,,Pre-Req,DTI HQ Level 30+ & Ops 40,,,,DTI HQ Level 40+ & Ops 51,,,,DTI HQ Level 50+ & Ops 61,,,
+,,Grade,Rate,,,Grade,max bonus,,,+1 to chest options,,,,,Ops,1 chest,2 chest,3 chest,Common,,,Uncommon,,,Rare,,,,,,,,,,Cost, Reward,Ratio,,Cost, Reward,Ratio,,Cost, Reward,Ratio
+,,2★,none,,,2★,-,,,2★,-,,,,20-21,"1,750",-,-,4,5,7,4,-,-,1,-,-,,,,,Transfer between materials,Unc > Unc,1 Chest,457,457,1.0,1 Chest,244,244,1.0,1 Chest,55,55,1.0
+,,3★,100%,,,3★,-,,,3★,mats,-,,,22-23
+===== END PUBLISHED FORMAT =====
