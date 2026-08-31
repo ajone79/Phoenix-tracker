@@ -152,7 +152,18 @@ function initGate(){
   answerInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkAnswer(); });
   answerInput.focus();
 }
-initGate();
+
+async function initGateOrSkipForAdmin(){
+  try{
+    const { data: { session } } = await sb.auth.getSession();
+    if (session){
+      const { data: profile } = await sb.from('tracker_profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
+      if (profile?.is_admin){ unlockChat(); return; }
+    }
+  } catch(e){ /* fall through to the gate if this check fails for any reason */ }
+  initGate();
+}
+initGateOrSkipForAdmin();
 
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
