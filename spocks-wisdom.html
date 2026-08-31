@@ -52,6 +52,12 @@
   .gate .gate-feedback{font-size:12px;min-height:16px;}
   .gate .gate-feedback.wrong{color:var(--gold);}
   .gate .gate-feedback.right{color:var(--mint);}
+  .gate .options{display:flex;flex-direction:column;gap:10px;max-width:460px;width:100%;}
+  .gate .option-btn{background:var(--panel-2);border:1px solid var(--hair);color:var(--text);font-family:'Space Mono',monospace;font-size:13px;padding:13px 16px;border-radius:10px;cursor:pointer;text-align:left;transition:border-color .15s;}
+  .gate .option-btn:hover:not(:disabled){border-color:var(--periwinkle);}
+  .gate .option-btn:disabled{cursor:default;opacity:.6;}
+  .gate .option-btn.correct{border-color:var(--mint);color:var(--mint);opacity:1;}
+  .gate .option-btn.incorrect{border-color:var(--gold);color:var(--gold);opacity:1;}
   .hidden{display:none !important;}
 </style>
 </head>
@@ -71,10 +77,7 @@
     <h2>Vulcan Access Protocol</h2>
     <p class="gate-sub">Answer correctly to proceed. Logic, not luck, will grant entry.</p>
     <div class="question" id="gateQuestion"></div>
-    <div class="answer-row">
-      <input type="text" id="gateAnswer" placeholder="Your answer…" autocomplete="off">
-      <button id="gateSubmit">Confirm</button>
-    </div>
+    <div class="options" id="gateOptions"></div>
     <div class="gate-feedback" id="gateFeedback"></div>
   </div>
 
@@ -96,27 +99,32 @@ let history = []; // {role, content}
 
 // ===== VULCAN ACCESS PROTOCOL — a fun trivia gate, not real security. =====
 const TRIVIA_BANK = [
-  { q: "What is Spock's home planet?", a: ["vulcan"] },
-  { q: "What is the name of Captain Kirk's ship?", a: ["enterprise", "uss enterprise"] },
-  { q: "What Vulcan hand gesture means \"live long and prosper\"?", a: ["vulcan salute", "the vulcan salute", "live long and prosper salute"] },
-  { q: "What is the Vulcan philosophy of suppressing emotion called?", a: ["logic", "vulcan logic"] },
-  { q: "Who is the android (later human) officer aboard the USS Enterprise-D?", a: ["data", "commander data"] },
-  { q: "What is the name of the Klingon home planet?", a: ["qonos", "kronos", "qo'nos"] },
-  { q: "What do Starfleet officers say instead of \"transport me down\"?", a: ["beam me up", "beam me down", "beam me up scotty"] },
-  { q: "What is the name of the Ferengi rules of business/profit?", a: ["rules of acquisition"] },
-  { q: "In STFC, what is the currency/resource ship crews consume to fight, alongside health?", a: ["shield", "shields"] },
-  { q: "What alien species assimilates other species into a collective?", a: ["borg", "the borg"] },
-  { q: "What is the name of the space station in Deep Space Nine?", a: ["deep space nine", "ds9", "deep space 9"] },
-  { q: "What rank did Spock hold for most of the original series?", a: ["commander"] },
-  { q: "What is the Prime Directive generally about?", a: ["non-interference", "noninterference", "non interference"] },
+  { q: "What is Spock's home planet?", correct: "Vulcan", wrong: ["Romulus", "Andoria", "Betazed"] },
+  { q: "What is the name of Captain Kirk's ship?", correct: "USS Enterprise", wrong: ["USS Defiant", "USS Voyager", "USS Discovery"] },
+  { q: "What Vulcan hand gesture means \"live long and prosper\"?", correct: "The Vulcan salute", wrong: ["The Klingon fist bump", "The Ferengi bow", "The Romulan handshake"] },
+  { q: "What is the Vulcan philosophy of suppressing emotion called?", correct: "Logic", wrong: ["Discipline", "Serenity", "The Kolinahr Code"] },
+  { q: "Who is the android (later human) officer aboard the USS Enterprise-D?", correct: "Data", wrong: ["Worf", "Geordi La Forge", "Odo"] },
+  { q: "What is the name of the Klingon home planet?", correct: "Qo'nos", wrong: ["Cardassia Prime", "Ferenginar", "Bajor"] },
+  { q: "What do Starfleet officers say instead of \"transport me down\"?", correct: "Beam me up", wrong: ["Warp me in", "Phase me out", "Shuttle me down"] },
+  { q: "What is the name of the Ferengi rules of business/profit?", correct: "Rules of Acquisition", wrong: ["Codes of Commerce", "Laws of Latinum", "Ferengi Trade Directives"] },
+  { q: "In STFC, what is the resource ship crews consume to fight, alongside health?", correct: "Shields", wrong: ["Dilithium", "Latinum", "Morale"] },
+  { q: "What alien species assimilates other species into a collective?", correct: "The Borg", wrong: ["The Dominion", "The Breen", "The Xindi"] },
+  { q: "What is the name of the space station in Deep Space Nine?", correct: "Deep Space Nine", wrong: ["Starbase 74", "Regula I", "Deep Space Twelve"] },
+  { q: "What rank did Spock hold for most of the original series?", correct: "Commander", wrong: ["Captain", "Lieutenant", "Ensign"] },
+  { q: "What is the Prime Directive generally about?", correct: "Non-interference", wrong: ["Diplomatic immunity", "Mandatory first contact", "Weapons control"] },
 ];
+
+function shuffle(arr){
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 function pickTrivia(){
   return TRIVIA_BANK[Math.floor(Math.random() * TRIVIA_BANK.length)];
-}
-
-function normalizeAnswer(s){
-  return String(s || '').toLowerCase().trim().replace(/[^a-z0-9\s']/g, '').replace(/\s+/g, ' ');
 }
 
 function unlockChat(){
@@ -130,27 +138,32 @@ function unlockChat(){
 function initGate(){
   const current = pickTrivia();
   document.getElementById('gateQuestion').textContent = current.q;
-  const answerInput = document.getElementById('gateAnswer');
+  const optionsEl = document.getElementById('gateOptions');
   const feedback = document.getElementById('gateFeedback');
+  const options = shuffle([current.correct, ...current.wrong]);
 
-  function checkAnswer(){
-    const given = normalizeAnswer(answerInput.value);
-    const correct = current.a.some(a => normalizeAnswer(a) === given);
-    if (correct){
-      feedback.textContent = 'Correct. Access granted.';
-      feedback.className = 'gate-feedback right';
-      setTimeout(unlockChat, 500);
-    } else {
-      feedback.textContent = 'Illogical. That is not correct — try again.';
-      feedback.className = 'gate-feedback wrong';
-      answerInput.value = '';
-      answerInput.focus();
-    }
-  }
-
-  document.getElementById('gateSubmit').addEventListener('click', checkAnswer);
-  answerInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkAnswer(); });
-  answerInput.focus();
+  optionsEl.innerHTML = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.textContent = opt;
+    btn.addEventListener('click', () => {
+      const allBtns = optionsEl.querySelectorAll('.option-btn');
+      allBtns.forEach(b => b.disabled = true);
+      if (opt === current.correct){
+        btn.classList.add('correct');
+        feedback.textContent = 'Correct. Access granted.';
+        feedback.className = 'gate-feedback right';
+        setTimeout(unlockChat, 500);
+      } else {
+        btn.classList.add('incorrect');
+        feedback.textContent = 'Illogical. That is not correct.';
+        feedback.className = 'gate-feedback wrong';
+        setTimeout(() => { initGate(); }, 1100);
+      }
+    });
+    optionsEl.appendChild(btn);
+  });
 }
 
 async function initGateOrSkipForAdmin(){
