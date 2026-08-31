@@ -1,0 +1,15 @@
+name: Debug Fetch Sheets Data
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch master catalog CSV
+        run: |
+          echo "===== CATALOG CSV ====="
+          curl -s "https://docs.google.com/spreadsheets/d/1AHbQfUYpL3_DpRV-J0m2PbPVYCuzZe3P5t763xaJ5uA/export?format=csv"
+          echo ""
+          echo "===== END CATALOG CSV ====="
