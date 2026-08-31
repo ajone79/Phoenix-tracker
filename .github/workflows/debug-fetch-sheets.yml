@@ -13,17 +13,21 @@ jobs:
       - name: Fetch catalog + a sample sheet, write results to a debug file
         run: |
           mkdir -p debug
-          echo "===== CATALOG CSV =====" > debug/sheets-debug.txt
-          curl -s "https://docs.google.com/spreadsheets/d/1AHbQfUYpL3_DpRV-J0m2PbPVYCuzZe3P5t763xaJ5uA/export?format=csv" >> debug/sheets-debug.txt
+          echo "===== CATALOG CSV FETCH ====="  > debug/sheets-debug.txt
+          HTTP_STATUS=$(curl -sL -o /tmp/catalog.csv -w "%{http_code}" "https://docs.google.com/spreadsheets/d/1AHbQfUYpL3_DpRV-J0m2PbPVYCuzZe3P5t763xaJ5uA/export?format=csv")
+          echo "HTTP status: $HTTP_STATUS" >> debug/sheets-debug.txt
+          echo "Byte count: $(wc -c < /tmp/catalog.csv)" >> debug/sheets-debug.txt
+          echo "----- first 2000 chars of response -----" >> debug/sheets-debug.txt
+          head -c 2000 /tmp/catalog.csv >> debug/sheets-debug.txt
           echo "" >> debug/sheets-debug.txt
-          echo "===== END CATALOG CSV =====" >> debug/sheets-debug.txt
+          echo "===== END CATALOG CSV FETCH =====" >> debug/sheets-debug.txt
+          cp /tmp/catalog.csv debug/sheets-debug.txt.catalog 2>/dev/null || true
 
           python3 > /tmp/sheet_url.txt << 'PYEOF'
           import csv
-          with open('debug/sheets-debug.txt') as f:
+          with open('/tmp/catalog.csv') as f:
               content = f.read()
-          lines = content.split('===== CATALOG CSV =====')[1].split('===== END CATALOG CSV =====')[0].strip().splitlines()
-          reader = csv.DictReader(lines)
+          reader = csv.DictReader(content.splitlines())
           for row in reader:
               if row.get('Sheet URL'):
                   print(row['Sheet URL'])
