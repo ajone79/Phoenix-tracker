@@ -38,14 +38,16 @@ jobs:
           echo "" >> debug/sheets-debug.txt
           echo "===== FIRST SHEET URL: $SHEET_URL =====" >> debug/sheets-debug.txt
           if [ -n "$SHEET_URL" ]; then
-            SHEET_ID=$(echo "$SHEET_URL" | grep -oP '(?<=/d/)[a-zA-Z0-9_-]+')
+            SHEET_ID=$(echo "$SHEET_URL" | grep -oP '(?<=/d/e/)[a-zA-Z0-9_-]+')
             GID=$(echo "$SHEET_URL" | grep -oP '(?<=gid=)[0-9]+' || echo "")
-            EXPORT_URL="https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv"
-            if [ -n "$GID" ]; then EXPORT_URL="${EXPORT_URL}&gid=${GID}"; fi
-            echo "===== FETCHING: $EXPORT_URL =====" >> debug/sheets-debug.txt
-            curl -sL "$EXPORT_URL" | head -c 3000 >> debug/sheets-debug.txt
+            EXPORT_URL="https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?output=csv"
+            if [ -n "$GID" ]; then EXPORT_URL="${EXPORT_URL}&gid=${GID}&single=true"; fi
+            echo "===== FETCHING (published format): $EXPORT_URL =====" >> debug/sheets-debug.txt
+            PUB_STATUS=$(curl -sL -o /tmp/pub.csv -w "%{http_code}" "$EXPORT_URL")
+            echo "Published-format HTTP status: $PUB_STATUS, bytes: $(wc -c < /tmp/pub.csv)" >> debug/sheets-debug.txt
+            head -c 1500 /tmp/pub.csv >> debug/sheets-debug.txt
             echo "" >> debug/sheets-debug.txt
-            echo "===== END SAMPLE SHEET =====" >> debug/sheets-debug.txt
+            echo "===== END PUBLISHED FORMAT ====="  >> debug/sheets-debug.txt
           fi
 
           git config user.name "debug-bot"
