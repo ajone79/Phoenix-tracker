@@ -140,6 +140,7 @@ let allowlist = [];
 let events = [];
 let arcs = [];
 let reviewQueue = [];
+let contactLinks = [];
 let me = null;
 let mySession = null;
 
@@ -248,14 +249,15 @@ async function init(){
 }
 
 async function loadData(){
-  const [{data:p}, {data:r}, {data:a}, {data:e}, {data:ar}, {data:rq}, {data:inv}] = await Promise.all([
+  const [{data:p}, {data:r}, {data:a}, {data:e}, {data:ar}, {data:rq}, {data:inv}, {data:wa}] = await Promise.all([
     sb.from('tracker_profiles').select('*').order('approved', {ascending:true}).order('created_at', {ascending:false}),
     sb.from('roster').select('id,name,level').order('name'),
     sb.from('tracker_admin_allowlist').select('*').order('in_game_name'),
     sb.from('events').select('id,name,date,arc_id,scoring_type,completion_mode,threshold,is_test').order('date', {ascending:false}),
     sb.from('arcs').select('id,name,status').order('end_date', {ascending:false}),
     sb.from('roster_sync_review').select('*').eq('resolved', false).order('created_at', {ascending:false}),
-    sb.from('invite_tokens').select('*').order('created_at', {ascending:false})
+    sb.from('invite_tokens').select('*').order('created_at', {ascending:false}),
+    sb.from('member_contact_links').select('*')
   ]);
   profiles = p || [];
   roster = r || [];
@@ -263,6 +265,7 @@ async function loadData(){
   events = e || [];
   arcs = ar || [];
   reviewQueue = rq || [];
+  contactLinks = wa || [];
   inviteTokens = inv || [];
 }
 
@@ -528,6 +531,12 @@ function render(){
   document.querySelectorAll('[data-revoke]').forEach(b=>b.addEventListener('click', ()=>setApproved(b.dataset.revoke, false)));
   document.querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click', ()=>saveName(b.dataset.save)));
   document.querySelectorAll('[data-admintoggle]').forEach(b=>b.addEventListener('click', ()=>toggleAdmin(b.dataset.admintoggle, b.dataset.current==='true')));
+  document.querySelectorAll('[data-wa-open]').forEach(b=>b.addEventListener('click', () => {
+    const label = b.dataset.waLabel;
+    const name = b.dataset.waName;
+    if (!confirm(`Send "${label}" WhatsApp message to ${name}?`)) return;
+    window.open(b.dataset.waOpen, '_blank');
+  }));
 
   document.querySelectorAll('[data-addmember]').forEach(b=>b.addEventListener('click', ()=>addMemberFromReview(b.dataset.addmember)));
   document.querySelectorAll('[data-markinactive]').forEach(b=>b.addEventListener('click', ()=>markInactiveFromReview(b.dataset.markinactive, b.dataset.rosterid)));
@@ -589,9 +598,19 @@ function rowHtml(p){
   const providerBadge = p.login_provider && p.login_provider !== 'discord'
     ? `<span class="tag" style="border-color:var(--periwinkle);color:var(--periwinkle);">via ${escapeHtml(p.login_provider)}</span>`
     : '';
+  const recentlyChangedBadge = p.roster_matched_at && (Date.now() - new Date(p.roster_matched_at).getTime()) < 48 * 3600000
+    ? `<span class="tag" style="border-color:var(--gold);color:var(--gold);" title="Self-matched or re-matched within the last 48 hours">🔄 Recently changed</span>`
+    : '';
+  const myWaButtons = contactLinks.filter(c => c.profile_id === p.id);
+  const waRow = myWaButtons.length ? `
+    <div class="wa-btn-row" style="width:100%;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--hair);">
+      <span style="font-size:9px;color:var(--text-faint);">🔒 ADMIN ONLY:</span>
+      ${myWaButtons.map(c => `<button class="btn" style="background:#25D366;color:#052e16;" data-wa-open="${c.whatsapp_url}" data-wa-label="${escapeHtml(c.label)}" data-wa-name="${escapeHtml(p.in_game_name || p.discord_username || 'this member')}">${escapeHtml(c.label)}</button>`).join('')}
+    </div>
+  ` : '';
   if (p.is_owner) {
     return `
-      <div class="row">
+      <div class="row" style="flex-wrap:wrap;">
         ${p.avatar_url ? `<img class="avatar" src="${escapeHtml(p.avatar_url)}">` : '<div class="avatar"></div>'}
         <div class="who">
           <div class="dname">${displayName(p.discord_username||'Unknown', p.login_provider)}</div>
@@ -601,12 +620,14 @@ function rowHtml(p){
         <button class="btn save" data-save="${p.id}">Save</button>
         <span class="tag approved">Approved</span>
         ${providerBadge}
+        ${recentlyChangedBadge}
         <span class="tag admintag" style="border-color:var(--gold);color:var(--gold);">👑 Owner — protected</span>
+        ${waRow}
       </div>
     `;
   }
   return `
-    <div class="row ${p.approved?'':'pending'}">
+    <div class="row ${p.approved?'':'pending'}" style="flex-wrap:wrap;">
       ${p.avatar_url ? `<img class="avatar" src="${escapeHtml(p.avatar_url)}">` : '<div class="avatar"></div>'}
       <div class="who">
         <div class="dname">${displayName(p.discord_username||'Unknown', p.login_provider)}</div>
@@ -618,8 +639,10 @@ function rowHtml(p){
         ? `<span class="tag approved">Approved</span><button class="btn revoke" data-revoke="${p.id}">Revoke</button>`
         : `<span class="tag pending">Pending</span><button class="btn approve" data-approve="${p.id}">Approve</button>`}
       ${providerBadge}
+      ${recentlyChangedBadge}
       ${p.is_admin ? '<span class="tag admintag">Admin</span>' : ''}
       <button class="btn admin" data-admintoggle="${p.id}" data-current="${!!p.is_admin}">${p.is_admin?'Remove admin':'Make admin'}</button>
+      ${waRow}
     </div>
   `;
 }
