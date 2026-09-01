@@ -17,7 +17,7 @@
   *{box-sizing:border-box;}
   html,body{margin:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;height:100%;}
   main{max-width:760px;margin:0 auto;padding:26px 20px 40px;display:flex;flex-direction:column;height:100vh;}
-  .header{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+  .header{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
   .header .badge{width:44px;height:44px;border-radius:50%;background:var(--panel);border:1px solid var(--periwinkle);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
   .header h1{font-family:'Antonio',sans-serif;font-weight:700;font-size:20px;margin:0;letter-spacing:.03em;}
   .header p{margin:2px 0 0;font-size:11.5px;color:var(--text-dim);}
@@ -189,8 +189,8 @@ function renderProviderToggle(){
   if (!header || document.getElementById('providerToggle')) return;
   const toggle = document.createElement('div');
   toggle.id = 'providerToggle';
-  toggle.style.cssText = 'display:flex;gap:6px;margin-left:auto;flex-shrink:0;';
-  toggle.innerHTML = ['groq','gemini','cerebras'].map(p =>
+  toggle.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;';
+  toggle.innerHTML = ['groq','gemini','cerebras','openrouter'].map(p =>
     `<button data-provider="${p}" style="background:${p===selectedProvider?'var(--periwinkle)':'var(--panel-2)'};color:${p===selectedProvider?'var(--void)':'var(--text-dim)'};border:1px solid var(--hair);border-radius:8px;padding:5px 10px;font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;cursor:pointer;">${p}</button>`
   ).join('');
   header.appendChild(toggle);
