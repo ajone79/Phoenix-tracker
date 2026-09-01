@@ -13,6 +13,7 @@ const PROVIDERS: Record<string, { baseUrl: string; model: string; keyEnv: string
   groq: { baseUrl: "https://api.groq.com/openai/v1/chat/completions", model: GROQ_MODEL, keyEnv: "GROQ_API_KEY_SPOCKS" },
   gemini: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", model: "gemini-2.5-flash-lite", keyEnv: "GEMINI_API_KEY_SPOCKS" },
   cerebras: { baseUrl: "https://api.cerebras.ai/v1/chat/completions", model: "llama-3.3-70b", keyEnv: "CEREBRAS_API_KEY_SPOCKS" },
+  openrouter: { baseUrl: "https://openrouter.ai/api/v1/chat/completions", model: "meta-llama/llama-3.3-70b-instruct:free", keyEnv: "OPENROUTER_API_KEY_SPOCKS" },
 };
 
 // Restrict external web search to sites the alliance already trusts/links to,
