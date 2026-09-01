@@ -11,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
 <script src="../assets/tracker-auth.js"></script>
 <script src="../assets/phx-nav-rail.js"></script>
 <style>
@@ -110,6 +111,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let allSheets = [];
 let contentIndex = {}; // sheet_key -> indexed cell content, refreshed daily by a scheduled job
+let fuseIndex = null;
 let activeCategory = 'all';
 let searchTerm = '';
 let showFavoritesOnly = false;
@@ -167,6 +169,59 @@ function buildEmbedUrl(sheetUrl){
 
 function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+// Treats "NX-01" and "nx01" as the same thing (strip hyphens rather than
+// turning them into spaces), while other punctuation becomes a space so
+// words stay separable for the per-word matching below.
+function normalizeSearch(s){
+  return String(s || '')
+    .toLowerCase()
+    .replace(/-/g, '')
+    .replace(/[_'".,]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function rebuildFuseIndex(){
+  if (typeof Fuse === 'undefined') { fuseIndex = null; return; }
+  const docs = allSheets.map(row => {
+    const key = sheetKey(row);
+    return {
+      key,
+      searchText: normalizeSearch(`${row.Title || ''} ${row.Description || ''} ${row.Tags || ''} ${row.Category || ''} ${contentIndex[key] || ''}`),
+    };
+  });
+  fuseIndex = new Fuse(docs, {
+    keys: ['searchText'],
+    threshold: 0.32,       // tolerant of small typos without matching everything
+    ignoreLocation: true,  // a match anywhere in the (long) text counts
+    minMatchCharLength: 2,
+  });
+}
+
+// A query can be several words (e.g. "nx-01 independent archives") that
+// don't appear together verbatim — each significant word just needs to
+// fuzzy-match somewhere in the sheet, not the whole phrase in sequence.
+function matchingSheetKeys(term){
+  const normalized = normalizeSearch(term);
+  const tokens = normalized.split(' ').filter(t => t.length >= 2);
+  if (!tokens.length) return null; // no usable search term — caller should show everything
+  if (!fuseIndex) {
+    // Fuse failed to load for some reason — fall back to plain substring matching.
+    return new Set(
+      allSheets
+        .filter(row => tokens.every(t => normalizeSearch(`${row.Title} ${row.Description} ${row.Tags} ${contentIndex[sheetKey(row)] || ''}`).includes(t)))
+        .map(sheetKey)
+    );
+  }
+  let matched = null;
+  for (const token of tokens) {
+    const hits = new Set(fuseIndex.search(token).map(r => r.item.key));
+    matched = matched === null ? hits : new Set([...matched].filter(k => hits.has(k)));
+    if (matched.size === 0) break;
+  }
+  return matched || new Set();
+}
+
 async function loadContentIndex(){
   try{
     const { data, error } = await sb.from('sheet_content_index').select('sheet_key,content_text');
@@ -185,6 +240,7 @@ async function loadCatalog(isBackground){
     const text = await res.text();
     const parsed = Papa.parse(text, { header: true, skipEmptyLines: 'greedy', transformHeader: h => h.trim() });
     allSheets = (parsed.data || []).filter(r => sheetKey(r));
+    rebuildFuseIndex();
     document.getElementById('syncStatus').textContent = `Synced ${new Date().toLocaleTimeString()} · ${allSheets.length} sheets`;
     renderCategories();
     renderGrid();
@@ -215,16 +271,13 @@ function renderCategories(){
 
 function renderGrid(){
   const grid = document.getElementById('grid');
-  const term = searchTerm.toLowerCase();
+  const matchedKeys = searchTerm.trim() ? matchingSheetKeys(searchTerm) : null;
   let list = allSheets.filter(r => {
     const key = sheetKey(r);
     if (!showHidden && hiddenSheets.includes(key)) return false;
     if (showFavoritesOnly && !shortcuts.includes(key)) return false;
     if (activeCategory !== 'all' && categoryFor(r) !== activeCategory) return false;
-    if (term){
-      const hay = `${r.Title || ''} ${r.Description || ''} ${r.Tags || ''} ${contentIndex[sheetKey(r)] || ''}`.toLowerCase();
-      if (!hay.includes(term)) return false;
-    }
+    if (matchedKeys && !matchedKeys.has(key)) return false;
     return true;
   });
 
@@ -339,7 +392,7 @@ document.getElementById('hiddenToggle').addEventListener('click', () => {
 });
 
 loadCatalog(false);
-loadContentIndex().then(() => { if (searchTerm) renderGrid(); }); // content index isn't needed for the initial render, only for search
+loadContentIndex().then(() => { rebuildFuseIndex(); if (searchTerm) renderGrid(); }); // content index isn't needed for the initial render, only for search
 setInterval(() => loadCatalog(true), AUTO_SYNC_MS); // silent background refresh — no reload needed for the master sheet to reflect
 </script>
 </body>
