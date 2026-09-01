@@ -65,20 +65,46 @@ function anyMatch(haystack: string, keywords: string[]): boolean {
   return keywords.some((k) => h.includes(k));
 }
 
-function extractSheetId(url: string): string | null {
-  const m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  return m ? m[1] : null;
+// Most sheets in the catalog are "Published to web" links, which look like
+// /spreadsheets/d/e/{longPublishedId}/pubhtml — a completely different URL
+// shape from a normal sheet, needing a different CSV export endpoint
+// (/pub?output=csv rather than /export?format=csv). Naively extracting an ID
+// from a published URL grabs the literal letter "e", which is why sheet
+// content was never actually being fetched before.
+function buildCsvExportUrl(sheetUrl: string): string | null {
+  try {
+    const u = new URL(sheetUrl);
+    const path = u.pathname;
+    let gid = u.searchParams.get("gid");
+    if (!gid && u.hash.includes("gid=")) {
+      const m = u.hash.match(/gid=([0-9]+)/);
+      if (m) gid = m[1];
+    }
+    if (path.includes("/spreadsheets/d/e/") || path.includes("/pubhtml")) {
+      const p = path.endsWith("/pubhtml") ? path : path.replace(/\/pubhtml.*$/, "/pubhtml");
+      const pubPath = p.replace(/\/pubhtml$/, "/pub");
+      let v = `https://docs.google.com${pubPath}?output=csv`;
+      if (gid) v += `&gid=${gid}&single=true`;
+      return v;
+    }
+    const m2 = path.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (!m2 || m2[1] === "e") return null; // not a fetchable Google Sheet (e.g. a Slides link, or unrecognized shape)
+    const id = m2[1];
+    let v = `https://docs.google.com/spreadsheets/d/${id}/export?format=csv`;
+    if (gid) v += `&gid=${gid}`;
+    return v;
+  } catch {
+    return null;
+  }
 }
 
 async function fetchSheetSnippet(sheetUrl: string): Promise<string | null> {
-  const id = extractSheetId(sheetUrl);
-  if (!id) { console.log("fetchSheetSnippet: could not extract sheet id from", sheetUrl); return null; }
-  let gid = "";
-  try {
-    const u = new URL(sheetUrl);
-    gid = u.searchParams.get("gid") || (u.hash.match(/gid=([0-9]+)/)?.[1] ?? "");
-  } catch { /* ignore */ }
-  const exportUrl = `https://docs.google.com/spreadsheets/d/${id}/export?format=csv${gid ? `&gid=${gid}` : ""}`;
+  if (!sheetUrl || !sheetUrl.includes("docs.google.com/spreadsheets")) {
+    console.log("fetchSheetSnippet: not a Google Sheet link (e.g. an external tool/site), skipping:", sheetUrl);
+    return null;
+  }
+  const exportUrl = buildCsvExportUrl(sheetUrl);
+  if (!exportUrl) { console.log("fetchSheetSnippet: could not build a CSV export URL for", sheetUrl); return null; }
   try {
     const res = await fetch(exportUrl);
     console.log("fetchSheetSnippet: fetched", exportUrl, "-> status", res.status);
