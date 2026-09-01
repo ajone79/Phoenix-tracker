@@ -1,14 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import Papa from "https://esm.sh/papaparse@5.4.1";
 
 const SUPABASE_URL = "https://mmzizgsanwqjpiumpqay.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM";
 
 const GROQ_MODEL = "qwen/qwen3.6-27b";
 const COMPOUND_MODEL = "groq/compound-mini";
-const SHEETS_CATALOG_URL =
-  "https://docs.google.com/spreadsheets/d/1AHbQfUYpL3_DpRV-J0m2PbPVYCuzZe3P5t763xaJ5uA/export?format=csv";
 
 // Restrict external web search to sites the alliance already trusts/links to,
 // plus Reddit and Scopely's own official pages — never the open web at large.
@@ -63,65 +60,6 @@ function keywordsFrom(text: string): string[] {
 function anyMatch(haystack: string, keywords: string[]): boolean {
   const h = haystack.toLowerCase();
   return keywords.some((k) => h.includes(k));
-}
-
-// Most sheets in the catalog are "Published to web" links, which look like
-// /spreadsheets/d/e/{longPublishedId}/pubhtml — a completely different URL
-// shape from a normal sheet, needing a different CSV export endpoint
-// (/pub?output=csv rather than /export?format=csv). Naively extracting an ID
-// from a published URL grabs the literal letter "e", which is why sheet
-// content was never actually being fetched before.
-function buildCsvExportUrl(sheetUrl: string): string | null {
-  try {
-    const u = new URL(sheetUrl);
-    const path = u.pathname;
-    let gid = u.searchParams.get("gid");
-    if (!gid && u.hash.includes("gid=")) {
-      const m = u.hash.match(/gid=([0-9]+)/);
-      if (m) gid = m[1];
-    }
-    if (path.includes("/spreadsheets/d/e/") || path.includes("/pubhtml")) {
-      const p = path.endsWith("/pubhtml") ? path : path.replace(/\/pubhtml.*$/, "/pubhtml");
-      const pubPath = p.replace(/\/pubhtml$/, "/pub");
-      let v = `https://docs.google.com${pubPath}?output=csv`;
-      if (gid) v += `&gid=${gid}&single=true`;
-      return v;
-    }
-    const m2 = path.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    if (!m2 || m2[1] === "e") return null; // not a fetchable Google Sheet (e.g. a Slides link, or unrecognized shape)
-    const id = m2[1];
-    let v = `https://docs.google.com/spreadsheets/d/${id}/export?format=csv`;
-    if (gid) v += `&gid=${gid}`;
-    return v;
-  } catch {
-    return null;
-  }
-}
-
-async function fetchSheetSnippet(sheetUrl: string): Promise<string | null> {
-  if (!sheetUrl || !sheetUrl.includes("docs.google.com/spreadsheets")) {
-    console.log("fetchSheetSnippet: not a Google Sheet link (e.g. an external tool/site), skipping:", sheetUrl);
-    return null;
-  }
-  const exportUrl = buildCsvExportUrl(sheetUrl);
-  if (!exportUrl) { console.log("fetchSheetSnippet: could not build a CSV export URL for", sheetUrl); return null; }
-  try {
-    const res = await fetch(exportUrl);
-    console.log("fetchSheetSnippet: fetched", exportUrl, "-> status", res.status);
-    if (!res.ok) return null;
-    const text = await res.text();
-    const looksLikeHtml = text.trimStart().slice(0, 15).toLowerCase().includes("<!doctype") || text.trimStart().slice(0, 5).toLowerCase() === "<html";
-    if (looksLikeHtml) {
-      console.log("fetchSheetSnippet: response looks like an HTML page (likely a Google sign-in/permission wall), not real CSV, for", sheetUrl);
-      return null;
-    }
-    // Cap to the first ~60 rows so one sheet can't blow the whole prompt budget.
-    const lines = text.split("\n").slice(0, 60);
-    return lines.join("\n").slice(0, 4000);
-  } catch (e) {
-    console.log("fetchSheetSnippet: fetch threw for", exportUrl, "->", (e as Error).message);
-    return null;
-  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -229,41 +167,33 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Reference sheets catalog — fetch the master list, keyword-match, then pull
-    // the actual cell content of the best 1-2 matches (this is what makes sheet
-    // content visible to the bot even if nobody has opened that sheet today).
+    // Reference sheets — searched against a daily-refreshed index of each sheet's
+    // actual content (not just title/tags), so a question can find a sheet even
+    // if the answer is buried in its cells rather than its catalog description.
     try {
-      const catRes = await fetch(`${SHEETS_CATALOG_URL}&_cacheBust=${Date.now()}`, { cache: "no-store" });
-      console.log("sheets catalog fetch status:", catRes.status, catRes.ok);
-      if (catRes.ok) {
-        const catText = await catRes.text();
-        console.log("sheets catalog CSV length:", catText.length, "first 200 chars:", catText.slice(0, 200));
-        const parsed = Papa.parse(catText, { header: true, skipEmptyLines: "greedy" });
-        const rows = (parsed.data as Record<string, string>[]).filter((r) => r.Title || r["Sheet URL"]);
-        console.log("sheets catalog rows parsed:", rows.length, "sample headers:", rows[0] ? Object.keys(rows[0]) : "none");
-        const matched = rows.filter((r) =>
-          keywords.length > 0 &&
-          anyMatch(`${r.Title ?? ""} ${r.Category ?? ""} ${r.Description ?? ""} ${r.Tags ?? ""}`, keywords)
-        ).slice(0, 2);
-        console.log("keywords used:", keywords, "| matched sheets:", matched.map(m => m.Title));
-        for (const sheet of matched) {
-          const url = sheet["Sheet URL"];
-          if (!url) { console.log("matched sheet has no Sheet URL field:", sheet.Title); continue; }
-          const snippet = await fetchSheetSnippet(url);
-          console.log("sheet snippet fetch for", sheet.Title, "-> length:", snippet ? snippet.length : 0, "| first 150 chars:", snippet ? snippet.slice(0, 150) : "(null)");
-          if (snippet) {
-            contextParts.push(`SHEET "${sheet.Title}" (${sheet.Description ?? "no description"}), raw data excerpt:\n${snippet}`);
-          }
-          sources.push({ type: "sheet", title: sheet.Title || "Reference sheet", url, image: sheet["Image Link"] || undefined });
+      const { data: allSheets } = await sb.from("sheet_content_index")
+        .select("title,category,tags,description,sheet_url,image_link,content_text")
+        .limit(200);
+      const matchedSheets = (allSheets || []).filter((s) =>
+        keywords.length > 0 &&
+        anyMatch(`${s.title ?? ""} ${s.category ?? ""} ${s.description ?? ""} ${s.tags ?? ""} ${s.content_text ?? ""}`, keywords)
+      ).slice(0, 2);
+      console.log("sheet index rows available:", (allSheets || []).length, "| matched:", matchedSheets.map((s) => s.title));
+      for (const sheet of matchedSheets) {
+        if (sheet.content_text) {
+          contextParts.push(`SHEET "${sheet.title}" (${sheet.description ?? "no description"}), data excerpt:\n${sheet.content_text.slice(0, 4000)}`);
+        } else {
+          contextParts.push(`SHEET "${sheet.title}" (${sheet.description ?? "no description"}) — matched by title/category/tags; no cell content indexed for this one.`);
         }
+        sources.push({ type: "sheet", title: sheet.title || "Reference sheet", url: sheet.sheet_url || undefined, image: sheet.image_link || undefined });
       }
-    } catch (e) { console.error("sheets catalog fetch/parse error:", (e as Error).message); }
+    } catch (e) { console.error("sheet index lookup error:", (e as Error).message); }
 
     const systemPrompt = `You are "Spock's Wisdom," an assistant for the Phoenix EU168 alliance in Star Trek Fleet Command (STFC). Answer in a measured, logical, dryly-witted tone reminiscent of Spock — precise, unflustered, the occasional deadpan observation, but always genuinely helpful and never sacrificing clarity for character.
 
 FORMATTING: This chat window displays plain text only — it does not render markdown. Never use asterisks, bold markers, pipe tables, or markdown headers. Write in plain prose and, if a list genuinely helps, use simple numbered lines or dashes with no other markup.
 
-FRESHNESS: The event, crew, task, and sheet information below (if any) was fetched fresh, right now, as part of answering this question — it is not stale training data and you do not need internet access to use it. Never say you lack "live" or "real-time" access when current data is provided below; just answer from it directly. Only say you don't have information if the relevant section below is genuinely absent or empty.
+FRESHNESS: The event, crew, task, and sheet information below (if any) is current — events and crews are fetched fresh for this exact question, and sheet content is refreshed daily. None of it is stale training data and you do not need internet access to use it. Never say you lack "live" or "real-time" access when current data is provided below; just answer from it directly. Only say you don't have information if the relevant section below is genuinely absent or empty.
 
 ACCURACY: Never invent officer or crew names that are not real Star Trek Fleet Command content. If the alliance-specific crew data provided below does not cover the situation asked about, say so plainly and either answer from genuine, real STFC officer knowledge you are confident in, or state that you do not have a confirmed recommendation — do not fabricate a plausible-sounding crew to fill the gap. Precision matters more than always having an answer.
 
