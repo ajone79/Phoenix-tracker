@@ -94,8 +94,21 @@ def upsert_rows(rows):
 def main():
     print("Fetching sheets catalog…")
     catalog_text = fetch_text(f"{CATALOG_URL}&_cacheBust={int(time.time())}")
-    reader = csv.DictReader(io.StringIO(catalog_text))
-    rows = [r for r in reader if sheet_key(r)]
+
+    # The catalog has a duplicate "Image Link" header (a quirk of the master
+    # sheet) — DictReader would silently keep the second, always-blank one.
+    # Parse by column index instead so we get the real (first) Image Link.
+    header = next(csv.reader(io.StringIO(catalog_text)))
+    first_image_link_idx = header.index("Image Link") if "Image Link" in header else None
+    raw_positional_rows = list(csv.reader(io.StringIO(catalog_text)))[1:]  # skip header
+    dict_rows = list(csv.DictReader(io.StringIO(catalog_text)))
+
+    rows = []
+    for dict_row, positional_row in zip(dict_rows, raw_positional_rows):
+        if first_image_link_idx is not None and first_image_link_idx < len(positional_row):
+            dict_row["Image Link"] = positional_row[first_image_link_idx]
+        if sheet_key(dict_row):
+            rows.append(dict_row)
     print(f"Catalog has {len(rows)} sheets.")
 
     indexed = []
@@ -127,6 +140,7 @@ def main():
             "tags": row.get("Tags") or "",
             "description": row.get("Description") or "",
             "sheet_url": sheet_url,
+            "image_link": row.get("Image Link") or "",
             "content_text": content_text,
         })
 
