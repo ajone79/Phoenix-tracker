@@ -133,11 +133,29 @@ def fetch_roster():
     resp = requests.get(
         f"{SUPABASE_URL}/rest/v1/roster",
         headers=HEADERS_SUPABASE,
-        params={"select": "id,name,level,status,stfc_player_id,power"},
+        params={"select": "id,name,level,status,stfc_player_id,power", "status": "eq.active"},
         timeout=30,
     )
     resp.raise_for_status()
     return resp.json()
+
+
+def fetch_unresolved_reviews():
+    """Existing unresolved flags, so we don't insert a duplicate for the same
+    unresolved issue every single run — this was creating a fresh
+    'possibly_left' row every 6 hours for the same player instead of one
+    that just persists until an admin actually handles it."""
+    resp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/roster_sync_review",
+        headers=HEADERS_SUPABASE,
+        params={"select": "review_type,roster_id,stfc_player_id", "or": "(resolved.is.null,resolved.eq.false)"},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    rows = resp.json()
+    left_roster_ids = {r["roster_id"] for r in rows if r["review_type"] == "possibly_left" and r.get("roster_id")}
+    new_member_pids = {r["stfc_player_id"] for r in rows if r["review_type"] == "new_member" and r.get("stfc_player_id")}
+    return left_roster_ids, new_member_pids
 
 
 def update_roster_row(roster_id, name=None, level=None, stfc_player_id=None, power=None, dry_run=True):
@@ -236,6 +254,10 @@ def main():
     print("Fetching current roster from Supabase ...")
     roster = fetch_roster()
     print(f"  Found {len(roster)} roster rows")
+
+    print("Fetching already-flagged, unresolved reviews (to avoid duplicates) ...")
+    unresolved_left_roster_ids, unresolved_new_member_pids = fetch_unresolved_reviews()
+    print(f"  {len(unresolved_left_roster_ids)} unresolved 'possibly_left' flags, {len(unresolved_new_member_pids)} unresolved 'new_member' flags already pending")
 
     by_stfc_id = {r["stfc_player_id"]: r for r in roster if r.get("stfc_player_id")}
     by_norm_name = {}
@@ -370,6 +392,10 @@ def main():
             continue
 
         # No confident match at all - flag as a new/unmatched member.
+        # (unless the exact same unresolved flag is already sitting there from a previous run)
+        if pid in unresolved_new_member_pids:
+            print(f"NEW/UNMATCHED: '{member['name']}' (stfc_player_id={pid}) - already flagged and unresolved, skipping duplicate")
+            continue
         print(f"NEW/UNMATCHED: '{member['name']}' (stfc_player_id={pid}) - no roster match found")
         insert_review(
             "new_member",
@@ -390,6 +416,9 @@ def main():
     left_flags = 0
     for r in roster:
         if r["id"] in matched_roster_ids:
+            continue
+        if r["id"] in unresolved_left_roster_ids:
+            print(f"POSSIBLY LEFT: '{r['name']}' (roster id={r['id']}) - already flagged and unresolved, skipping duplicate")
             continue
         pid = r.get("stfc_player_id")
         print(f"POSSIBLY LEFT: '{r['name']}' (roster id={r['id']}) not found in current scrape")
