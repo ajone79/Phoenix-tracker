@@ -7,6 +7,7 @@
     {href:'/crewing.html', label:'Crewing', icon:'🖖'},
   ];
   const MORE = [
+    {href:'/self-admin.html', label:'My Account', icon:'🙋', desc:'Match your name, set up WhatsApp alerts'},
     {href:'/sheets/stfc-sheets.html', label:'STFC Sheets', icon:'📑', desc:'Planning & calculation tools'},
     {href:'/spocks-wisdom.html', label:"Spock's Wisdom", icon:'🖖', desc:'Ask about crews, events & gameplay'},
     {href:'/credits.html', label:'Links & Credits', icon:'🔗', desc:'External links, thanks'},
