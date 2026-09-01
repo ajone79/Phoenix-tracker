@@ -54,7 +54,11 @@
   .drawer-header .btns{display:flex;gap:8px;flex-shrink:0;}
   .drawer-header button{background:var(--panel);border:1px solid var(--hair);color:var(--text);font-family:'Space Mono',monospace;font-size:11px;padding:6px 12px;border-radius:8px;cursor:pointer;}
   .drawer-header button:hover{border-color:var(--periwinkle);}
-  .drawer iframe{flex:1;border:none;width:100%;background:#fff;}
+  .drawer-viewport{flex:1;overflow:auto;background:#fff;}
+  .drawer-viewport iframe{border:none;display:block;transform-origin:0 0;}
+  .zoom-controls{display:flex;align-items:center;gap:4px;}
+  .zoom-controls button{width:28px;padding:6px 0 !important;text-align:center;}
+  .zoom-label{font-size:10px;color:var(--text-dim);width:38px;text-align:center;}
   .cat-select{background:var(--panel-2);border:1px solid var(--hair);color:var(--text-dim);font-family:'Space Mono',monospace;font-size:9.5px;border-radius:6px;padding:1px 4px;}
 </style>
 </head>
@@ -81,12 +85,19 @@
   <div class="drawer-header">
     <h2 id="drawerTitle"></h2>
     <div class="btns">
+      <div class="zoom-controls">
+        <button id="zoomOutBtn">－</button>
+        <span class="zoom-label" id="zoomLabel">100%</span>
+        <button id="zoomInBtn">＋</button>
+      </div>
       <button id="copyLinkBtn">Copy link</button>
       <button id="openNewTabBtn">Open in new tab ↗</button>
       <button id="closeDrawerBtn">✕ Close</button>
     </div>
   </div>
-  <iframe id="drawerFrame" src=""></iframe>
+  <div class="drawer-viewport" id="drawerViewport">
+    <iframe id="drawerFrame" src=""></iframe>
+  </div>
 </div>
 
 <script>
@@ -259,6 +270,8 @@ function renderGrid(){
 function openDrawer(row){
   document.getElementById('drawerTitle').textContent = row.Title || 'Sheet';
   document.getElementById('drawerFrame').src = buildEmbedUrl(row['Sheet URL']);
+  zoomLevel = 1;
+  applyZoom();
   document.getElementById('copyLinkBtn').onclick = () => {
     navigator.clipboard.writeText(row['Sheet URL'] || '');
     const btn = document.getElementById('copyLinkBtn');
@@ -270,6 +283,24 @@ function openDrawer(row){
   document.getElementById('drawer').classList.add('open');
   document.getElementById('drawerBackdrop').classList.add('open');
 }
+
+let zoomLevel = 1;
+function applyZoom(){
+  const frame = document.getElementById('drawerFrame');
+  const viewport = document.getElementById('drawerViewport');
+  const w = viewport.clientWidth || 800;
+  const h = viewport.clientHeight || 600;
+  // Scale the iframe up/down visually, but grow/shrink its actual box by the
+  // inverse amount first — this is what makes zooming an iframe's content work
+  // (a plain CSS transform alone would just shrink it inside empty space).
+  frame.style.width = (w / zoomLevel) + 'px';
+  frame.style.height = (h / zoomLevel) + 'px';
+  frame.style.transform = `scale(${zoomLevel})`;
+  document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
+}
+document.getElementById('zoomInBtn').addEventListener('click', () => { zoomLevel = Math.min(zoomLevel + 0.25, 2.5); applyZoom(); });
+document.getElementById('zoomOutBtn').addEventListener('click', () => { zoomLevel = Math.max(zoomLevel - 0.25, 0.5); applyZoom(); });
+window.addEventListener('resize', () => { if (document.getElementById('drawer').classList.contains('open')) applyZoom(); });
 function closeDrawer(){
   document.getElementById('drawer').classList.remove('open');
   document.getElementById('drawerBackdrop').classList.remove('open');
