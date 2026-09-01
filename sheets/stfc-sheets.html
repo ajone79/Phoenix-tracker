@@ -1,40 +1,298 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Phoenix EU168 — STFC Sheets</title>
-    <meta name="description" content="Custom spreadsheet tools for Phoenix EU168 alliance planning and calculations.">
-    <link rel="icon" href="/icon-eu168.png">
-    <script src="/assets/phx-nav-rail.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="/assets/tracker-auth.js"></script>
-    <style>
-      .phx-nav{
-        position:sticky; top:0; z-index:9999;
-        display:flex; align-items:center; gap:4px;
-        background:#0a0a0d; border-bottom:2px solid #f2a93b;
-        padding:0 14px; height:36px;
-        font-family:ui-monospace,'SF Mono','Consolas',monospace;
-        overflow-x:auto; white-space:nowrap;
-      }
-      .phx-nav .phx-nav-tag{
-        color:#f2a93b; font-weight:700; letter-spacing:.12em; font-size:11px;
-        margin-right:12px; flex-shrink:0;
-      }
-      .phx-nav a{
-        color:#9a9aa4; text-decoration:none; font-size:11px; letter-spacing:.06em;
-        text-transform:uppercase; padding:8px 12px; border-radius:0 0 6px 6px;
-        transition:color .15s ease, background .15s ease; flex-shrink:0;
-      }
-      .phx-nav a:hover{ color:#e8e6e1; background:rgba(255,255,255,.06); }
-      .phx-nav a.current{ color:#0a0a0d; background:#f2a93b; font-weight:700; }
-    </style>
-    <script type="module" crossorigin src="/sheets/assets/index-CMaFP1eO.js"></script>
-    <link rel="stylesheet" crossorigin href="/sheets/assets/index-BqdimHjl.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
-</html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix EU168 — STFC Sheets</title>
+<meta name="description" content="Browse the alliance's reference sheet library.">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-eu168.png">
+<link rel="apple-touch-icon" href="/icon-eu168.png">
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="../assets/tracker-auth.js"></script>
+<script src="../assets/phx-nav-rail.js"></script>
+<style>
+  :root{--void:#050507;--panel:#111116;--panel-2:#17171e;--hair:#2a2a34;--signal:#ff9142;--periwinkle:#8fa3ff;--mint:#5fd068;--gold:#ffc857;--text:#e8e6e1;--text-dim:#8a8a94;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;}
+  main{max-width:1200px;margin:0 auto;padding:26px 20px 60px;}
+  h1{font-family:'Antonio',sans-serif;font-weight:700;font-size:26px;margin:0 0 4px;letter-spacing:.02em;}
+  .sub{color:var(--text-dim);font-size:12px;margin:0 0 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .sub .dot{width:6px;height:6px;border-radius:50%;background:var(--mint);}
+  .sub button{background:none;border:1px solid var(--hair);color:var(--text-dim);font-family:'Space Mono',monospace;font-size:11px;padding:4px 10px;border-radius:8px;cursor:pointer;}
+  .sub button:hover{border-color:var(--periwinkle);color:var(--text);}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+  .controls input[type="text"]{flex:1;min-width:200px;background:var(--panel);border:1px solid var(--hair);color:var(--text);font-family:'Space Mono',monospace;font-size:13px;padding:10px 14px;border-radius:10px;}
+  .toggle-pill{background:var(--panel);border:1px solid var(--hair);color:var(--text-dim);font-family:'Space Mono',monospace;font-size:11.5px;padding:8px 14px;border-radius:20px;cursor:pointer;white-space:nowrap;}
+  .toggle-pill.active{border-color:var(--gold);color:var(--gold);background:rgba(255,200,87,.08);}
+  .cat-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+  .cat-pill{background:var(--panel-2);border:1px solid var(--hair);color:var(--text-dim);font-family:'Space Mono',monospace;font-size:11px;padding:6px 13px;border-radius:16px;cursor:pointer;}
+  .cat-pill.active{border-color:var(--periwinkle);color:var(--periwinkle);background:rgba(143,163,255,.1);}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+  .card{background:var(--panel);border:1px solid var(--hair);border-radius:14px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;transition:border-color .15s;position:relative;}
+  .card:hover{border-color:var(--periwinkle);}
+  .card .thumb{height:100px;background:var(--panel-2);display:flex;align-items:center;justify-content:center;font-size:30px;overflow:hidden;}
+  .card .thumb img{width:100%;height:100%;object-fit:cover;}
+  .card-body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1;}
+  .card-title{font-size:13px;font-weight:700;line-height:1.35;}
+  .card-desc{font-size:11px;color:var(--text-dim);line-height:1.5;flex:1;}
+  .card-cat{font-size:9.5px;color:var(--periwinkle);text-transform:uppercase;letter-spacing:.06em;}
+  .tags{display:flex;flex-wrap:wrap;gap:5px;}
+  .tag-chip{background:var(--panel-2);border:1px solid var(--hair);color:var(--text-dim);font-size:9.5px;padding:2px 8px;border-radius:10px;}
+  .card-actions{position:absolute;top:8px;right:8px;display:flex;gap:5px;}
+  .icon-btn{width:26px;height:26px;border-radius:50%;background:rgba(5,5,7,.7);border:1px solid var(--hair);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;}
+  .icon-btn.on{border-color:var(--gold);color:var(--gold);}
+  .empty{color:var(--text-dim);font-size:12px;text-align:center;padding:60px 20px;}
+  .drawer-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:40;display:none;}
+  .drawer-backdrop.open{display:block;}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(920px,94vw);background:var(--void);border-left:1px solid var(--hair);z-index:41;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease;}
+  .drawer.open{transform:translateX(0);}
+  .drawer-header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--hair);}
+  .drawer-header h2{font-family:'Antonio',sans-serif;font-size:15px;margin:0;font-weight:700;}
+  .drawer-header .btns{display:flex;gap:8px;flex-shrink:0;}
+  .drawer-header button{background:var(--panel);border:1px solid var(--hair);color:var(--text);font-family:'Space Mono',monospace;font-size:11px;padding:6px 12px;border-radius:8px;cursor:pointer;}
+  .drawer-header button:hover{border-color:var(--periwinkle);}
+  .drawer iframe{flex:1;border:none;width:100%;background:#fff;}
+  .cat-select{background:var(--panel-2);border:1px solid var(--hair);color:var(--text-dim);font-family:'Space Mono',monospace;font-size:9.5px;border-radius:6px;padding:1px 4px;}
+</style>
+</head>
+<body>
+<main>
+  <h1>STFC <span style="color:var(--signal);">Sheets</span></h1>
+  <p class="sub">
+    <span class="dot"></span><span id="syncStatus">Loading…</span>
+    <button id="refreshBtn">↻ Refresh now</button>
+  </p>
 
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="Search sheets…">
+    <button class="toggle-pill" id="favToggle">⭐ Favorites</button>
+    <button class="toggle-pill" id="hiddenToggle">👁 Show hidden</button>
+  </div>
+  <div class="cat-row" id="catRow"></div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="emptyMsg" style="display:none;">No sheets match your filters.</div>
+</main>
+
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <h2 id="drawerTitle"></h2>
+    <div class="btns">
+      <button id="copyLinkBtn">Copy link</button>
+      <button id="openNewTabBtn">Open in new tab ↗</button>
+      <button id="closeDrawerBtn">✕ Close</button>
+    </div>
+  </div>
+  <iframe id="drawerFrame" src=""></iframe>
+</div>
+
+<script>
+const CATALOG_URL = 'https://docs.google.com/spreadsheets/d/1AHbQfUYpL3_DpRV-J0m2PbPVYCuzZe3P5t763xaJ5uA/export?format=csv';
+const AUTO_SYNC_MS = 3 * 60 * 1000; // re-check the master sheet every 3 minutes, no page reload needed
+
+let allSheets = [];
+let activeCategory = 'all';
+let searchTerm = '';
+let showFavoritesOnly = false;
+let showHidden = false;
+
+function lsGet(key, fallback){
+  try{ const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }catch{ return fallback; }
+}
+function lsSet(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch{} }
+
+let hiddenSheets = lsGet('stfc_hidden_sheets', []);
+let shortcuts = lsGet('stfc_shortcuts', []);
+let categoryOverrides = lsGet('stfc_category_overrides', {});
+
+function sheetKey(row){
+  return (row.Title && row.Title.trim()) || (row['Sheet URL'] && row['Sheet URL'].trim()) || '';
+}
+
+function parseTags(row){
+  if (!row.Tags) return [];
+  return row.Tags.replace(/[\[\]]/g, '').split(',').map(t => t.trim()).filter(Boolean);
+}
+
+function categoryFor(row){
+  const key = sheetKey(row);
+  return categoryOverrides[key] || row.Category || 'General';
+}
+
+// Replicates the exact embed-URL logic the previous app used, so viewing
+// behaves identically — handles both normal and "published to web" sheet URLs.
+function buildEmbedUrl(sheetUrl){
+  if (!sheetUrl || !sheetUrl.includes('docs.google.com/spreadsheets')) return sheetUrl;
+  try{
+    const u = new URL(sheetUrl);
+    const path = u.pathname;
+    let gid = u.searchParams.get('gid');
+    if (!gid && u.hash.includes('gid=')){
+      const m = u.hash.match(/gid=([0-9]+)/);
+      if (m) gid = m[1];
+    }
+    if (path.includes('/spreadsheets/d/e/') || path.includes('/pubhtml')){
+      const p = path.endsWith('/pubhtml') ? path : path.replace(/\/pubhtml.*$/, '/pubhtml');
+      let v = `https://docs.google.com${p}?widget=true&headers=false&chrome=false`;
+      if (gid) v += `&gid=${gid}&single=false`;
+      return v;
+    }
+    const m2 = path.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (!m2 || m2[1] === 'e') return sheetUrl;
+    const id = m2[1];
+    let p = `https://docs.google.com/spreadsheets/d/${id}/htmlembed?widget=true&headers=false&chrome=false`;
+    if (gid) p += `&gid=${gid}`;
+    return p;
+  }catch{ return sheetUrl; }
+}
+
+function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function loadCatalog(isBackground){
+  if (!isBackground) document.getElementById('syncStatus').textContent = 'Loading…';
+  try{
+    const res = await fetch(`${CATALOG_URL}&_cacheBust=${Date.now()}`, { cache: 'no-store' });
+    const text = await res.text();
+    const parsed = Papa.parse(text, { header: true, skipEmptyLines: 'greedy', transformHeader: h => h.trim() });
+    allSheets = (parsed.data || []).filter(r => sheetKey(r));
+    document.getElementById('syncStatus').textContent = `Synced ${new Date().toLocaleTimeString()} · ${allSheets.length} sheets`;
+    renderCategories();
+    renderGrid();
+  }catch(e){
+    document.getElementById('syncStatus').textContent = 'Sync failed — will retry automatically';
+    console.error('Catalog load failed:', e);
+  }
+}
+
+function renderCategories(){
+  const cats = [...new Set(allSheets.map(categoryFor))].sort();
+  const row = document.getElementById('catRow');
+  row.innerHTML = '';
+  const allPill = document.createElement('button');
+  allPill.className = 'cat-pill' + (activeCategory === 'all' ? ' active' : '');
+  allPill.textContent = `All (${allSheets.length})`;
+  allPill.addEventListener('click', () => { activeCategory = 'all'; renderCategories(); renderGrid(); });
+  row.appendChild(allPill);
+  cats.forEach(cat => {
+    const count = allSheets.filter(r => categoryFor(r) === cat).length;
+    const pill = document.createElement('button');
+    pill.className = 'cat-pill' + (activeCategory === cat ? ' active' : '');
+    pill.textContent = `${cat} (${count})`;
+    pill.addEventListener('click', () => { activeCategory = cat; renderCategories(); renderGrid(); });
+    row.appendChild(pill);
+  });
+}
+
+function renderGrid(){
+  const grid = document.getElementById('grid');
+  const term = searchTerm.toLowerCase();
+  let list = allSheets.filter(r => {
+    const key = sheetKey(r);
+    if (!showHidden && hiddenSheets.includes(key)) return false;
+    if (showFavoritesOnly && !shortcuts.includes(key)) return false;
+    if (activeCategory !== 'all' && categoryFor(r) !== activeCategory) return false;
+    if (term){
+      const hay = `${r.Title || ''} ${r.Description || ''} ${r.Tags || ''}`.toLowerCase();
+      if (!hay.includes(term)) return false;
+    }
+    return true;
+  });
+
+  grid.innerHTML = '';
+  document.getElementById('emptyMsg').style.display = list.length ? 'none' : 'block';
+
+  list.forEach(row => {
+    const key = sheetKey(row);
+    const isFav = shortcuts.includes(key);
+    const isHidden = hiddenSheets.includes(key);
+    const tags = parseTags(row);
+    const cats = [...new Set(allSheets.map(categoryFor))].sort();
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-actions">
+        <div class="icon-btn ${isFav ? 'on' : ''}" data-fav="${escapeHtml(key)}" title="Favorite">⭐</div>
+        <div class="icon-btn ${isHidden ? 'on' : ''}" data-hide="${escapeHtml(key)}" title="Hide">👁</div>
+      </div>
+      <div class="thumb">${row['Image Link'] ? `<img src="${escapeHtml(row['Image Link'])}" alt="" referrerpolicy="no-referrer">` : '📑'}</div>
+      <div class="card-body">
+        <div class="card-cat">
+          <select class="cat-select" data-catoverride="${escapeHtml(key)}">
+            ${cats.map(c => `<option value="${escapeHtml(c)}" ${categoryFor(row) === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="card-title">${escapeHtml(row.Title || 'Untitled sheet')}</div>
+        <div class="card-desc">${escapeHtml(row.Description || '')}</div>
+        ${tags.length ? `<div class="tags">${tags.map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+      </div>
+    `;
+    card.querySelector('.thumb').addEventListener('click', () => openDrawer(row));
+    card.querySelector('.card-title').addEventListener('click', () => openDrawer(row));
+    card.querySelector('.card-desc').addEventListener('click', () => openDrawer(row));
+    card.querySelector('[data-fav]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      shortcuts = shortcuts.includes(key) ? shortcuts.filter(k => k !== key) : [...shortcuts, key];
+      lsSet('stfc_shortcuts', shortcuts);
+      renderGrid();
+    });
+    card.querySelector('[data-hide]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      hiddenSheets = hiddenSheets.includes(key) ? hiddenSheets.filter(k => k !== key) : [...hiddenSheets, key];
+      lsSet('stfc_hidden_sheets', hiddenSheets);
+      renderGrid();
+    });
+    card.querySelector('[data-catoverride]').addEventListener('click', (e) => e.stopPropagation());
+    card.querySelector('[data-catoverride]').addEventListener('change', (e) => {
+      categoryOverrides[key] = e.target.value;
+      lsSet('stfc_category_overrides', categoryOverrides);
+      renderCategories();
+      renderGrid();
+    });
+    grid.appendChild(card);
+  });
+}
+
+function openDrawer(row){
+  document.getElementById('drawerTitle').textContent = row.Title || 'Sheet';
+  document.getElementById('drawerFrame').src = buildEmbedUrl(row['Sheet URL']);
+  document.getElementById('copyLinkBtn').onclick = () => {
+    navigator.clipboard.writeText(row['Sheet URL'] || '');
+    const btn = document.getElementById('copyLinkBtn');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  };
+  document.getElementById('openNewTabBtn').onclick = () => window.open(row['Sheet URL'], '_blank');
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawerBackdrop').classList.add('open');
+}
+function closeDrawer(){
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerBackdrop').classList.remove('open');
+  document.getElementById('drawerFrame').src = '';
+}
+
+document.getElementById('closeDrawerBtn').addEventListener('click', closeDrawer);
+document.getElementById('drawerBackdrop').addEventListener('click', closeDrawer);
+document.getElementById('searchInput').addEventListener('input', (e) => { searchTerm = e.target.value; renderGrid(); });
+document.getElementById('refreshBtn').addEventListener('click', () => loadCatalog(false));
+document.getElementById('favToggle').addEventListener('click', () => {
+  showFavoritesOnly = !showFavoritesOnly;
+  document.getElementById('favToggle').classList.toggle('active', showFavoritesOnly);
+  renderGrid();
+});
+document.getElementById('hiddenToggle').addEventListener('click', () => {
+  showHidden = !showHidden;
+  document.getElementById('hiddenToggle').classList.toggle('active', showHidden);
+  renderGrid();
+});
+
+loadCatalog(false);
+setInterval(() => loadCatalog(true), AUTO_SYNC_MS); // silent background refresh — no reload needed for the master sheet to reflect
+</script>
+</body>
+</html>
