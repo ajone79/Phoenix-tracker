@@ -166,18 +166,45 @@ function initGate(){
   });
 }
 
+let isAdmin = false;
+let selectedProvider = 'groq';
+
 async function initGateOrSkipForAdmin(){
   const forceGate = new URLSearchParams(location.search).get('trivia') === '1';
   try{
     const { data: { session } } = await sb.auth.getSession();
-    if (session && !forceGate){
+    if (session){
       const { data: profile } = await sb.from('tracker_profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
-      if (profile?.is_admin){ unlockChat(); return; }
+      isAdmin = !!profile?.is_admin;
+      if (isAdmin) renderProviderToggle();
+      if (isAdmin && !forceGate){ unlockChat(); return; }
     }
   } catch(e){ /* fall through to the gate if this check fails for any reason */ }
   initGate();
 }
 initGateOrSkipForAdmin();
+
+function renderProviderToggle(){
+  const header = document.querySelector('.header');
+  if (!header || document.getElementById('providerToggle')) return;
+  const toggle = document.createElement('div');
+  toggle.id = 'providerToggle';
+  toggle.style.cssText = 'display:flex;gap:6px;margin-left:auto;flex-shrink:0;';
+  toggle.innerHTML = ['groq','gemini','cerebras'].map(p =>
+    `<button data-provider="${p}" style="background:${p===selectedProvider?'var(--periwinkle)':'var(--panel-2)'};color:${p===selectedProvider?'var(--void)':'var(--text-dim)'};border:1px solid var(--hair);border-radius:8px;padding:5px 10px;font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;cursor:pointer;">${p}</button>`
+  ).join('');
+  header.appendChild(toggle);
+  toggle.querySelectorAll('[data-provider]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedProvider = btn.dataset.provider;
+      toggle.querySelectorAll('[data-provider]').forEach(b => {
+        const active = b.dataset.provider === selectedProvider;
+        b.style.background = active ? 'var(--periwinkle)' : 'var(--panel-2)';
+        b.style.color = active ? 'var(--void)' : 'var(--text-dim)';
+      });
+    });
+  });
+}
 
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -185,14 +212,15 @@ function sourceIcon(type){
   return type === 'sheet' ? '📑' : '🖖';
 }
 
-function appendMsg(role, content, sources){
+function appendMsg(role, content, sources, provider){
   const hint = document.getElementById('emptyHint');
   if (hint) hint.remove();
   const win = document.getElementById('chatWindow');
   const div = document.createElement('div');
   div.className = `msg ${role}`;
   if (role === 'assistant'){
-    let html = `<span class="tag">Spock's Wisdom</span>${escapeHtml(content)}`;
+    const tagLabel = (isAdmin && provider) ? `Spock's Wisdom · ${provider}` : "Spock's Wisdom";
+    let html = `<span class="tag">${escapeHtml(tagLabel)}</span>${escapeHtml(content)}`;
     if (sources && sources.length){
       html += `<div class="sources">${sources.map(s => {
         const thumb = s.image
@@ -248,14 +276,14 @@ async function send(){
         'Authorization': `Bearer ${session.access_token}`,
         'apikey': SUPABASE_KEY,
       },
-      body: JSON.stringify({ messages: history }),
+      body: JSON.stringify({ messages: history, provider: selectedProvider }),
     });
     const data = await res.json();
     removeThinking();
     if (!res.ok || data.error){
       appendMsg('error', data.error || 'Something went wrong reaching Spock\'s Wisdom.');
     } else {
-      appendMsg('assistant', data.reply, data.sources);
+      appendMsg('assistant', data.reply, data.sources, data.provider);
       history.push({ role: 'assistant', content: data.reply });
     }
   } catch(e){
