@@ -104,7 +104,12 @@
 const CATALOG_URL = 'https://docs.google.com/spreadsheets/d/1AHbQfUYpL3_DpRV-J0m2PbPVYCuzZe3P5t763xaJ5uA/export?format=csv';
 const AUTO_SYNC_MS = 3 * 60 * 1000; // re-check the master sheet every 3 minutes, no page reload needed
 
+const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 let allSheets = [];
+let contentIndex = {}; // sheet_key -> indexed cell content, refreshed daily by a scheduled job
 let activeCategory = 'all';
 let searchTerm = '';
 let showFavoritesOnly = false;
@@ -162,6 +167,17 @@ function buildEmbedUrl(sheetUrl){
 
 function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+async function loadContentIndex(){
+  try{
+    const { data, error } = await sb.from('sheet_content_index').select('sheet_key,content_text');
+    if (error) throw error;
+    contentIndex = {};
+    (data || []).forEach(row => { if (row.content_text) contentIndex[row.sheet_key] = row.content_text; });
+  }catch(e){
+    console.error('Content index load failed (search will fall back to titles/tags only):', e);
+  }
+}
+
 async function loadCatalog(isBackground){
   if (!isBackground) document.getElementById('syncStatus').textContent = 'Loading…';
   try{
@@ -206,7 +222,7 @@ function renderGrid(){
     if (showFavoritesOnly && !shortcuts.includes(key)) return false;
     if (activeCategory !== 'all' && categoryFor(r) !== activeCategory) return false;
     if (term){
-      const hay = `${r.Title || ''} ${r.Description || ''} ${r.Tags || ''}`.toLowerCase();
+      const hay = `${r.Title || ''} ${r.Description || ''} ${r.Tags || ''} ${contentIndex[sheetKey(r)] || ''}`.toLowerCase();
       if (!hay.includes(term)) return false;
     }
     return true;
@@ -323,6 +339,7 @@ document.getElementById('hiddenToggle').addEventListener('click', () => {
 });
 
 loadCatalog(false);
+loadContentIndex().then(() => { if (searchTerm) renderGrid(); }); // content index isn't needed for the initial render, only for search
 setInterval(() => loadCatalog(true), AUTO_SYNC_MS); // silent background refresh — no reload needed for the master sheet to reflect
 </script>
 </body>
