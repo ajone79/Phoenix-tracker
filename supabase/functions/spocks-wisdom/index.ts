@@ -16,6 +16,10 @@ const PROVIDERS: Record<string, { baseUrl: string; model: string; keyEnv: string
   openrouter: { baseUrl: "https://openrouter.ai/api/v1/chat/completions", model: "meta-llama/llama-3.3-70b-instruct:free", keyEnv: "OPENROUTER_API_KEY_SPOCKS" },
 };
 
+// If someone's chosen provider is out of quota or briefly down, silently try
+// the next one in this order rather than just showing an error.
+const FALLBACK_ORDER = ["groq", "cerebras", "gemini", "openrouter"];
+
 // Restrict external web search to sites the alliance already trusts/links to,
 // plus Reddit and Scopely's own official pages — never the open web at large.
 const EXTERNAL_SEARCH_DOMAINS = [
@@ -95,15 +99,14 @@ Deno.serve(async (req: Request) => {
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
     if (!lastUserMsg.trim()) return json({ error: "No question provided" }, 400);
 
-    // Only admins can pick something other than the default — everyone else
-    // always gets the stable, tested Groq path regardless of what's sent.
-    const requestedProvider = typeof body?.provider === "string" ? body.provider : "groq";
-    const provider = (profile.is_admin && PROVIDERS[requestedProvider]) ? requestedProvider : "groq";
+    // Anyone can pick a provider now — still validated against the known list,
+    // falling back to groq for anything unrecognized.
+    const requestedProvider = (typeof body?.provider === "string" && PROVIDERS[body.provider]) ? body.provider : "groq";
 
     const keywords = keywordsFrom(lastUserMsg);
     const contextParts: string[] = [];
     const sources: { type: string; title: string; url?: string; image?: string }[] = [];
-    const useExternal = provider === "groq" && needsExternalSearch(lastUserMsg);
+    const useExternal = requestedProvider === "groq" && needsExternalSearch(lastUserMsg);
 
     // Current arc — cheap and almost always useful context.
     const { data: activeArc } = await sb.from("arcs").select("name,status")
@@ -217,70 +220,96 @@ ${useExternal ? "For THIS question, you have a web search tool available, restri
 
 ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data matched this question — answer from genuine STFC knowledge only, or say you don't have a confirmed answer.)"}`;
 
-    const groqKey = Deno.env.get("GROQ_API_KEY_SPOCKS"); // still needed for the external-search path, which is Groq-only
-    const providerConfig = PROVIDERS[provider];
-    const providerKey = Deno.env.get(providerConfig.keyEnv);
-    if (!providerKey) return json({ error: `${providerConfig.keyEnv} is not configured on this project` }, 500);
+    const groqKey = Deno.env.get("GROQ_API_KEY_SPOCKS"); // needed for the external-search path regardless of which provider was picked
 
-    const requestBody: Record<string, unknown> = useExternal
-      ? {
-          model: COMPOUND_MODEL,
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...messages.slice(-10),
-          ],
-          temperature: 0.6,
-          citation_options: "disabled", // we build our own source chips instead of inline bracket citations
-          compound_custom: { tools: { enabled_tools: ["web_search"] } },
-          search_settings: { include_domains: EXTERNAL_SEARCH_DOMAINS },
-        }
-      : {
-          model: providerConfig.model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...messages.slice(-10),
-          ],
-          temperature: 0.6,
-          ...(provider === "groq" ? { reasoning_format: "hidden" } : {}),
-        };
+    let apiRes: Response | undefined;
+    let providerUsed = requestedProvider;
+    let usedFallback = false; // true = the web-search attempt itself failed and fell back to a plain answer
 
-    let apiRes = await fetch(useExternal ? PROVIDERS.groq.baseUrl : providerConfig.baseUrl, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${useExternal ? groqKey : providerKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    let usedFallback = false;
-    if (!apiRes.ok && useExternal) {
-      // groq/compound-mini has a known intermittent instability on Groq's side
-      // (fails even on trivial prompts sometimes) — rather than show a raw API
-      // error, fall back to a normal answer without web search this one time.
-      usedFallback = true;
-      const fallbackPrompt = systemPrompt + "\n\n(Note: web search was attempted for this question but the search tool failed. Answer from the context above and your own genuine knowledge, and mention briefly that live search wasn't available this time if that matters to the answer.)";
+    if (useExternal) {
+      const requestBody = {
+        model: COMPOUND_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages.slice(-10),
+        ],
+        temperature: 0.6,
+        citation_options: "disabled", // we build our own source chips instead of inline bracket citations
+        compound_custom: { tools: { enabled_tools: ["web_search"] } },
+        search_settings: { include_domains: EXTERNAL_SEARCH_DOMAINS },
+      };
       apiRes = await fetch(PROVIDERS.groq.baseUrl, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${groqKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: GROQ_MODEL,
-          messages: [
-            { role: "system", content: fallbackPrompt },
-            ...messages.slice(-10),
-          ],
-          temperature: 0.6,
-          reasoning_format: "hidden",
-        }),
+        headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
       });
-    }
 
-    if (!apiRes.ok) {
-      const errText = await apiRes.text();
-      return json({ error: `${provider} request failed: ${errText}` }, 502);
+      if (!apiRes.ok) {
+        // groq/compound-mini has a known intermittent instability on Groq's side
+        // (fails even on trivial prompts sometimes) — rather than show a raw API
+        // error, fall back to a normal answer without web search this one time.
+        usedFallback = true;
+        const fallbackPrompt = systemPrompt + "\n\n(Note: web search was attempted for this question but the search tool failed. Answer from the context above and your own genuine knowledge, and mention briefly that live search wasn't available this time if that matters to the answer.)";
+        apiRes = await fetch(PROVIDERS.groq.baseUrl, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: GROQ_MODEL,
+            messages: [
+              { role: "system", content: fallbackPrompt },
+              ...messages.slice(-10),
+            ],
+            temperature: 0.6,
+            reasoning_format: "hidden",
+          }),
+        });
+      }
+      providerUsed = "groq";
+    } else {
+      // Try the person's chosen provider first, then fall through the others
+      // in order — only ones that actually have a key configured — so a
+      // provider being out of daily quota doesn't just dead-end the question.
+      const candidates = [requestedProvider, ...FALLBACK_ORDER.filter((p) => p !== requestedProvider)]
+        .filter((p) => !!Deno.env.get(PROVIDERS[p].keyEnv));
+
+      if (!candidates.length) {
+        return json({ error: "No AI provider is currently configured on this project." }, 500);
+      }
+
+      let lastErrText = "";
+      for (const candidate of candidates) {
+        const cfg = PROVIDERS[candidate];
+        const key = Deno.env.get(cfg.keyEnv)!;
+        try {
+          const res = await fetch(cfg.baseUrl, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: cfg.model,
+              messages: [
+                { role: "system", content: systemPrompt },
+                ...messages.slice(-10),
+              ],
+              temperature: 0.6,
+              ...(candidate === "groq" ? { reasoning_format: "hidden" } : {}),
+            }),
+          });
+          if (res.ok) {
+            apiRes = res;
+            providerUsed = candidate;
+            break;
+          }
+          lastErrText = await res.text();
+          console.log(`Provider ${candidate} failed (${res.status}):`, lastErrText.slice(0, 300));
+        } catch (e) {
+          lastErrText = (e as Error).message;
+          console.log(`Provider ${candidate} threw:`, lastErrText);
+        }
+      }
+
+      if (!apiRes) {
+        return json({ error: `Every available AI provider failed. Last error: ${lastErrText}` }, 502);
+      }
     }
 
     const apiData = await apiRes.json();
@@ -308,7 +337,13 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
       }
     }
 
-    return json({ reply, sources, provider, searchFallback: usedFallback && useExternal }, 200);
+    return json({
+      reply,
+      sources,
+      provider: providerUsed,
+      requestedProvider,
+      searchFallback: usedFallback && useExternal,
+    }, 200);
   } catch (e) {
     return json({ error: `Unexpected error: ${(e as Error).message}` }, 500);
   }
