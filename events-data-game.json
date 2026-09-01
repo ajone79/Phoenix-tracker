@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-01T16:08:28.459909+00:00",
+  "generatedAt": "2026-09-01T22:24:50.778989+00:00",
   "events": [
     {
       "id": 173,
@@ -8450,7 +8450,7 @@
       "id": 926,
       "title": "Trelane's Tribulations Meta - SMS",
       "description": "Score in this event by completing daily Trelane's Tribulations Events",
-      "imageUrl": "https://i.ibb.co/39CSvBMK/868ae49a35f6.webp",
+      "imageUrl": "https://i.ibb.co/N6gmFWJy/d0b4d560b32a.webp",
       "startUTC": "2026-08-27T16:00:00.000Z",
       "endUTC": "2026-09-03T16:00:00.000Z",
       "eventType": "meta",
@@ -9842,21 +9842,6 @@
       "repeatType": "weekly"
     },
     {
-      "id": 252,
-      "title": "A Cold Directive (Vengeance) - SMS",
-      "description": "Score in this event by defeating Breen Hostiles.",
-      "imageUrl": "https://i.ibb.co/DfFPTnDG/a8a9fa13fceb.webp",
-      "startUTC": "2026-09-06T17:00:00.000Z",
-      "endUTC": "2026-09-07T17:00:00.000Z",
-      "eventType": "hostiles",
-      "eventSubType": null,
-      "eventFormat": "SMS",
-      "priority": "normal",
-      "minOpsLevel": 70,
-      "maxOpsLevel": null,
-      "repeatType": "weekly"
-    },
-    {
       "id": 291,
       "title": "Anomalous Phenomena",
       "description": "Defeat the unknown threat to earn other worldly rewards! Earn bonus points by instant warping, summoning, or killing Anomaly hostiles with the USS Discovery!",
@@ -9868,6 +9853,21 @@
       "eventFormat": null,
       "priority": "normal",
       "minOpsLevel": 21,
+      "maxOpsLevel": null,
+      "repeatType": "weekly"
+    },
+    {
+      "id": 252,
+      "title": "A Cold Directive (Vengeance) - SMS",
+      "description": "Score in this event by defeating Breen Hostiles.",
+      "imageUrl": "https://i.ibb.co/DfFPTnDG/a8a9fa13fceb.webp",
+      "startUTC": "2026-09-06T17:00:00.000Z",
+      "endUTC": "2026-09-07T17:00:00.000Z",
+      "eventType": "hostiles",
+      "eventSubType": null,
+      "eventFormat": "SMS",
+      "priority": "normal",
+      "minOpsLevel": 70,
       "maxOpsLevel": null,
       "repeatType": "weekly"
     },
