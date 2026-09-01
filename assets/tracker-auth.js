@@ -78,6 +78,7 @@
       renderScreen(`
         <h1>⏳ Pending approval</h1>
         <p>You're signed in as <b class="accent">${escapeHtml((profile && profile.discord_username) || user.email || 'a member')}</b>, but an alliance admin hasn't whitelisted you yet.<br><br>Ping an officer in Discord and they'll approve your access — no need to log in again once they do.</p>
+        <a class="btn" href="https://waapp.me/wa/T8uTP37f" target="_blank" rel="noopener">💬 WhatsApp me</a>
         <button class="btn ghost" id="signout">Sign out</button>
       `);
       document.getElementById('signout').addEventListener('click', async ()=>{ await sb.auth.signOut(); location.href='/login.html'; });
