@@ -176,7 +176,7 @@ async function initGateOrSkipForAdmin(){
     if (session){
       const { data: profile } = await sb.from('tracker_profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
       isAdmin = !!profile?.is_admin;
-      if (isAdmin) renderProviderToggle();
+      renderProviderToggle();
       if (isAdmin && !forceGate){ unlockChat(); return; }
     }
   } catch(e){ /* fall through to the gate if this check fails for any reason */ }
@@ -212,14 +212,20 @@ function sourceIcon(type){
   return type === 'sheet' ? '📑' : '🖖';
 }
 
-function appendMsg(role, content, sources, provider){
+function appendMsg(role, content, sources, provider, requestedProvider){
   const hint = document.getElementById('emptyHint');
   if (hint) hint.remove();
   const win = document.getElementById('chatWindow');
   const div = document.createElement('div');
   div.className = `msg ${role}`;
   if (role === 'assistant'){
-    const tagLabel = (isAdmin && provider) ? `Spock's Wisdom · ${provider}` : "Spock's Wisdom";
+    let tagLabel = "Spock's Wisdom";
+    if (provider){
+      tagLabel += ` · ${provider}`;
+      if (requestedProvider && requestedProvider !== provider){
+        tagLabel += ` (${requestedProvider} was unavailable)`;
+      }
+    }
     let html = `<span class="tag">${escapeHtml(tagLabel)}</span>${escapeHtml(content)}`;
     if (sources && sources.length){
       html += `<div class="sources">${sources.map(s => {
@@ -283,7 +289,7 @@ async function send(){
     if (!res.ok || data.error){
       appendMsg('error', data.error || 'Something went wrong reaching Spock\'s Wisdom.');
     } else {
-      appendMsg('assistant', data.reply, data.sources, data.provider);
+      appendMsg('assistant', data.reply, data.sources, data.provider, data.requestedProvider);
       history.push({ role: 'assistant', content: data.reply });
     }
   } catch(e){
