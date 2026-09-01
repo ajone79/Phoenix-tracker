@@ -7,6 +7,14 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const GROQ_MODEL = "qwen/qwen3.6-27b";
 const COMPOUND_MODEL = "groq/compound-mini";
 
+// All three expose an OpenAI-compatible chat completions endpoint, so one
+// code path can drive all of them — just a different base URL/model/key per provider.
+const PROVIDERS: Record<string, { baseUrl: string; model: string; keyEnv: string }> = {
+  groq: { baseUrl: "https://api.groq.com/openai/v1/chat/completions", model: GROQ_MODEL, keyEnv: "GROQ_API_KEY_SPOCKS" },
+  gemini: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", model: "gemini-2.5-flash-lite", keyEnv: "GEMINI_API_KEY_SPOCKS" },
+  cerebras: { baseUrl: "https://api.cerebras.ai/v1/chat/completions", model: "llama-3.3-70b", keyEnv: "CEREBRAS_API_KEY_SPOCKS" },
+};
+
 // Restrict external web search to sites the alliance already trusts/links to,
 // plus Reddit and Scopely's own official pages — never the open web at large.
 const EXTERNAL_SEARCH_DOMAINS = [
@@ -78,7 +86,7 @@ Deno.serve(async (req: Request) => {
     const { data: { user } } = await sb.auth.getUser();
     if (!user) return json({ error: "Not signed in" }, 401);
     const { data: profile } = await sb.from("tracker_profiles")
-      .select("approved").eq("id", user.id).maybeSingle();
+      .select("approved,is_admin").eq("id", user.id).maybeSingle();
     if (!profile?.approved) return json({ error: "Account not yet approved" }, 403);
 
     const body = await req.json();
@@ -86,10 +94,15 @@ Deno.serve(async (req: Request) => {
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
     if (!lastUserMsg.trim()) return json({ error: "No question provided" }, 400);
 
+    // Only admins can pick something other than the default — everyone else
+    // always gets the stable, tested Groq path regardless of what's sent.
+    const requestedProvider = typeof body?.provider === "string" ? body.provider : "groq";
+    const provider = (profile.is_admin && PROVIDERS[requestedProvider]) ? requestedProvider : "groq";
+
     const keywords = keywordsFrom(lastUserMsg);
     const contextParts: string[] = [];
     const sources: { type: string; title: string; url?: string; image?: string }[] = [];
-    const useExternal = needsExternalSearch(lastUserMsg);
+    const useExternal = provider === "groq" && needsExternalSearch(lastUserMsg);
 
     // Current arc — cheap and almost always useful context.
     const { data: activeArc } = await sb.from("arcs").select("name,status")
@@ -203,8 +216,10 @@ ${useExternal ? "For THIS question, you have a web search tool available, restri
 
 ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data matched this question — answer from genuine STFC knowledge only, or say you don't have a confirmed answer.)"}`;
 
-    const groqKey = Deno.env.get("GROQ_API_KEY_SPOCKS");
-    if (!groqKey) return json({ error: "GROQ_API_KEY_SPOCKS is not configured on this project" }, 500);
+    const groqKey = Deno.env.get("GROQ_API_KEY_SPOCKS"); // still needed for the external-search path, which is Groq-only
+    const providerConfig = PROVIDERS[provider];
+    const providerKey = Deno.env.get(providerConfig.keyEnv);
+    if (!providerKey) return json({ error: `${providerConfig.keyEnv} is not configured on this project` }, 500);
 
     const requestBody: Record<string, unknown> = useExternal
       ? {
@@ -219,32 +234,32 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
           search_settings: { include_domains: EXTERNAL_SEARCH_DOMAINS },
         }
       : {
-          model: GROQ_MODEL,
+          model: providerConfig.model,
           messages: [
             { role: "system", content: systemPrompt },
             ...messages.slice(-10),
           ],
           temperature: 0.6,
-          reasoning_format: "hidden",
+          ...(provider === "groq" ? { reasoning_format: "hidden" } : {}),
         };
 
-    let groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    let apiRes = await fetch(useExternal ? PROVIDERS.groq.baseUrl : providerConfig.baseUrl, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${groqKey}`,
+        "Authorization": `Bearer ${useExternal ? groqKey : providerKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(requestBody),
     });
 
     let usedFallback = false;
-    if (!groqRes.ok && useExternal) {
+    if (!apiRes.ok && useExternal) {
       // groq/compound-mini has a known intermittent instability on Groq's side
       // (fails even on trivial prompts sometimes) — rather than show a raw API
       // error, fall back to a normal answer without web search this one time.
       usedFallback = true;
       const fallbackPrompt = systemPrompt + "\n\n(Note: web search was attempted for this question but the search tool failed. Answer from the context above and your own genuine knowledge, and mention briefly that live search wasn't available this time if that matters to the answer.)";
-      groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      apiRes = await fetch(PROVIDERS.groq.baseUrl, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${groqKey}`,
@@ -262,13 +277,13 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
       });
     }
 
-    if (!groqRes.ok) {
-      const errText = await groqRes.text();
-      return json({ error: `Groq request failed: ${errText}` }, 502);
+    if (!apiRes.ok) {
+      const errText = await apiRes.text();
+      return json({ error: `${provider} request failed: ${errText}` }, 502);
     }
 
-    const groqData = await groqRes.json();
-    let reply = groqData?.choices?.[0]?.message?.content ?? "I have no response to offer at this time.";
+    const apiData = await apiRes.json();
+    let reply = apiData?.choices?.[0]?.message?.content ?? "I have no response to offer at this time.";
     // Defensive: strip any reasoning leakage that occasionally slips through despite
     // reasoning_format:"hidden" (the same issue previously seen with Groq's models
     // in the screenshot-scoring feature).
@@ -278,7 +293,7 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
     // Pull real URLs out of whichever external sites Compound actually visited,
     // so the client can render them as clickable source chips.
     if (useExternal && !usedFallback) {
-      const executedTools = groqData?.choices?.[0]?.message?.executed_tools ?? [];
+      const executedTools = apiData?.choices?.[0]?.message?.executed_tools ?? [];
       const foundUrls = new Set<string>();
       const raw = JSON.stringify(executedTools);
       const urlMatches = raw.match(/https?:\/\/[^\s"\\]+/g) || [];
@@ -292,7 +307,7 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
       }
     }
 
-    return json({ reply, sources, searchFallback: usedFallback && useExternal }, 200);
+    return json({ reply, sources, provider, searchFallback: usedFallback && useExternal }, 200);
   } catch (e) {
     return json({ error: `Unexpected error: ${(e as Error).message}` }, 500);
   }
