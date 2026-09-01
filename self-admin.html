@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix EU168 — My Account</title>
+<meta name="description" content="Match your in-game name and manage your own alliance tracker settings.">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-eu168.png">
+<link rel="apple-touch-icon" href="/icon-eu168.png">
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/tracker-auth.js"></script>
+<script src="assets/phx-nav-rail.js"></script>
+<style>
+  :root{--void:#050507;--panel:#111116;--panel-2:#17171e;--hair:#2a2a34;--signal:#ff9142;--periwinkle:#8fa3ff;--mint:#5fd068;--gold:#ffc857;--alert:#ff5a5f;--text:#e8e6e1;--text-dim:#8a8a94;--text-faint:#55555f;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;}
+  main{padding:26px 20px 80px;max-width:640px;margin:0 auto;}
+  h1{font-family:'Antonio',sans-serif;font-weight:700;font-size:24px;margin:0 0 4px;letter-spacing:.02em;}
+  .sub{color:var(--text-dim);font-size:12px;margin:0 0 26px;}
+  h2{font-family:'Antonio',sans-serif;font-size:15px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim);margin:0 0 4px;}
+  .h2-sub{font-size:11px;color:var(--text-faint);margin-bottom:12px;line-height:1.6;}
+  .panel{background:var(--panel);border:1px solid var(--hair);border-radius:12px;padding:18px 20px;margin-bottom:26px;}
+  .current-match{background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:13px;}
+  .current-match .name{color:var(--mint);font-weight:700;}
+  .recently-note{color:var(--gold);font-size:10.5px;margin-top:4px;}
+  input[type=text]{background:var(--panel-2);border:1px solid var(--hair);color:var(--text);font-family:'Space Mono',monospace;font-size:13px;padding:10px 12px;border-radius:8px;width:100%;}
+  .search-results{margin-top:8px;max-height:220px;overflow-y:auto;border:1px solid var(--hair);border-radius:8px;display:none;}
+  .search-results.open{display:block;}
+  .search-result-row{padding:10px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--hair);}
+  .search-result-row:last-child{border-bottom:none;}
+  .search-result-row:hover{background:var(--panel-2);}
+  .search-result-row.taken{color:var(--text-faint);cursor:not-allowed;font-style:italic;}
+  .search-result-row.taken:hover{background:none;}
+  .msg{font-size:11.5px;margin-top:10px;min-height:14px;}
+  .msg.ok{color:var(--mint);}
+  .msg.err{color:var(--alert);}
+  .wa-instructions{background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:12px 14px;font-size:11.5px;color:var(--text-dim);line-height:1.7;margin-bottom:16px;}
+  .wa-instructions code{background:var(--void);padding:1px 5px;border-radius:4px;color:var(--periwinkle);}
+  .wa-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+  .wa-item{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:10px 14px;}
+  .wa-item .label{flex:1;font-size:13px;}
+  .wa-item .url{font-size:9.5px;color:var(--text-faint);display:block;word-break:break-all;}
+  .wa-item button{background:transparent;border:1px solid var(--alert);color:var(--alert);font-family:'Space Mono',monospace;font-size:10px;padding:5px 10px;border-radius:6px;cursor:pointer;flex-shrink:0;}
+  .add-row{display:flex;flex-direction:column;gap:8px;}
+  .add-row .btn{background:var(--periwinkle);color:var(--void);font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:12px;padding:10px 18px;border-radius:8px;border:none;cursor:pointer;align-self:flex-start;}
+  .empty{color:var(--text-faint);font-size:12px;padding:8px 0;}
+</style>
+</head>
+<body>
+<main>
+  <h1>My <span style="color:var(--signal);">Account</span></h1>
+  <p class="sub">Self-service settings — match your name and manage your own alerts.</p>
+
+  <div class="panel" id="nameSection">
+    <h2>Match Your In-Game Name</h2>
+    <div class="h2-sub">Search for your name in the alliance roster and pick it. This shows up automatically in admin — no more waiting on an officer to type it in for you. You can re-pick any time if you got it wrong.</div>
+    <div id="currentMatchBox"></div>
+    <input type="text" id="nameSearch" placeholder="Start typing your in-game name…" autocomplete="off">
+    <div class="search-results" id="searchResults"></div>
+    <div class="msg" id="nameMsg"></div>
+  </div>
+
+  <div class="panel" id="waSection">
+    <h2>WhatsApp Alert Buttons</h2>
+    <div class="h2-sub">Set up one-tap WhatsApp buttons that only alliance admins can see and use — for example, a button labelled "🚨 Raided" that opens a pre-filled WhatsApp message to you. Nobody else can see or press these, and admins get a confirmation prompt before anything opens, so it can't be triggered by accident.</div>
+    <div class="wa-instructions">
+      <b>How to build the link:</b> WhatsApp's own format is <code>https://wa.me/&lt;yournumber&gt;?text=&lt;your message&gt;</code> — use your number with country code, no spaces or leading zero (e.g. <code>447123456789</code> for a UK number), and write your message normally (spaces are fine, most browsers handle the encoding for you). If you'd rather use a generator instead of typing the link by hand, ask an officer for one.
+    </div>
+    <div class="wa-list" id="waList"></div>
+    <div class="add-row">
+      <input type="text" id="waLabelInput" placeholder="Button label, e.g. 🚨 Raided">
+      <input type="text" id="waUrlInput" placeholder="https://wa.me/...">
+      <button class="btn" id="waAddBtn">+ Add Button</button>
+    </div>
+    <div class="msg" id="waMsg"></div>
+  </div>
+</main>
+
+<script>
+const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let myProfile = null;
+let rosterList = []; // {id, name}
+let claimedIds = new Set();
+
+function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function renderCurrentMatch(){
+  const box = document.getElementById('currentMatchBox');
+  if (!myProfile.roster_id) {
+    box.innerHTML = `<div class="current-match">Not matched to a roster name yet — search below to set it.</div>`;
+    return;
+  }
+  const hoursAgo = myProfile.roster_matched_at ? (Date.now() - new Date(myProfile.roster_matched_at).getTime()) / 3600000 : 999;
+  box.innerHTML = `
+    <div class="current-match">
+      Currently matched to <span class="name">${escapeHtml(myProfile.in_game_name || '')}</span>
+      ${hoursAgo < 48 ? '<div class="recently-note">🔄 Recently changed — this also shows up as recently changed in admin.</div>' : ''}
+    </div>
+  `;
+}
+
+async function loadRosterAndClaims(){
+  const [{ data: roster }, { data: claimed }] = await Promise.all([
+    sb.from('roster').select('id,name').eq('status', 'active').order('name'),
+    sb.rpc('get_claimed_roster_ids'),
+  ]);
+  rosterList = roster || [];
+  claimedIds = new Set((claimed || []));
+}
+
+function renderSearchResults(term){
+  const resultsBox = document.getElementById('searchResults');
+  if (!term.trim()) { resultsBox.classList.remove('open'); resultsBox.innerHTML = ''; return; }
+  const t = term.toLowerCase();
+  const matches = rosterList.filter(r => r.name.toLowerCase().includes(t)).slice(0, 12);
+  if (!matches.length) {
+    resultsBox.innerHTML = `<div class="search-result-row taken">No matching names</div>`;
+    resultsBox.classList.add('open');
+    return;
+  }
+  resultsBox.innerHTML = matches.map(r => {
+    const isTaken = claimedIds.has(r.id) && r.id !== myProfile.roster_id;
+    return `<div class="search-result-row ${isTaken ? 'taken' : ''}" data-roster-id="${escapeHtml(r.id)}" data-taken="${isTaken}">${escapeHtml(r.name)}${isTaken ? ' (already claimed)' : ''}</div>`;
+  }).join('');
+  resultsBox.classList.add('open');
+  resultsBox.querySelectorAll('.search-result-row').forEach(row => {
+    if (row.dataset.taken === 'true') return;
+    row.addEventListener('click', () => confirmMatch(row.dataset.rosterId, row.textContent));
+  });
+}
+
+async function confirmMatch(rosterId, name){
+  if (!confirm(`Match yourself to "${name}"? This will show up in the admin tab.`)) return;
+  const msg = document.getElementById('nameMsg');
+  const { data, error } = await sb.rpc('self_match_roster_name', { p_roster_id: rosterId });
+  if (error || data === false) {
+    msg.textContent = 'That name may have just been claimed by someone else — try again.';
+    msg.className = 'msg err';
+    await loadRosterAndClaims();
+    return;
+  }
+  msg.textContent = 'Matched! ✓';
+  msg.className = 'msg ok';
+  document.getElementById('nameSearch').value = '';
+  document.getElementById('searchResults').classList.remove('open');
+  const { data: fresh } = await sb.from('tracker_profiles').select('*').eq('id', myProfile.id).maybeSingle();
+  myProfile = fresh;
+  renderCurrentMatch();
+}
+
+async function loadWaLinks(){
+  const { data } = await sb.from('member_contact_links').select('*').eq('profile_id', myProfile.id).order('created_at');
+  const list = document.getElementById('waList');
+  if (!data || !data.length) {
+    list.innerHTML = `<div class="empty">No buttons set up yet.</div>`;
+    return;
+  }
+  list.innerHTML = data.map(item => `
+    <div class="wa-item">
+      <div class="label">${escapeHtml(item.label)}<span class="url">${escapeHtml(item.whatsapp_url)}</span></div>
+      <button data-del="${item.id}">Remove</button>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-del]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Remove this WhatsApp button?')) return;
+      await sb.from('member_contact_links').delete().eq('id', btn.dataset.del);
+      loadWaLinks();
+    });
+  });
+}
+
+async function init(){
+  const { data: { session } } = await sb.auth.getSession();
+  const { data: profile } = await sb.from('tracker_profiles').select('*').eq('id', session.user.id).maybeSingle();
+  myProfile = profile;
+
+  renderCurrentMatch();
+  await loadRosterAndClaims();
+  await loadWaLinks();
+
+  document.getElementById('nameSearch').addEventListener('input', (e) => renderSearchResults(e.target.value));
+
+  document.getElementById('waAddBtn').addEventListener('click', async () => {
+    const label = document.getElementById('waLabelInput').value.trim();
+    const url = document.getElementById('waUrlInput').value.trim();
+    const msg = document.getElementById('waMsg');
+    if (!label || !url) { msg.textContent = 'Both a label and a link are needed.'; msg.className = 'msg err'; return; }
+    if (!url.startsWith('https://wa.me/') && !url.startsWith('https://api.whatsapp.com/')) {
+      msg.textContent = 'That doesn\'t look like a WhatsApp link — it should start with https://wa.me/';
+      msg.className = 'msg err';
+      return;
+    }
+    const { error } = await sb.from('member_contact_links').insert({ profile_id: myProfile.id, label, whatsapp_url: url });
+    if (error) { msg.textContent = 'Could not save — try again.'; msg.className = 'msg err'; return; }
+    msg.textContent = 'Added ✓';
+    msg.className = 'msg ok';
+    document.getElementById('waLabelInput').value = '';
+    document.getElementById('waUrlInput').value = '';
+    loadWaLinks();
+  });
+}
+
+document.addEventListener('tracker-auth-ready', init);
+</script>
+</body>
+</html>
