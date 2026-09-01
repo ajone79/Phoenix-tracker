@@ -55,8 +55,11 @@
   .drawer-header .btns{display:flex;gap:8px;flex-shrink:0;}
   .drawer-header button{background:var(--panel);border:1px solid var(--hair);color:var(--text);font-family:'Space Mono',monospace;font-size:11px;padding:6px 12px;border-radius:8px;cursor:pointer;}
   .drawer-header button:hover{border-color:var(--periwinkle);}
-  .drawer-viewport{flex:1;overflow:auto;background:#fff;}
+  .drawer-viewport{flex:1;overflow:auto;background:#fff;position:relative;}
   .drawer-viewport iframe{border:none;display:block;transform-origin:0 0;}
+  .embed-hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--gold);color:var(--text);font-family:'Space Mono',monospace;font-size:11.5px;padding:10px 14px;border-radius:10px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:5;max-width:90%;}
+  .embed-hint a{color:var(--gold);font-weight:700;text-decoration:none;white-space:nowrap;}
+  .embed-hint button{background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:14px;padding:0 0 0 4px;flex-shrink:0;}
   .zoom-controls{display:flex;align-items:center;gap:4px;}
   .zoom-controls button{width:28px;padding:6px 0 !important;text-align:center;}
   .zoom-label{font-size:10px;color:var(--text-dim);width:38px;text-align:center;}
@@ -98,6 +101,11 @@
   </div>
   <div class="drawer-viewport" id="drawerViewport">
     <iframe id="drawerFrame" src=""></iframe>
+    <div class="embed-hint" id="embedHint" style="display:none;">
+      <span>Not showing? Some sheets can't be embedded here.</span>
+      <a href="#" id="embedHintLink" target="_blank" rel="noopener">Open in new tab ↗</a>
+      <button id="embedHintDismiss">✕</button>
+    </div>
   </div>
 </div>
 
@@ -336,6 +344,7 @@ function renderGrid(){
   });
 }
 
+let embedHintTimer = null;
 function openDrawer(row){
   document.getElementById('drawerTitle').textContent = row.Title || 'Sheet';
   document.getElementById('drawerFrame').src = buildEmbedUrl(row['Sheet URL']);
@@ -351,7 +360,21 @@ function openDrawer(row){
   document.getElementById('openNewTabBtn').onclick = () => window.open(row['Sheet URL'], '_blank');
   document.getElementById('drawer').classList.add('open');
   document.getElementById('drawerBackdrop').classList.add('open');
+
+  // We can't reliably detect whether Google blocked this specific sheet from
+  // being embedded (cross-origin, no error event fires either way) — so
+  // rather than guess, just surface a clear escape hatch a few seconds in,
+  // for any sheet, harmless if it's actually rendering fine underneath.
+  const hint = document.getElementById('embedHint');
+  hint.style.display = 'none';
+  clearTimeout(embedHintTimer);
+  document.getElementById('embedHintLink').href = row['Sheet URL'] || '#';
+  embedHintTimer = setTimeout(() => { hint.style.display = 'flex'; }, 3500);
 }
+document.getElementById('embedHintDismiss').addEventListener('click', () => {
+  document.getElementById('embedHint').style.display = 'none';
+  clearTimeout(embedHintTimer);
+});
 
 let zoomLevel = 1;
 function applyZoom(){
@@ -374,6 +397,8 @@ function closeDrawer(){
   document.getElementById('drawer').classList.remove('open');
   document.getElementById('drawerBackdrop').classList.remove('open');
   document.getElementById('drawerFrame').src = '';
+  document.getElementById('embedHint').style.display = 'none';
+  clearTimeout(embedHintTimer);
 }
 
 document.getElementById('closeDrawerBtn').addEventListener('click', closeDrawer);
