@@ -66,12 +66,12 @@
     <h2>WhatsApp Alert Buttons</h2>
     <div class="h2-sub">Set up one-tap WhatsApp buttons that only alliance admins can see and use — for example, a button labelled "🚨 Raided" that opens a pre-filled WhatsApp message to you. Nobody else can see or press these, and admins get a confirmation prompt before anything opens, so it can't be triggered by accident.</div>
     <div class="wa-instructions">
-      <b>How to build the link:</b> WhatsApp's own format is <code>https://wa.me/&lt;yournumber&gt;?text=&lt;your message&gt;</code> — use your number with country code, no spaces or leading zero (e.g. <code>447123456789</code> for a UK number), and write your message normally (spaces are fine, most browsers handle the encoding for you). If you'd rather use a generator instead of typing the link by hand, ask an officer for one.
+      <b>How to build the link:</b> Easiest way — go to <a href="https://create.wa.link/" target="_blank" rel="noopener" style="color:var(--periwinkle);">create.wa.link</a>, enter your number and a message, and it'll give you a short link like <code>wa.link/abc123</code>. Paste that link below.
     </div>
     <div class="wa-list" id="waList"></div>
     <div class="add-row">
       <input type="text" id="waLabelInput" placeholder="Button label, e.g. 🚨 Raided">
-      <input type="text" id="waUrlInput" placeholder="https://wa.me/...">
+      <input type="text" id="waUrlInput" placeholder="wa.link/... or https://wa.me/...">
       <button class="btn" id="waAddBtn">+ Add Button</button>
     </div>
     <div class="msg" id="waMsg"></div>
@@ -188,11 +188,13 @@ async function init(){
 
   document.getElementById('waAddBtn').addEventListener('click', async () => {
     const label = document.getElementById('waLabelInput').value.trim();
-    const url = document.getElementById('waUrlInput').value.trim();
+    let url = document.getElementById('waUrlInput').value.trim();
     const msg = document.getElementById('waMsg');
     if (!label || !url) { msg.textContent = 'Both a label and a link are needed.'; msg.className = 'msg err'; return; }
-    if (!url.startsWith('https://wa.me/') && !url.startsWith('https://api.whatsapp.com/')) {
-      msg.textContent = 'That doesn\'t look like a WhatsApp link — it should start with https://wa.me/';
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url; // people often paste "wa.link/xyz" without the scheme
+    const isWhatsappLink = /^https:\/\/(wa\.me|wa\.link|api\.whatsapp\.com)\//i.test(url);
+    if (!isWhatsappLink) {
+      msg.textContent = 'That doesn\'t look like a WhatsApp link — it should be a wa.link, wa.me, or api.whatsapp.com link.';
       msg.className = 'msg err';
       return;
     }
