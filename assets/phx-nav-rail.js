@@ -11,7 +11,6 @@
     {href:'/sheets/stfc-sheets.html', label:'STFC Sheets', icon:'📑', desc:'Planning & calculation tools'},
     {href:'/spocks-wisdom.html', label:"Spock's Wisdom", icon:'🖖', desc:'Ask about crews, events & gameplay'},
     {href:'/credits.html', label:'Links & Credits', icon:'🔗', desc:'External links, thanks'},
-    {href:'/admin.html', label:'Admin', icon:'🛠️', desc:'Approve logins, manage admins', adminOnly:true},
     {href:'/home-admin.html', label:'Home Screen Admin', icon:'🖋️', desc:'Edit briefing, galleries, codes & trivia', homeEditorOnly:true},
   ];
 
@@ -45,6 +44,7 @@
       #phx-more-sheet .pm-ic{font-size:19px;width:24px;text-align:center;flex-shrink:0;}
       #phx-more-sheet .pm-t{font-weight:700;font-size:13.5px;font-family:'Rajdhani','Space Mono',sans-serif;}
       #phx-more-sheet .pm-d{font-size:11px;color:#8a8a94;}
+      #phx-more-sheet a.pm-always{border-top:1px solid #23232b;margin-top:8px;border-radius:0;}
       #phx-more-sheet button.pm-signout{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:14px;color:#f2a93b;cursor:pointer;width:100%;border-top:1px solid #23232b;margin-top:8px;border-radius:0;}
       #phx-more-sheet button.pm-signout:hover{background:rgba(242,169,59,.10);}
 
@@ -74,6 +74,7 @@
       return MORE.filter(m => (!m.adminOnly || isAdmin()) && (!m.homeEditorOnly || isHomeEditor())).map(m =>
         `<a href="${m.href}"><span class="pm-ic">${m.icon}</span><span><span class="pm-t">${m.label}</span><br><span class="pm-d">${m.desc}</span></span></a>`
       ).join('') +
+      `<a href="/admin.html" class="pm-always"><span class="pm-ic">\u{1F6E0}\u{FE0F}</span><span><span class="pm-t">AJ fucked something</span><br><span class="pm-d">Admin \u2014 members will just see an empty page</span></span></a>` +
       `<button type="button" class="pm-signout" id="phx-signout-item"><span class="pm-ic">\u{1F6AA}</span><span><span class="pm-t">Sign out</span><br><span class="pm-d">Log out of the tracker</span></span></button>`;
     }
     function identityHtml(){
