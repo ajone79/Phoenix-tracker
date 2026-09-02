@@ -64,8 +64,9 @@
     document.head.appendChild(style);
 
     let profile = window.__trackerProfile || null;
-    function isAdmin(){ return !!(profile && profile.is_admin); }
-    function isHomeEditor(){ return !!(profile && (profile.is_owner || profile.is_home_editor)); }
+    function P(){ if(!profile && window.__trackerProfile) profile = window.__trackerProfile; return profile; }
+    function isAdmin(){ const p = P(); return !!(p && p.is_admin); }
+    function isHomeEditor(){ const p = P(); return !!(p && (p.is_owner || p.is_home_editor)); }
 
     function moreItemsHtml(){
       return MORE.filter(m => (!m.adminOnly || isAdmin()) && (!m.homeEditorOnly || isHomeEditor())).map(m =>
@@ -73,8 +74,9 @@
       ).join('');
     }
     function identityHtml(){
-      if(!profile) return '';
-      const name = profile.discord_username || profile.in_game_name || 'Signed in';
+      const p = P();
+      if(!p) return '';
+      const name = p.discord_username || p.in_game_name || 'Signed in';
       return `<div id="phx-more-identity"><span class="pi-name">${name}</span><button type="button" class="pi-signout" id="phx-signout">Sign out</button></div>`;
     }
     function wireIdentity(){
