@@ -103,7 +103,19 @@
       const sheet = document.getElementById('phx-more-sheet');
       if(sheet){ sheet.innerHTML = `<div class="pm-handle"></div>${identityHtml()}${moreItemsHtml()}`; wireIdentity(); }
     }
-    function toggleMore(){ buildMorePanel().classList.toggle('open'); }
+    async function ensureProfile(){
+      if(profile) return;
+      if(!profile && window.__trackerProfile){ profile = window.__trackerProfile; refreshMorePanel(); return; }
+      const sb = window.__trackerSb;
+      if(!sb) return;
+      try{
+        const { data: { session } } = await sb.auth.getSession();
+        if(!session) return;
+        const { data } = await sb.from('tracker_profiles').select('*').eq('id', session.user.id).maybeSingle();
+        if(data){ profile = data; window.__trackerProfile = window.__trackerProfile || data; refreshMorePanel(); }
+      }catch(e){ console.warn('phx-nav-rail: could not load profile', e); }
+    }
+    function toggleMore(){ ensureProfile(); buildMorePanel().classList.toggle('open'); }
 
     const rail = document.createElement('div');
     rail.id = 'phx-rail';
@@ -123,6 +135,7 @@
     document.getElementById('phx-bottom-more').addEventListener('click', toggleMore);
 
     document.addEventListener('tracker-auth-ready', (e)=>{ profile = e.detail; refreshMorePanel(); });
+    setTimeout(ensureProfile, 1200);
   }
 
   if(document.readyState !== 'loading') init();
