@@ -45,6 +45,8 @@
       #phx-more-sheet .pm-ic{font-size:19px;width:24px;text-align:center;flex-shrink:0;}
       #phx-more-sheet .pm-t{font-weight:700;font-size:13.5px;font-family:'Rajdhani','Space Mono',sans-serif;}
       #phx-more-sheet .pm-d{font-size:11px;color:#8a8a94;}
+      #phx-more-sheet button.pm-signout{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:14px;color:#f2a93b;cursor:pointer;width:100%;border-top:1px solid #23232b;margin-top:8px;border-radius:0;}
+      #phx-more-sheet button.pm-signout:hover{background:rgba(242,169,59,.10);}
 
       #phx-bottom{display:none;}
       @media (min-width:761px){
@@ -71,16 +73,17 @@
     function moreItemsHtml(){
       return MORE.filter(m => (!m.adminOnly || isAdmin()) && (!m.homeEditorOnly || isHomeEditor())).map(m =>
         `<a href="${m.href}"><span class="pm-ic">${m.icon}</span><span><span class="pm-t">${m.label}</span><br><span class="pm-d">${m.desc}</span></span></a>`
-      ).join('');
+      ).join('') +
+      `<button type="button" class="pm-signout" id="phx-signout-item"><span class="pm-ic">\u{1F6AA}</span><span><span class="pm-t">Sign out</span><br><span class="pm-d">Log out of the tracker</span></span></button>`;
     }
     function identityHtml(){
       const p = P();
       if(!p) return '';
       const name = p.discord_username || p.in_game_name || 'Signed in';
-      return `<div id="phx-more-identity"><span class="pi-name">${name}</span><button type="button" class="pi-signout" id="phx-signout">Sign out</button></div>`;
+      return `<div id="phx-more-identity"><span class="pi-name">${name}</span></div>`;
     }
     function wireIdentity(){
-      const btn = document.getElementById('phx-signout');
+      const btn = document.getElementById('phx-signout-item') || document.getElementById('phx-signout');
       if(!btn) return;
       btn.addEventListener('click', async () => {
         if(window.__trackerSb) await window.__trackerSb.auth.signOut();
