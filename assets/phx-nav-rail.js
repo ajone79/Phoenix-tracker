@@ -14,6 +14,21 @@
     {href:'/home-admin.html', label:'Home Screen Admin', icon:'🖋️', desc:'Edit briefing, galleries, codes & trivia', homeEditorOnly:true},
   ];
 
+  const SB_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+  function getSb(){
+    if(window.__trackerSb) return window.__trackerSb;
+    if(typeof supabase === 'undefined') return null;
+    try{ window.__trackerSb = supabase.createClient(SB_URL, SB_KEY); return window.__trackerSb; }
+    catch(e){ return null; }
+  }
+  function clearLocalSession(){
+    for(const store of [localStorage, sessionStorage]){
+      try{ Object.keys(store).filter(k => k.startsWith('sb-')).forEach(k => store.removeItem(k)); }
+      catch(e){}
+    }
+  }
+
   function init(){
     const path = location.pathname.split('/').pop() || 'index.html';
     function isCurrent(href){
@@ -87,7 +102,9 @@
       const btn = document.getElementById('phx-signout-item') || document.getElementById('phx-signout');
       if(!btn) return;
       btn.addEventListener('click', async () => {
-        if(window.__trackerSb) await window.__trackerSb.auth.signOut();
+        try{ const sb = getSb(); if(sb) await sb.auth.signOut(); }
+        catch(e){ console.warn('phx-nav-rail: signOut call failed, clearing locally', e); }
+        clearLocalSession();
         location.href = '/login.html';
       });
     }
@@ -110,7 +127,7 @@
     async function ensureProfile(){
       if(profile) return;
       if(!profile && window.__trackerProfile){ profile = window.__trackerProfile; refreshMorePanel(); return; }
-      const sb = window.__trackerSb;
+      const sb = getSb();
       if(!sb) return;
       try{
         const { data: { session } } = await sb.auth.getSession();
