@@ -11,24 +11,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check Cloudflare deployment history for phoenix-eu168
-        continue-on-error: true
+      - name: Check live content
         run: |
           OUT=diag-output.txt
           echo "Diagnostic run at $(date -u)" > "$OUT"
+          NAV=$(curl -sL "https://stfc.phoenixeu168.space/assets/phx-nav-rail.js?bust=$(date +%s)")
           echo "" >> "$OUT"
-          echo "=== Script detail (raw) ===" >> "$OUT"
-          curl -s -w "\nHTTP_STATUS:%{http_code}\n" "https://api.cloudflare.com/client/v4/accounts/9d1202cc74e137008e0feafebb8a8d06/workers/scripts/phoenix-eu168" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" >> "$OUT" 2>&1 || true
-          echo "" >> "$OUT"
-          echo "=== Deployments (raw) ===" >> "$OUT"
-          curl -s -w "\nHTTP_STATUS:%{http_code}\n" "https://api.cloudflare.com/client/v4/accounts/9d1202cc74e137008e0feafebb8a8d06/workers/scripts/phoenix-eu168/deployments" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" >> "$OUT" 2>&1 || true
-      - name: Commit results
-        if: always()
+          echo "nav-rail bytes: ${#NAV}" >> "$OUT"
+          echo "G7 Guide in nav-rail: $(printf '%s' "$NAV" | grep -c 'G7 Guide' || true)" >> "$OUT"
+          echo "AJ fucked something in nav-rail: $(printf '%s' "$NAV" | grep -c 'AJ fucked something' || true)" >> "$OUT"
+          IDX=$(curl -sL "https://stfc.phoenixeu168.space/index.html?bust=$(date +%s)")
+          echo "FC Loadout in index: $(printf '%s' "$IDX" | grep -c 'FC Loadout' || true)" >> "$OUT"
+      - name: Commit
         run: |
           git config user.name "diag-bot"
           git config user.email "diag-bot@users.noreply.github.com"
           git add diag-output.txt
-          git commit -m "diag: raw cf script + deployments $(date -u +%Y-%m-%dT%H:%M:%SZ)" || echo "nothing to commit"
+          git commit -m "diag: final verification" || echo "nothing to commit"
           git push
