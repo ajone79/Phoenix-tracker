@@ -12,23 +12,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check Cloudflare deployment history for phoenix-eu168
+        continue-on-error: true
         run: |
           OUT=diag-output.txt
           echo "Diagnostic run at $(date -u)" > "$OUT"
           echo "" >> "$OUT"
-          echo "=== Script detail ===" >> "$OUT"
-          curl -s "https://api.cloudflare.com/client/v4/accounts/9d1202cc74e137008e0feafebb8a8d06/workers/scripts/phoenix-eu168" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" -o cf_detail.json
-          python3 -c "import json; d=json.load(open('cf_detail.json')); print(json.dumps(d, indent=2)[:3000])" >> "$OUT"
+          echo "=== Script detail (raw) ===" >> "$OUT"
+          curl -s -w "\nHTTP_STATUS:%{http_code}\n" "https://api.cloudflare.com/client/v4/accounts/9d1202cc74e137008e0feafebb8a8d06/workers/scripts/phoenix-eu168" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" >> "$OUT" 2>&1 || true
           echo "" >> "$OUT"
-          echo "=== Deployments ===" >> "$OUT"
-          curl -s "https://api.cloudflare.com/client/v4/accounts/9d1202cc74e137008e0feafebb8a8d06/workers/scripts/phoenix-eu168/deployments" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" -o cf_deploys.json
-          python3 -c "import json; d=json.load(open('cf_deploys.json')); print(json.dumps(d, indent=2)[:3000])" >> "$OUT"
+          echo "=== Deployments (raw) ===" >> "$OUT"
+          curl -s -w "\nHTTP_STATUS:%{http_code}\n" "https://api.cloudflare.com/client/v4/accounts/9d1202cc74e137008e0feafebb8a8d06/workers/scripts/phoenix-eu168/deployments" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" >> "$OUT" 2>&1 || true
       - name: Commit results
+        if: always()
         run: |
           git config user.name "diag-bot"
           git config user.email "diag-bot@users.noreply.github.com"
           git add diag-output.txt
-          git commit -m "diag: cf script + deployments detail $(date -u +%Y-%m-%dT%H:%M:%SZ)" || echo "nothing to commit"
+          git commit -m "diag: raw cf script + deployments $(date -u +%Y-%m-%dT%H:%M:%SZ)" || echo "nothing to commit"
           git push
