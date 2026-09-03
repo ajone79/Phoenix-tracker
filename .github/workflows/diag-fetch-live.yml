@@ -11,23 +11,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Check Cloudflare deployment state
+      - name: Check Cloudflare deployment history for phoenix-eu168
         run: |
           OUT=diag-output.txt
           echo "Diagnostic run at $(date -u)" > "$OUT"
           echo "" >> "$OUT"
-          echo "=== Cloudflare Workers scripts on this account ===" >> "$OUT"
-          curl -s "https://api.cloudflare.com/client/v4/accounts/9d1202cc74e137008e0feafebb8a8d06/workers/scripts" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -o cf_scripts.json
-          python3 -c "import json; d=json.load(open('cf_scripts.json')); print('success:', d.get('success')); [print(s.get('id'), '| modified_on:', s.get('modified_on')) for s in d.get('result',[])] if d.get('success') else print('errors:', d.get('errors'))" >> "$OUT"
-
+          echo "=== Script detail ===" >> "$OUT"
+          curl -s "https://api.cloudflare.com/client/v4/accounts/9d1202cc74e137008e0feafebb8a8d06/workers/scripts/phoenix-eu168" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" -o cf_detail.json
+          python3 -c "import json; d=json.load(open('cf_detail.json')); print(json.dumps(d, indent=2)[:3000])" >> "$OUT"
+          echo "" >> "$OUT"
+          echo "=== Deployments ===" >> "$OUT"
+          curl -s "https://api.cloudflare.com/client/v4/accounts/9d1202cc74e137008e0feafebb8a8d06/workers/scripts/phoenix-eu168/deployments" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" -o cf_deploys.json
+          python3 -c "import json; d=json.load(open('cf_deploys.json')); print(json.dumps(d, indent=2)[:3000])" >> "$OUT"
       - name: Commit results
         run: |
           git config user.name "diag-bot"
           git config user.email "diag-bot@users.noreply.github.com"
           git add diag-output.txt
-          git commit -m "diag: cloudflare deployment check $(date -u +%Y-%m-%dT%H:%M:%SZ)" || echo "nothing to commit"
+          git commit -m "diag: cf script + deployments detail $(date -u +%Y-%m-%dT%H:%M:%SZ)" || echo "nothing to commit"
           git push
