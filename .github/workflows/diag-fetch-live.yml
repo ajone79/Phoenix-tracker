@@ -21,15 +21,8 @@ jobs:
           curl -s "https://api.cloudflare.com/client/v4/accounts/9d1202cc74e137008e0feafebb8a8d06/workers/scripts" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-if not d.get('success'):
-    print('API call failed:', d.get('errors'))
-else:
-    for s in d.get('result', []):
-        print(s.get('id'), '| modified_on:', s.get('modified_on'), '| created_on:', s.get('created_on'))
-" >> "$OUT"
+            -o cf_scripts.json
+          python3 -c "import json; d=json.load(open('cf_scripts.json')); print('success:', d.get('success')); [print(s.get('id'), '| modified_on:', s.get('modified_on')) for s in d.get('result',[])] if d.get('success') else print('errors:', d.get('errors'))" >> "$OUT"
 
       - name: Commit results
         run: |
