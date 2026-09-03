@@ -1,23 +1,8 @@
-Diagnostic run at Thu Sep  3 20:21:48 UTC 2026
+Diagnostic run at Thu Sep  3 20:25:20 UTC 2026
 
-=== CONTENT: phx-nav-rail.js ===
-Total bytes: 10545
-Contains 'AJ fucked something': 1
-Contains 'getSb': 3
-Contains 'ensureProfile': 3
-Contains 'clearLocalSession': 2
-Contains 'G7 Guide': 0
-
-=== HEADERS: phx-nav-rail.js ===
-HTTP/2 200 
-date: Thu, 03 Sep 2026 20:21:49 GMT
-content-type: text/javascript
-cf-cache-status: HIT
-cache-control: public, max-age=0, must-revalidate
-etag: "81f433dc866741b0a25e220d046a5169"
-report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=tDkpRAcyXl7DoZpoUzVID%2FzgRSyViRiN0QaF8YuNVxVqa%2Bks83U51%2BBdTL7zsMCIiPZ9fJK3BoO0gQ3v5wd7gDEqkJ9ySCg3UaGwzVSpAZWolzF9iWzNhw86%2BafFm7%2BzwLQ3nc%2BPIOhFAA%3D%3D"}]}
-nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
-server: cloudflare
-cf-ray: a3577689bef720eb-PDX
-alt-svc: h3=":443"; ma=86400
-
+=== Cloudflare Workers scripts on this account ===
+success: True
+f2p-tasks | modified_on: 2026-08-10T22:36:02.955573Z
+phoenix-eu168 | modified_on: 2026-09-03T03:11:49.662868Z
+phoenix-eu168-preview | modified_on: 2026-08-30T14:21:32.419755Z
+stfc-task-guide | modified_on: 2026-08-10T22:34:42.167131Z
