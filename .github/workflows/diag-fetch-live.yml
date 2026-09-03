@@ -30,7 +30,7 @@ jobs:
           echo "Contains 'ensureProfile': $(printf '%s' "$BODY" | grep -c 'ensureProfile' || true)" >> "$OUT"
           echo "Contains 'clearLocalSession': $(printf '%s' "$BODY" | grep -c 'clearLocalSession' || true)" >> "$OUT"
 
-          IDX=$(curl -s "https://stfc.phoenixeu168.space/index.html?bust=$(date +%s)")
+          IDX=$(curl -sL "https://stfc.phoenixeu168.space/index.html?bust=$(date +%s)")
           echo "" >> "$OUT"
           echo "=== CONTENT: index.html ===" >> "$OUT"
           echo "Contains 'G7 Guide': $(printf '%s' "$IDX" | grep -c 'G7 Guide' || true)" >> "$OUT"
@@ -38,7 +38,7 @@ jobs:
 
           echo "" >> "$OUT"
           echo "=== HEADERS: index.html ===" >> "$OUT"
-          curl -sI "https://stfc.phoenixeu168.space/index.html?bust=$(date +%s)" >> "$OUT"
+          curl -sIL "https://stfc.phoenixeu168.space/index.html?bust=$(date +%s)" >> "$OUT"
 
       - name: Commit results
         run: |
