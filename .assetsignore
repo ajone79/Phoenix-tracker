@@ -2,3 +2,8 @@ wrangler.toml
 .github
 .gitignore
 README.md
+docs
+*.pptx
+*.pdf
+*.docx
+*.zip
