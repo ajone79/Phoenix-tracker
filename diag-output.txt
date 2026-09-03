@@ -1,6 +1,0 @@
-Diagnostic run at Thu Sep  3 20:37:53 UTC 2026
-
-nav-rail bytes: 10602
-G7 Guide in nav-rail: 1
-AJ fucked something in nav-rail: 1
-FC Loadout in index: 0
