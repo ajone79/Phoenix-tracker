@@ -3,30 +3,47 @@ name: Diagnose Live Edge Content
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   diagnose:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch live nav-rail.js and index.html, report findings
+      - uses: actions/checkout@v4
+
+      - name: Fetch live content and write findings to a file
         run: |
-          echo "===== HEADERS: phx-nav-rail.js ====="
-          curl -sI "https://stfc.phoenixeu168.space/assets/phx-nav-rail.js?bust=$(date +%s)"
+          OUT=diag-output.txt
+          echo "Diagnostic run at $(date -u)" > "$OUT"
 
-          echo ""
-          echo "===== CONTENT CHECK: phx-nav-rail.js ====="
+          echo "" >> "$OUT"
+          echo "=== HEADERS: phx-nav-rail.js ===" >> "$OUT"
+          curl -sI "https://stfc.phoenixeu168.space/assets/phx-nav-rail.js?bust=$(date +%s)" >> "$OUT"
+
           BODY=$(curl -s "https://stfc.phoenixeu168.space/assets/phx-nav-rail.js?bust=$(date +%s)")
-          echo "Total bytes: ${#BODY}"
-          echo "Contains 'AJ fucked something': $(echo "$BODY" | grep -c 'AJ fucked something' || true)"
-          echo "Contains 'getSb': $(echo "$BODY" | grep -c 'getSb' || true)"
-          echo "Contains 'ensureProfile': $(echo "$BODY" | grep -c 'ensureProfile' || true)"
-          echo "Contains 'clearLocalSession': $(echo "$BODY" | grep -c 'clearLocalSession' || true)"
+          echo "" >> "$OUT"
+          echo "=== CONTENT: phx-nav-rail.js ===" >> "$OUT"
+          echo "Total bytes: ${#BODY}" >> "$OUT"
+          echo "Contains 'AJ fucked something': $(printf '%s' "$BODY" | grep -c 'AJ fucked something' || true)" >> "$OUT"
+          echo "Contains 'getSb': $(printf '%s' "$BODY" | grep -c 'getSb' || true)" >> "$OUT"
+          echo "Contains 'ensureProfile': $(printf '%s' "$BODY" | grep -c 'ensureProfile' || true)" >> "$OUT"
+          echo "Contains 'clearLocalSession': $(printf '%s' "$BODY" | grep -c 'clearLocalSession' || true)" >> "$OUT"
 
-          echo ""
-          echo "===== CONTENT CHECK: index.html for G7 Guide / FC Loadout ====="
           IDX=$(curl -s "https://stfc.phoenixeu168.space/index.html?bust=$(date +%s)")
-          echo "Contains 'G7 Guide': $(echo "$IDX" | grep -c 'G7 Guide' || true)"
-          echo "Contains 'FC Loadout': $(echo "$IDX" | grep -c 'FC Loadout' || true)"
+          echo "" >> "$OUT"
+          echo "=== CONTENT: index.html ===" >> "$OUT"
+          echo "Contains 'G7 Guide': $(printf '%s' "$IDX" | grep -c 'G7 Guide' || true)" >> "$OUT"
+          echo "Contains 'FC Loadout': $(printf '%s' "$IDX" | grep -c 'FC Loadout' || true)" >> "$OUT"
 
-          echo ""
-          echo "===== HEADERS: index.html ====="
-          curl -sI "https://stfc.phoenixeu168.space/index.html?bust=$(date +%s)"
+          echo "" >> "$OUT"
+          echo "=== HEADERS: index.html ===" >> "$OUT"
+          curl -sI "https://stfc.phoenixeu168.space/index.html?bust=$(date +%s)" >> "$OUT"
+
+      - name: Commit results
+        run: |
+          git config user.name "diag-bot"
+          git config user.email "diag-bot@users.noreply.github.com"
+          git add diag-output.txt
+          git commit -m "diag: live edge check $(date -u +%Y-%m-%dT%H:%M:%SZ)" || echo "nothing to commit"
+          git push
