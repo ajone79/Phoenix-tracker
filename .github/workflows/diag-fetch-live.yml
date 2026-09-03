@@ -1,0 +1,32 @@
+name: Diagnose Live Edge Content
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch live nav-rail.js and index.html, report findings
+        run: |
+          echo "===== HEADERS: phx-nav-rail.js ====="
+          curl -sI "https://stfc.phoenixeu168.space/assets/phx-nav-rail.js?bust=$(date +%s)"
+
+          echo ""
+          echo "===== CONTENT CHECK: phx-nav-rail.js ====="
+          BODY=$(curl -s "https://stfc.phoenixeu168.space/assets/phx-nav-rail.js?bust=$(date +%s)")
+          echo "Total bytes: ${#BODY}"
+          echo "Contains 'AJ fucked something': $(echo "$BODY" | grep -c 'AJ fucked something' || true)"
+          echo "Contains 'getSb': $(echo "$BODY" | grep -c 'getSb' || true)"
+          echo "Contains 'ensureProfile': $(echo "$BODY" | grep -c 'ensureProfile' || true)"
+          echo "Contains 'clearLocalSession': $(echo "$BODY" | grep -c 'clearLocalSession' || true)"
+
+          echo ""
+          echo "===== CONTENT CHECK: index.html for G7 Guide / FC Loadout ====="
+          IDX=$(curl -s "https://stfc.phoenixeu168.space/index.html?bust=$(date +%s)")
+          echo "Contains 'G7 Guide': $(echo "$IDX" | grep -c 'G7 Guide' || true)"
+          echo "Contains 'FC Loadout': $(echo "$IDX" | grep -c 'FC Loadout' || true)"
+
+          echo ""
+          echo "===== HEADERS: index.html ====="
+          curl -sI "https://stfc.phoenixeu168.space/index.html?bust=$(date +%s)"
