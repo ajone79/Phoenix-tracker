@@ -31,6 +31,7 @@ const GAME_CATS = {
   sector_strike: {label:'Sector Strike',    color:'#D65DB1'},
   voyage:       {label:'Voyage Across the Void', color:'#4FD1C5'},
   maverick_tasks: {label:'Maverick Tasks',  color:'#FF922B'},
+  interstellar_dominance: {label:'Interstellar Dominance', color:'#D4AC0D'},
   '':           {label:'Other',           color:'#7C8798'}
 };
 const FALLBACK_PALETTE = ['#E57373','#64B5F6','#81C784','#FFD54F','#BA68C8','#4DB6AC','#F06292','#A1887F'];
@@ -75,6 +76,21 @@ const VOYAGE_EVENTS = [
    ========================================================= */
 const TUESDAY_EVENTS = [
   {name:'Sector Strike', displayType:'sector_strike', eventSubType:'sector_strike', dayOfWeek:2, h:17, m:0, durationDays:1, note:'Score by defeating Quantum Adjudicators & Quantum Guardians/Tesseract.', minOpsLevel:61, maxOpsLevel:999, validFrom:'2025-01-01', validTo:'2027-12-31'}
+];
+
+/* =========================================================
+   INTERSTELLAR DOMINANCE — recurring weekly event series, not in the
+   stfc.cfd feed. Every day has a different named sub-event (unlike
+   Voyage/Sector Strike which repeat one name). 5pm UK start, 24h window.
+   Only Mon-Thu confirmed so far (2026-09) — Fri/Sat/Sun to be appended
+   once their scoring screenshots come in. No ops gating observed on
+   any of the 4 known days, so left open to all ops like Voyage.
+   ========================================================= */
+const INTERSTELLAR_DOMINANCE_EVENTS = [
+  {name:'Interstellar Dominance — Advanced Command Protocol', displayType:'interstellar_dominance', eventSubType:'interstellar_dominance', dayOfWeek:1, h:17, m:0, durationDays:1, note:'Leaderboard — spend Sigma Commander Credits, Officer Laurels, Maverick/FKR Faction Credits, or Chaos/Forbidden Tech materials & Sphere Tech.', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Interstellar Dominance — Scientific Exchange (Heroic)', displayType:'interstellar_dominance', eventSubType:'interstellar_dominance', dayOfWeek:2, h:17, m:0, durationDays:1, note:'Spend G3+ materials while upgrading research/station, and spend or acquire Research currencies (Syndicate XP, Vanguard Prism, Refined Isogenite, Athena/Excelsior/Dauntless Research, etc).', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Interstellar Dominance — Station Advancement', displayType:'interstellar_dominance', eventSubType:'interstellar_dominance', dayOfWeek:3, h:17, m:0, durationDays:1, note:'Leaderboard — spend G3+ materials upgrading research/buildings, and spend Warp Dive Bar, Signal Observatory, Outpost Control Center, Recon Locus, Starfleet Academy, Facade, Continuum Consolate, or Transogen Forge materials.', validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Interstellar Dominance — Starship Armament', displayType:'interstellar_dominance', eventSubType:'interstellar_dominance', dayOfWeek:4, h:17, m:0, durationDays:1, note:"Leaderboard — spend G3+ materials on ships, and spend Reliant, Ra'Ul Reaver, Athena, Borg Sphere, Excelsior, Dauntless, or Serene Squall ship parts.", validFrom:'2025-01-01', validTo:'2027-12-31'}
 ];
 
 /* =========================================================
@@ -283,5 +299,7 @@ function isNotableForTicker(ev){
   if(ev.displayType === 'meta') return true;
   if(ev.displayType === 'sector_strike') return true;
   if(ev.displayType === 'maverick_tasks') return true;
+  if(ev.displayType === 'interstellar_dominance') return true;
   return false;
 }
+
