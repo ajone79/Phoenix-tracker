@@ -9,8 +9,8 @@ Cloudflare collects anonymous telemetry about your usage of Wrangler. Learn more
 
 [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mAsset too large.[0m
 
-  Cloudflare Workers supports assets with sizes of up to 25 MiB. We found a file /home/runner/work/Phoenix-tracker/Phoenix-tracker/docs/Welcome_to_G7__5_26_Update.pptx with a size of 37.9 MiB.
+  Cloudflare Workers supports assets with sizes of up to 25 MiB. We found a file /home/runner/work/Phoenix-tracker/Phoenix-tracker/.git/objects/pack/pack-67b33e410f9349eb81229f61517d036bb3f39808.pack with a size of 47.5 MiB.
   Ensure all assets in your assets directory "/home/runner/work/Phoenix-tracker/Phoenix-tracker" conform with the Workers maximum size requirement.
 
 
-🪵  Logs were written to "/home/runner/.config/.wrangler/logs/wrangler-2026-09-03_20-32-41_489.log"
+🪵  Logs were written to "/home/runner/.config/.wrangler/logs/wrangler-2026-09-03_20-34-12_406.log"
