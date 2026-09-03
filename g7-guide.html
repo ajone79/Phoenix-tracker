@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welcome to G7 Guide — Phoenix EU168</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#050507; --panel:#111116; --panel-2:#17171e; --hair:#2a2a34;
+    --signal:#ff9142; --periwinkle:#8fa3ff; --mint:#5fd068; --gold:#ffc857; --alert:#ff5a5f;
+    --text:#e8e6e1; --text-dim:#8a8a94; --text-faint:#55555f;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;-webkit-font-smoothing:antialiased;}
+  #app{display:flex;min-height:100vh;flex-direction:column;}
+  .topbar{display:flex;align-items:stretch;height:64px;flex-shrink:0;}
+  .elbow{width:120px;background:var(--signal);border-bottom-left-radius:34px;display:flex;align-items:center;justify-content:flex-end;padding-right:14px;}
+  .elbow span{font-family:'Antonio',sans-serif;font-weight:700;color:var(--void);font-size:13px;letter-spacing:.08em;}
+  .topbar-bar{flex:1;background:var(--panel);display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:2px solid var(--hair);}
+  .topbar-title{font-family:'Antonio',sans-serif;font-weight:700;font-size:22px;letter-spacing:.06em;}
+  .topbar-title b{color:var(--signal);}
+  .topbar-sub{font-size:11px;color:var(--text-dim);}
+  main{flex:1;padding:26px 30px 40px;overflow-y:auto;}
+  .section-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;flex-wrap:wrap;}
+  .section-head h1{font-family:'Antonio',sans-serif;font-weight:700;font-size:26px;margin:0;letter-spacing:.03em;}
+  .section-head .accent{color:var(--signal);}
+  .section-desc{color:var(--text-dim);font-size:12px;max-width:680px;line-height:1.6;margin-bottom:16px;}
+  .panel{background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:18px 20px;margin-bottom:18px;}
+  .panel-title{font-family:'Antonio',sans-serif;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:0 0 12px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  button.btn{font-family:'Antonio',sans-serif;font-size:12px;background:var(--panel-2);color:var(--text);border:1px solid var(--hair);border-radius:6px;padding:8px 10px;cursor:pointer;text-transform:uppercase;letter-spacing:.04em;font-weight:600;transition:filter .12s ease;}
+  button.btn:hover{filter:brightness(1.15);}
+  button.btn-signal{background:var(--signal);color:var(--void);border-color:var(--signal);}
+  button.btn-peri{background:var(--periwinkle);color:var(--void);border-color:var(--periwinkle);}
+  .viewer-container{background:var(--panel-2);border:1px solid var(--hair);border-radius:10px;overflow:hidden;width:100%;aspect-ratio:16/10;}
+  iframe{width:100%;height:100%;border:none;}
+  .phx-nav{
+    position:sticky; top:0; z-index:9999;
+    display:flex; align-items:center; gap:4px;
+    background:#0a0a0d; border-bottom:2px solid #f2a93b;
+    padding:0 14px; height:36px;
+    font-family:ui-monospace,'SF Mono','Consolas',monospace;
+    overflow-x:auto; white-space:nowrap;
+  }
+  .phx-nav .phx-nav-tag{
+    color:#f2a93b; font-weight:700; letter-spacing:.12em; font-size:11px;
+    margin-right:12px; flex-shrink:0;
+  }
+  .phx-nav a{
+    color:#9a9aa4; text-decoration:none; font-size:11px; letter-spacing:.06em;
+    text-transform:uppercase; padding:8px 12px; border-radius:0 0 6px 6px;
+    transition:color .15s ease, background .15s ease; flex-shrink:0;
+  }
+  .phx-nav a:hover{ color:#e8e6e1; background:rgba(255,255,255,.06); }
+  .phx-nav a.current{ color:#0a0a0d; background:#f2a93b; font-weight:700; }
+  .guide-links{display:flex;gap:10px;flex-wrap:wrap;}
+  .link-btn{text-decoration:none;color:inherit;}
+  .small{font-size:11px;color:var(--text-dim);}
+  @media (max-width:820px){
+    .viewer-container{aspect-ratio:16/9;}
+    .section-head h1{font-size:20px;}
+  }
+</style>
+</head>
+<body>
+<nav class="phx-nav"><span class="phx-nav-tag">PHX</span><a href="events-calendar.html">Events Calendar</a><a href="f2p-task-guide.html">F2P Task Guide</a><a href="index.html">Tracker</a><a href="g7-guide.html" class="current">G7 Guide</a></nav>
+
+<div id="app">
+  <div class="topbar">
+    <div class="elbow"><span>PHX</span></div>
+    <div class="topbar-bar">
+      <div>
+        <div class="topbar-title"><b>WELCOME</b> TO G7</div>
+        <div class="topbar-sub">Comprehensive readiness guide for Grade 7 progression</div>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <div class="section-head">
+      <h1>Welcome to <span class="accent">G7</span></h1>
+    </div>
+
+    <div class="section-desc">
+      A comprehensive guide covering readiness requirements, crew recommendations, resource planning, mission hurdles, and long-term strategy for Grade 7 expansion. Presented by the team at UltimatDJz Playz! and adapted for Phoenix EU168.
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Quick Links</div>
+      <div class="guide-links">
+        <a href="#viewer" class="link-btn"><button class="btn btn-signal">Jump to Presentation</button></a>
+        <a href="https://raw.githubusercontent.com/ajone79/Phoenix-tracker/refs/heads/main/docs/Welcome_to_G7__5_26_Update.pptx" download class="link-btn"><button class="btn btn-peri">Download PPTX</button></a>
+      </div>
+    </div>
+
+    <div class="section-desc">
+      <b>What's covered:</b>
+      <br>• Readiness checklist (1,550 warp minimum, mission chains, level 71 hostiles)
+      <br>• Pain vs. gain analysis (progression slowdown vs. new rewards)
+      <br>• Loop requirements (V'ger hostiles, Academy drones, Maverick tasks)
+      <br>• Crewing guides with capped officer lists
+      <br>• Resource hoarding & build efficiency strategies
+      <br>• G7 ship comparisons (Vengeance, Aphelion, others)
+      <br>• Faction reputation expansion & dailies
+      <br>• Mining optimization &amp; high-warp node access
+      <br>• Cost breakdowns &amp; long-term planning
+    </div>
+
+    <div class="panel" id="viewer">
+      <div class="panel-title">Presentation Viewer</div>
+      <div class="viewer-container">
+        <iframe src="https://view.officeapps.live.com/op/embed.aspx?src=https://stfc.phoenixeu168.space/docs/Welcome_to_G7__5_26_Update.pptx" allow="fullscreen"></iframe>
+      </div>
+      <div class="small" style="margin-top:12px;">
+        <b>Tips:</b> Use the controls at the bottom to navigate slides. View in fullscreen for best experience. If the viewer doesn't load, download the PPTX above.
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">More Resources</div>
+      <div class="row">
+        <a href="https://docs.google.com/spreadsheets/d/1nKsUSGGTa0Q2GW4YeAmiQVOiHSJnmfyu54E0Y9n_keg" target="_blank" class="link-btn"><button class="btn btn-ghost">Ops Progression Spreadsheet</button></a>
+        <a href="https://docs.google.com/spreadsheets/d/1ak9eywSAVvf7VCI0X6lIsBcq7VDWUUyAjdzcD3hkjTg" target="_blank" class="link-btn"><button class="btn btn-ghost">Armada Charts</button></a>
+      </div>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>
