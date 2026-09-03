@@ -1,16 +1,16 @@
-Diagnostic run at Thu Sep  3 20:19:29 UTC 2026
+Diagnostic run at Thu Sep  3 20:20:41 UTC 2026
 
 === HEADERS: phx-nav-rail.js ===
 HTTP/2 200 
-date: Thu, 03 Sep 2026 20:19:29 GMT
+date: Thu, 03 Sep 2026 20:20:41 GMT
 content-type: text/javascript
 cf-cache-status: HIT
 cache-control: public, max-age=0, must-revalidate
 etag: "81f433dc866741b0a25e220d046a5169"
-report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=a6n%2BwO1KUwT9DrFJsQM0AkUnaMZan2kmlNIOI0jQWGazqzc%2BoeyXhaEX8qDTtd6My0EaanTtqhXG2GA6u7WS6m1qoK5GU2G5OQOrinrSBkweqH0Z8Oq6E6sLNiMZrwi2TRb4XYIkJvFgWA%3D%3D"}]}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=i1BkEcYBez%2BODrJMSpt95dzrbVDFbmDlbF3D56QjkY07EdUOWjGg6XOvc3PVx52PW2Ltc4NrD9SIAyU5aWf3ujHkFA6SgwO3kUS50QJuv1AlgDKZFAfiJw9dWaFUrSyyyJs4Sym%2Ba8dPDA%3D%3D"}]}
 nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
 server: cloudflare
-cf-ray: a357731f9b03562d-MAD
+cf-ray: a35774e06f6d23fd-SJC
 alt-svc: h3=":443"; ma=86400
 
 
@@ -27,12 +27,23 @@ Contains 'FC Loadout': 0
 
 === HEADERS: index.html ===
 HTTP/2 307 
-date: Thu, 03 Sep 2026 20:19:30 GMT
-location: /?bust=1788466770
+date: Thu, 03 Sep 2026 20:20:42 GMT
+location: /?bust=1788466841
 cache-control: no-cache, must-revalidate
-report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ob3c60944SDUYzNpTO%2FRi8BnIRnuGdVDFtJgEl0cOaeVXM6kcroqTGPvysK1VH8DwaTMDmeyEIx4GvZYvHe%2FyyHWwzXd9mi6mLxMfa4jR9udw%2FNo0WS9ufjyHZ%2BmFjttDIVa38%2FMwjK2ww%3D%3D"}]}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=fBXt1uYgi4%2F6dXe0LQH9dNu3i5XZL4tSAsHHO61guGM7%2F5gjBdRKvw9vDchQ0L088I5xRfk7kXA0Bti5VNuNyF420HfAVx2jFQBHpipxWSzVhrbI6K7ezOjvDdlf6MSyW%2Fp8QvtlC7bWXw%3D%3D"}]}
 nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
 server: cloudflare
-cf-ray: a35773241e3cedbd-LHR
+cf-ray: a35774e268037542-SJC
+alt-svc: h3=":443"; ma=86400
+
+HTTP/2 200 
+date: Thu, 03 Sep 2026 20:20:42 GMT
+content-type: text/html
+cf-cache-status: HIT
+cache-control: public, max-age=0, must-revalidate
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=dKS1uv4GK8to%2B524l1%2FF30xFCJc1YXf23WPYOrx7um3JkbhR51%2BXtYZ7iQEA6RBqJPz6HISwwlRkN26i%2BlWgCWubrN6DF6WNekEZyhjvs4yeHM25nr2aDi6jt20lsakWuZ7mJEoX6w9TFA%3D%3D"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+server: cloudflare
+cf-ray: a35774e288327542-SJC
 alt-svc: h3=":443"; ma=86400
 
