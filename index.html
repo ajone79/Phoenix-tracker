@@ -881,7 +881,8 @@ window.addEventListener('popstate', () => {
     const voyageOccurrences = generateRecurringEvents(VOYAGE_EVENTS, winStart, winEnd);
     const sectorStrikeOccurrences = generateRecurringEvents(TUESDAY_EVENTS, winStart, winEnd);
     const maverickOccurrences = generateMaverickEvents(winStart, winEnd);
-    const otherHits = [...mergedFeed, ...voyageOccurrences, ...sectorStrikeOccurrences, ...maverickOccurrences]
+    const interstellarOccurrences = generateRecurringEvents(INTERSTELLAR_DOMINANCE_EVENTS, winStart, winEnd);
+    const otherHits = [...mergedFeed, ...voyageOccurrences, ...sectorStrikeOccurrences, ...maverickOccurrences, ...interstellarOccurrences]
       .filter(ev => ev.startUTC && new Date(ev.startUTC) > now)
       .filter(isNotableForTicker)
       .map(ev => ({ev: {name: ev.title}, utcDate: new Date(ev.startUTC)}))
@@ -1017,3 +1018,4 @@ document.addEventListener('tracker-auth-ready', (e) => {
 </script>
 </body>
 </html>
+
