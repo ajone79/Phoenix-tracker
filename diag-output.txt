@@ -1,4 +1,4 @@
-Diagnostic run at Thu Sep  3 20:28:22 UTC 2026
+Diagnostic run at Thu Sep  3 20:36:47 UTC 2026
 
 === Script detail (raw) ===
 
@@ -8,6 +8,54 @@ HTTP_STATUS:204
 {
   "result": {
     "deployments": [
+      {
+        "id": "0eda29e5-4197-4fa7-841e-4c2443f4d8d9",
+        "source": "wrangler",
+        "strategy": "percentage",
+        "author_email": "ajaykhoulowa@gmail.com",
+        "annotations": {
+          "workers/triggered_by": "deployment"
+        },
+        "versions": [
+          {
+            "version_id": "4ff6b3d1-8064-4496-af08-dacc7c30bcaf",
+            "percentage": 100
+          }
+        ],
+        "created_on": "2026-09-03T20:36:10.48462Z"
+      },
+      {
+        "id": "5fcb3afd-54f9-43ca-89ae-64a8ba9884b5",
+        "source": "wrangler",
+        "strategy": "percentage",
+        "author_email": "ajaykhoulowa@gmail.com",
+        "annotations": {
+          "workers/triggered_by": "deployment"
+        },
+        "versions": [
+          {
+            "version_id": "b2e35823-dc6e-45d5-9fb1-ed4c444b2989",
+            "percentage": 100
+          }
+        ],
+        "created_on": "2026-09-03T20:35:35.146679Z"
+      },
+      {
+        "id": "98d0c3d8-af66-4e63-a821-7da64891dc9f",
+        "source": "wrangler",
+        "strategy": "percentage",
+        "author_email": "ajaykhoulowa@gmail.com",
+        "annotations": {
+          "workers/triggered_by": "deployment"
+        },
+        "versions": [
+          {
+            "version_id": "e82730e2-62cc-4bf8-b1bf-967e73465dd3",
+            "percentage": 100
+          }
+        ],
+        "created_on": "2026-09-03T20:35:18.445021Z"
+      },
       {
         "id": "85da9b7e-364d-416e-9c7d-67ed70103a5e",
         "source": "wrangler",
@@ -119,54 +167,6 @@ HTTP_STATUS:204
           }
         ],
         "created_on": "2026-09-02T19:35:21.575877Z"
-      },
-      {
-        "id": "e82431fd-2084-4abb-bd50-ba6eebd335e3",
-        "source": "wrangler",
-        "strategy": "percentage",
-        "author_email": "ajaykhoulowa@gmail.com",
-        "annotations": {
-          "workers/triggered_by": "deployment"
-        },
-        "versions": [
-          {
-            "version_id": "ebf02bab-1721-43c3-8bfc-d60e4dc4d16c",
-            "percentage": 100
-          }
-        ],
-        "created_on": "2026-09-02T17:26:29.404234Z"
-      },
-      {
-        "id": "78643904-d85c-40dc-b0b8-232f8ca8fa9c",
-        "source": "wrangler",
-        "strategy": "percentage",
-        "author_email": "ajaykhoulowa@gmail.com",
-        "annotations": {
-          "workers/triggered_by": "deployment"
-        },
-        "versions": [
-          {
-            "version_id": "0b9d2033-e28b-4a38-9753-8f577cb0a6e6",
-            "percentage": 100
-          }
-        ],
-        "created_on": "2026-09-02T16:03:46.140763Z"
-      },
-      {
-        "id": "2191adde-36b8-4b21-ab9d-0cdfb01f918b",
-        "source": "wrangler",
-        "strategy": "percentage",
-        "author_email": "ajaykhoulowa@gmail.com",
-        "annotations": {
-          "workers/triggered_by": "deployment"
-        },
-        "versions": [
-          {
-            "version_id": "7a37c976-19ea-4e19-a144-6cc3fe7b736e",
-            "percentage": 100
-          }
-        ],
-        "created_on": "2026-09-02T08:27:14.383669Z"
       }
     ]
   },
