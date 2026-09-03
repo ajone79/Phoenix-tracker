@@ -1,0 +1,38 @@
+Diagnostic run at Thu Sep  3 20:19:29 UTC 2026
+
+=== HEADERS: phx-nav-rail.js ===
+HTTP/2 200 
+date: Thu, 03 Sep 2026 20:19:29 GMT
+content-type: text/javascript
+cf-cache-status: HIT
+cache-control: public, max-age=0, must-revalidate
+etag: "81f433dc866741b0a25e220d046a5169"
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=a6n%2BwO1KUwT9DrFJsQM0AkUnaMZan2kmlNIOI0jQWGazqzc%2BoeyXhaEX8qDTtd6My0EaanTtqhXG2GA6u7WS6m1qoK5GU2G5OQOrinrSBkweqH0Z8Oq6E6sLNiMZrwi2TRb4XYIkJvFgWA%3D%3D"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+server: cloudflare
+cf-ray: a357731f9b03562d-MAD
+alt-svc: h3=":443"; ma=86400
+
+
+=== CONTENT: phx-nav-rail.js ===
+Total bytes: 10545
+Contains 'AJ fucked something': 1
+Contains 'getSb': 3
+Contains 'ensureProfile': 3
+Contains 'clearLocalSession': 2
+
+=== CONTENT: index.html ===
+Contains 'G7 Guide': 0
+Contains 'FC Loadout': 0
+
+=== HEADERS: index.html ===
+HTTP/2 307 
+date: Thu, 03 Sep 2026 20:19:30 GMT
+location: /?bust=1788466770
+cache-control: no-cache, must-revalidate
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ob3c60944SDUYzNpTO%2FRi8BnIRnuGdVDFtJgEl0cOaeVXM6kcroqTGPvysK1VH8DwaTMDmeyEIx4GvZYvHe%2FyyHWwzXd9mi6mLxMfa4jR9udw%2FNo0WS9ufjyHZ%2BmFjttDIVa38%2FMwjK2ww%3D%3D"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+server: cloudflare
+cf-ray: a35773241e3cedbd-LHR
+alt-svc: h3=":443"; ma=86400
+
