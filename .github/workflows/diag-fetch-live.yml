@@ -12,29 +12,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch live content and write findings to a file
+      - name: Check Cloudflare deployment state
         run: |
           OUT=diag-output.txt
           echo "Diagnostic run at $(date -u)" > "$OUT"
-
-          NAV=$(curl -sL "https://stfc.phoenixeu168.space/assets/phx-nav-rail.js?bust=$(date +%s)")
           echo "" >> "$OUT"
-          echo "=== CONTENT: phx-nav-rail.js ===" >> "$OUT"
-          echo "Total bytes: ${#NAV}" >> "$OUT"
-          echo "Contains 'AJ fucked something': $(printf '%s' "$NAV" | grep -c 'AJ fucked something' || true)" >> "$OUT"
-          echo "Contains 'getSb': $(printf '%s' "$NAV" | grep -c 'getSb' || true)" >> "$OUT"
-          echo "Contains 'ensureProfile': $(printf '%s' "$NAV" | grep -c 'ensureProfile' || true)" >> "$OUT"
-          echo "Contains 'clearLocalSession': $(printf '%s' "$NAV" | grep -c 'clearLocalSession' || true)" >> "$OUT"
-          echo "Contains 'G7 Guide': $(printf '%s' "$NAV" | grep -c 'G7 Guide' || true)" >> "$OUT"
-
-          echo "" >> "$OUT"
-          echo "=== HEADERS: phx-nav-rail.js ===" >> "$OUT"
-          curl -sIL "https://stfc.phoenixeu168.space/assets/phx-nav-rail.js?bust=$(date +%s)" >> "$OUT"
+          echo "=== Cloudflare Workers scripts on this account ===" >> "$OUT"
+          curl -s "https://api.cloudflare.com/client/v4/accounts/9d1202cc74e137008e0feafebb8a8d06/workers/scripts" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+if not d.get('success'):
+    print('API call failed:', d.get('errors'))
+else:
+    for s in d.get('result', []):
+        print(s.get('id'), '| modified_on:', s.get('modified_on'), '| created_on:', s.get('created_on'))
+" >> "$OUT"
 
       - name: Commit results
         run: |
           git config user.name "diag-bot"
           git config user.email "diag-bot@users.noreply.github.com"
           git add diag-output.txt
-          git commit -m "diag: live edge check $(date -u +%Y-%m-%dT%H:%M:%SZ)" || echo "nothing to commit"
+          git commit -m "diag: cloudflare deployment check $(date -u +%Y-%m-%dT%H:%M:%SZ)" || echo "nothing to commit"
           git push
