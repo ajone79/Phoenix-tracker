@@ -4,6 +4,7 @@
     {href:'/alb-participation.html', label:'ALB Part.', icon:'📡'},
     {href:'/game-events.html', label:'Events', icon:'🛰️'},
     {href:'/f2p-task-guide.html', label:'F2P', icon:'🎯'},
+    {href:'/g7-guide.html', label:'G7 Guide', icon:'⚡'},
     {href:'/crewing.html', label:'Crewing', icon:'🖖'},
   ];
   const MORE = [
