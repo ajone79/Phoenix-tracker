@@ -17,28 +17,19 @@ jobs:
           OUT=diag-output.txt
           echo "Diagnostic run at $(date -u)" > "$OUT"
 
-          echo "" >> "$OUT"
-          echo "=== HEADERS: phx-nav-rail.js ===" >> "$OUT"
-          curl -sI "https://stfc.phoenixeu168.space/assets/phx-nav-rail.js?bust=$(date +%s)" >> "$OUT"
-
-          BODY=$(curl -s "https://stfc.phoenixeu168.space/assets/phx-nav-rail.js?bust=$(date +%s)")
+          NAV=$(curl -sL "https://stfc.phoenixeu168.space/assets/phx-nav-rail.js?bust=$(date +%s)")
           echo "" >> "$OUT"
           echo "=== CONTENT: phx-nav-rail.js ===" >> "$OUT"
-          echo "Total bytes: ${#BODY}" >> "$OUT"
-          echo "Contains 'AJ fucked something': $(printf '%s' "$BODY" | grep -c 'AJ fucked something' || true)" >> "$OUT"
-          echo "Contains 'getSb': $(printf '%s' "$BODY" | grep -c 'getSb' || true)" >> "$OUT"
-          echo "Contains 'ensureProfile': $(printf '%s' "$BODY" | grep -c 'ensureProfile' || true)" >> "$OUT"
-          echo "Contains 'clearLocalSession': $(printf '%s' "$BODY" | grep -c 'clearLocalSession' || true)" >> "$OUT"
-
-          IDX=$(curl -sL "https://stfc.phoenixeu168.space/index.html?bust=$(date +%s)")
-          echo "" >> "$OUT"
-          echo "=== CONTENT: index.html ===" >> "$OUT"
-          echo "Contains 'G7 Guide': $(printf '%s' "$IDX" | grep -c 'G7 Guide' || true)" >> "$OUT"
-          echo "Contains 'FC Loadout': $(printf '%s' "$IDX" | grep -c 'FC Loadout' || true)" >> "$OUT"
+          echo "Total bytes: ${#NAV}" >> "$OUT"
+          echo "Contains 'AJ fucked something': $(printf '%s' "$NAV" | grep -c 'AJ fucked something' || true)" >> "$OUT"
+          echo "Contains 'getSb': $(printf '%s' "$NAV" | grep -c 'getSb' || true)" >> "$OUT"
+          echo "Contains 'ensureProfile': $(printf '%s' "$NAV" | grep -c 'ensureProfile' || true)" >> "$OUT"
+          echo "Contains 'clearLocalSession': $(printf '%s' "$NAV" | grep -c 'clearLocalSession' || true)" >> "$OUT"
+          echo "Contains 'G7 Guide': $(printf '%s' "$NAV" | grep -c 'G7 Guide' || true)" >> "$OUT"
 
           echo "" >> "$OUT"
-          echo "=== HEADERS: index.html ===" >> "$OUT"
-          curl -sIL "https://stfc.phoenixeu168.space/index.html?bust=$(date +%s)" >> "$OUT"
+          echo "=== HEADERS: phx-nav-rail.js ===" >> "$OUT"
+          curl -sIL "https://stfc.phoenixeu168.space/assets/phx-nav-rail.js?bust=$(date +%s)" >> "$OUT"
 
       - name: Commit results
         run: |
