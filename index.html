@@ -375,6 +375,7 @@
 <div class="glightbox" id="glightbox">
   <div class="gl-close" id="glClose">✕</div>
   <img id="glImg" src="" alt="">
+  <iframe id="glFrame" src="" style="display:none;width:min(92vw,1100px);height:min(80vh,650px);border:none;border-radius:8px;background:#111;" allow="fullscreen" allowfullscreen></iframe>
   <div class="gl-caption" id="glCaption"></div>
   <div class="gl-credit" id="glCredit"></div>
 </div>
@@ -711,9 +712,27 @@ loadDiscordAnnouncements();
 
 const glightbox = document.getElementById('glightbox');
 
+function slidesEmbedUrl(url){
+  const m = url.match(/docs\.google\.com\/presentation\/d\/([a-zA-Z0-9_-]+)/);
+  if(!m) return null;
+  return `https://docs.google.com/presentation/d/${m[1]}/embed?start=false&loop=false&delayms=3000`;
+}
 function openGlightbox(item){
-  document.getElementById('glImg').src = item.image;
-  document.getElementById('glImg').alt = item.title;
+  const img = document.getElementById('glImg');
+  const frame = document.getElementById('glFrame');
+  const embedUrl = slidesEmbedUrl(item.image);
+  if(embedUrl){
+    frame.src = embedUrl;
+    frame.style.display = '';
+    img.style.display = 'none';
+    img.src = '';
+  } else {
+    img.src = item.image;
+    img.alt = item.title;
+    img.style.display = '';
+    frame.style.display = 'none';
+    frame.src = '';
+  }
   document.getElementById('glCaption').textContent = item.caption;
   document.getElementById('glCredit').textContent = item.credit;
   glightbox.classList.add('open');
@@ -722,6 +741,7 @@ function openGlightbox(item){
 function closeGlightbox(fromPopstate){
   if(!glightbox.classList.contains('open')) return;
   glightbox.classList.remove('open');
+  document.getElementById('glFrame').src = '';
   if(!fromPopstate){
     // we're closing via the X or backdrop tap, not the back button —
     // consume the history entry we pushed so back-button state stays in sync
