@@ -11,6 +11,7 @@
     {href:'/sheets/stfc-sheets.html', label:'STFC Sheets', icon:'📑', desc:'Planning & calculation tools'},
     {href:'/spocks-wisdom.html', label:"Spock's Wisdom", icon:'🖖', desc:'Ask about crews, events & gameplay'},
     {href:'/credits.html', label:'Links & Credits', icon:'🔗', desc:'External links, thanks'},
+    {href:'/admin.html', label:'Admin', icon:'🛠️', desc:'Approve members, import scores', adminOnly:true},
     {href:'/home-admin.html', label:'Home Screen Admin', icon:'🖋️', desc:'Edit briefing, galleries, codes & trivia', homeEditorOnly:true},
   ];
 
@@ -89,7 +90,6 @@
       return MORE.filter(m => (!m.adminOnly || isAdmin()) && (!m.homeEditorOnly || isHomeEditor())).map(m =>
         `<a href="${m.href}"><span class="pm-ic">${m.icon}</span><span><span class="pm-t">${m.label}</span><br><span class="pm-d">${m.desc}</span></span></a>`
       ).join('') +
-      `<a href="/admin.html" class="pm-always"><span class="pm-ic">\u{1F6E0}\u{FE0F}</span><span><span class="pm-t">AJ fucked something</span><br><span class="pm-d">Admin \u2014 members will just see an empty page</span></span></a>` +
       `<button type="button" class="pm-signout" id="phx-signout-item"><span class="pm-ic">\u{1F6AA}</span><span><span class="pm-t">Sign out</span><br><span class="pm-d">Log out of the tracker</span></span></button>`;
     }
     function identityHtml(){
