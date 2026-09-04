@@ -10,6 +10,7 @@
     {href:'/self-admin.html', label:'My Account', icon:'🙋', desc:'Match your name, set up WhatsApp alerts'},
     {href:'/sheets/stfc-sheets.html', label:'STFC Sheets', icon:'📑', desc:'Planning & calculation tools'},
     {href:'/spocks-wisdom.html', label:"Spock's Wisdom", icon:'🖖', desc:'Ask about crews, events & gameplay'},
+    {href:'/fleet-commanders.html', label:'Fleet Commanders', icon:'🧭', desc:'Officer rankings & loadouts (work in progress)'},
     {href:'/credits.html', label:'Links & Credits', icon:'🔗', desc:'External links, thanks'},
     {href:'/admin.html', label:'Admin', icon:'🛠️', desc:'Approve members, import scores', adminOnly:true},
     {href:'/home-admin.html', label:'Home Screen Admin', icon:'🖋️', desc:'Edit briefing, galleries, codes & trivia', homeEditorOnly:true},
