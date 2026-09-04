@@ -12,3 +12,15 @@
 
 /*.json
   Cache-Control: no-cache, must-revalidate
+
+# Same reasoning applies to the shared scripts: the nav rail, auth helper and
+# events data are edited in place (no content hash in the filename), so without
+# this a deploy can land correctly and still leave people running an old copy.
+# Hashed bundles under /sheets/assets/ are deliberately NOT covered - those get
+# a new filename on every build, so they're safe to cache hard.
+
+/*.js
+  Cache-Control: no-cache, must-revalidate
+
+/assets/*.js
+  Cache-Control: no-cache, must-revalidate
