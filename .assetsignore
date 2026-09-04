@@ -8,3 +8,4 @@ docs
 *.docx
 *.zip
 .git
+_sidelined
