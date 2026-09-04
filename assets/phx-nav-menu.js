@@ -4,7 +4,6 @@
     {href:'/alb-participation.html', label:'📊 ALB Participation'},
     {href:'/game-events.html', label:'🗓️ Events Calendar'},
     {href:'/crewing.html', label:'🖖 Crewing'},
-    {href:'/idiq-hints-and-tips.html', label:'💡 IDIQ Hints & Tips'},
     {href:'/credits.html', label:'🔗 Links & Credits'},
     {href:'/f2p-task-guide.html', label:'🎯 F2P Task Guide'},
     {href:'/fleet-commanders.html', label:'🧭 Fleet Commanders'},
