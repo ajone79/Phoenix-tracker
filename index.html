@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
 <script src="assets/phx-nav-rail.js"></script>
-<script src="assets/game-events-data.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/tracker-auth.js"></script>
@@ -257,33 +256,6 @@
 .hero-ticker-scroll{ flex:1 1 auto; overflow:hidden; white-space:nowrap; height:100%; position:relative; }
 .hero-ticker .htrack{ display:inline-block; font-family:'Share Tech Mono', 'Space Mono', monospace; font-size:11px; line-height:22px; animation-name:heroTickerScroll; animation-timing-function:linear; animation-iteration-count:infinite; }
 
-.phx-ticker{
-  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
-  background:var(--panel-2); border-bottom:1px solid var(--line);
-  padding:8px 22px; font-family:ui-monospace,'SF Mono','Consolas',monospace; font-size:11.5px;
-  color:var(--text); position:relative; z-index:1;
-}
-.tc-group{ display:flex; align-items:center; gap:14px; flex-shrink:0; flex-wrap:wrap; }
-.tc-next{ display:flex; align-items:center; gap:7px; }
-.tc-next .tc-label{
-  color:#0a0a0d; background:var(--teal); font-weight:700; letter-spacing:.06em; text-transform:uppercase; font-size:10px;
-  padding:2px 7px; border-radius:4px; flex-shrink:0;
-}
-.tc-next.tc-then .tc-label{ background:var(--amber); color:#1a1200; }
-.tc-next .tc-name{ font-weight:700; }
-.tc-next .tc-countdown{ color:var(--teal); }
-.tc-next.tc-then .tc-countdown{ color:var(--amber); }
-.ev-ticker-wrap{
-  flex:1; min-width:200px; display:flex; align-items:center; gap:7px;
-  border-left:1px solid var(--line); padding-left:16px; overflow:hidden;
-}
-.ev-ticker-wrap .ev-label{
-  color:var(--muted); font-weight:700; letter-spacing:.06em; text-transform:uppercase; font-size:10px; flex-shrink:0;
-}
-#evTicker{ color:var(--teal); opacity:1; transition:opacity .4s ease; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-#evTicker .ev-sep{ color:var(--muted); margin:0 8px; }
-#evTicker.fade{ opacity:0; }
-@media (max-width:820px){ .phx-ticker{ padding:8px 14px; font-size:10.5px; gap:10px;} .ev-ticker-wrap{ padding-left:10px; } .tc-group{ gap:8px; } }
 
 .hero-ticker .hgrouphead{ color:#f2a93b; font-weight:700; letter-spacing:.05em; }
 .hero-ticker .hname{ color:#f2a93b; font-weight:700; }
@@ -293,13 +265,6 @@
 </head>
 <body>
 
-<div class="phx-ticker">
-  <div class="tc-group">
-    <div class="tc-next" id="tcNext"><span class="tc-label">Next Capture</span><span>Loading…</span></div>
-    <div class="tc-next tc-then" id="tcThen"><span class="tc-label">Then</span><span>Loading…</span></div>
-  </div>
-  <div class="ev-ticker-wrap"><span class="ev-label">Also Upcoming</span><span id="evTicker">Loading…</span></div>
-</div>
 
 <div class="wip-watermark"><span>WORK IN PROGRESS</span></div>
 
@@ -861,121 +826,6 @@ window.addEventListener('popstate', () => {
 })();
 </script>
 
-<script>
-  function escapeHtmlTicker(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-  let tickerNextTerritory = [];
-  let tickerOtherQueue = [];
-  let tickerRotateIdx = 0;
-  let tickerStarted = false;
-  let tickerFeedEvents = [];
-
-  function fmtCountdownTicker(utcDate){
-    const diffMs = utcDate - new Date();
-    if(diffMs <= 0) return 'underway now';
-    const mins = Math.round(diffMs/60000);
-    const d = Math.floor(mins/1440);
-    const h = Math.floor((mins%1440)/60);
-    const m = mins%60;
-    const parts = [];
-    if(d) parts.push(d+'d');
-    if(h) parts.push(h+'h');
-    if(!d && m) parts.push(m+'m');
-    if(!parts.length) parts.push('<1m');
-    return 'in ' + parts.join(' ');
-  }
-
-  function recomputeTickerData(){
-    const now = new Date();
-    const todayISO = toZoned(now.toISOString(), 'uk-auto').dateISO;
-    const winStart = todayISO;
-    const winEnd = addDays(winStart, 14);
-
-    const territoryHits = generateRecurringEvents(TERRITORY_EVENTS, winStart, winEnd)
-      .map(ev => ({ev: {name: ev.title}, utcDate: new Date(ev.startUTC)}))
-      .filter(x => x.utcDate > now)
-      .sort((a,b) => a.utcDate - b.utcDate);
-    tickerNextTerritory = territoryHits.slice(0, 2);
-
-    const mergedFeed = buildMergedEvents(tickerFeedEvents).filter(e => e.eventSubType !== 'voyage_across_the_void');
-    const voyageOccurrences = generateRecurringEvents(VOYAGE_EVENTS, winStart, winEnd);
-    const sectorStrikeOccurrences = generateRecurringEvents(TUESDAY_EVENTS, winStart, winEnd);
-    const maverickOccurrences = generateMaverickEvents(winStart, winEnd);
-    const interstellarOccurrences = generateRecurringEvents(INTERSTELLAR_DOMINANCE_EVENTS, winStart, winEnd);
-    const otherHits = [...mergedFeed, ...voyageOccurrences, ...sectorStrikeOccurrences, ...maverickOccurrences, ...interstellarOccurrences]
-      .filter(ev => ev.startUTC && new Date(ev.startUTC) > now)
-      .filter(isNotableForTicker)
-      .map(ev => ({ev: {name: ev.title}, utcDate: new Date(ev.startUTC)}))
-      .sort((a,b) => a.utcDate - b.utcDate);
-    tickerOtherQueue = otherHits.slice(0, 10);
-    if(tickerRotateIdx >= tickerOtherQueue.length) tickerRotateIdx = 0;
-  }
-
-  function updateTickerDOM(){
-    const tcEl = document.getElementById('tcNext');
-    const tcEl2 = document.getElementById('tcThen');
-    const evEl = document.getElementById('evTicker');
-    if(!tcEl || !evEl) return;
-
-    const t0 = tickerNextTerritory[0], t1 = tickerNextTerritory[1];
-    if(t0){
-      tcEl.innerHTML = `<span class="tc-label">Next Capture</span><span class="tc-name">${escapeHtmlTicker(t0.ev.name.replace(' — Territory Capture',''))}</span><span class="tc-countdown">${fmtCountdownTicker(t0.utcDate)}</span>`;
-    } else {
-      tcEl.innerHTML = `<span class="tc-label">Next Capture</span><span>None scheduled</span>`;
-    }
-    if(tcEl2){
-      if(t1){
-        tcEl2.innerHTML = `<span class="tc-label">Then</span><span class="tc-name">${escapeHtmlTicker(t1.ev.name.replace(' — Territory Capture',''))}</span><span class="tc-countdown">${fmtCountdownTicker(t1.utcDate)}</span>`;
-        tcEl2.style.display = '';
-      } else {
-        tcEl2.style.display = 'none';
-      }
-    }
-
-    if(tickerOtherQueue.length){
-      const cur = tickerOtherQueue[tickerRotateIdx];
-      const next = tickerOtherQueue.length > 1 ? tickerOtherQueue[(tickerRotateIdx+1) % tickerOtherQueue.length] : null;
-      let html = `${escapeHtmlTicker(cur.ev.name)} — ${fmtCountdownTicker(cur.utcDate)}`;
-      if(next && next !== cur){
-        html += `<span class="ev-sep">·</span>${escapeHtmlTicker(next.ev.name)} — ${fmtCountdownTicker(next.utcDate)}`;
-      }
-      evEl.innerHTML = html;
-    } else {
-      evEl.textContent = 'Nothing else on the schedule right now';
-    }
-  }
-
-  function rotateTicker(){
-    const evEl = document.getElementById('evTicker');
-    if(!evEl || tickerOtherQueue.length < 3) { updateTickerDOM(); return; }
-    evEl.classList.add('fade');
-    setTimeout(() => {
-      tickerRotateIdx = (tickerRotateIdx + 1) % tickerOtherQueue.length;
-      updateTickerDOM();
-      evEl.classList.remove('fade');
-    }, 400);
-  }
-
-  function startHeaderTicker(){
-    if(tickerStarted) return;
-    tickerStarted = true;
-    loadGameEventsFeed().then(({events}) => {
-      tickerFeedEvents = events;
-      recomputeTickerData();
-      updateTickerDOM();
-    });
-    setInterval(rotateTicker, 5500);
-    setInterval(() => {
-      loadGameEventsFeed().then(({events}) => {
-        tickerFeedEvents = events;
-        recomputeTickerData();
-        updateTickerDOM();
-      });
-    }, 60000);
-  }
-
-  startHeaderTicker();
-</script>
 <script>
 // A cheeky, in-game-cash-shop-style nag for anyone who hasn't self-matched
 // their name yet — shows once per browser session, not on every page load.
