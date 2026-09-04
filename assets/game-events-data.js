@@ -1,6 +1,6 @@
 /* =========================================================
    PHX EU168 — SHARED GAME EVENTS DATA & LOGIC
-   Used by: game-events.html, gantt-events.html, and the header
+   Used by: events-calendar.html, events-calendar-gantt.html, and the header
    ticker on index.html / f2p-task-guide.html.
 
    Keeping this in one file means Territory Capture times, Voyage

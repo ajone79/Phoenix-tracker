@@ -1,6 +1,6 @@
 /* =========================================================
    PHX EU168 — SHARED EVENT SCHEDULE
-   Single source of truth for index.html, game-events.html, gantt-events.html,
+   Single source of truth for index.html, events-calendar.html, events-calendar-gantt.html,
    alb-participation.html and f2p-task-guide.html.
    Times are as displayed on the source tracker (Europe/London, BST/UTC+1).
    occ.kind: 'ranges' (begin+end markers), 'dates' (discrete days), 'weekly' (recurring)
@@ -155,7 +155,7 @@ const EVENTS = [
 
 /* =========================================================
    TIME MATH — baseline assumed UTC+1, shift by (offset-1) hours
-   Shared by game-events.html / gantt-events.html (range display) and index.html (ticker)
+   Shared by events-calendar.html / events-calendar-gantt.html (range display) and index.html (ticker)
    ========================================================= */
 function shiftOccurrence(dateISO, h, m, offsetHours){
   const [y,mo,d] = dateISO.split('-').map(Number);

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Phoenix EU168 — Weekly Gantt View</title>
+<title>Phoenix EU168 — Events Calendar (Gantt View)</title>
 <meta name="description" content="Weekly Gantt-style view of scheduled Star Trek Fleet Command events for Phoenix EU168.">
 <script src="assets/phx-nav-rail.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -167,7 +167,7 @@
 <body>
 <header>
   <div class="eyebrow">Global Feed · stfc.cfd + Territory Capture + Voyage</div>
-  <h1>Phoenix EU168 — Weekly Gantt View</h1>
+  <h1>Phoenix EU168 — Events Calendar (Gantt View)</h1>
   <div class="sub">4 weeks stacked, day-by-day · Swipe sideways if it doesn't fit your screen · Tap a bar for details</div>
 </header>
 
@@ -177,7 +177,7 @@
       <span class="field-label">Search</span>
       <input type="text" id="searchBox" placeholder="event name…">
     </div>
-    <a class="btn primary" href="game-events.html">Calendar View</a>
+    <a class="btn primary" href="events-calendar.html">Calendar View</a>
   </div>
   <div class="row">
     <button class="btn" id="prevRange">‹ Earlier 4wk</button>
@@ -221,7 +221,7 @@ let rangeBlockOffset = 0; // shifts by WEEKS_SHOWN each Prev/Next click
 const el = id => document.getElementById(id);
 
 /* ---------------- SAVED FILTER PREFERENCES (server-side, per logged-in user) ---------------- */
-/* Same pattern as game-events.html, stored under a separate 'eventsGantt' key so the two
+/* Same pattern as events-calendar.html, stored under a separate 'eventsGantt' key so the two
    pages' saved selections never overwrite each other. Date range position is intentionally
    NOT persisted — always opens on the current week, like the calendar view does. */
 let filterPrefsLoaded = false; // gate saving until a restore attempt has happened first
@@ -281,7 +281,7 @@ if (window.__trackerProfile) {
 }
 
 /* ===== Time helpers ===== */
-/* ===== Format merging (same as game-events.html) ===== */
+/* ===== Format merging (same as events-calendar.html) ===== */
 /* ===== Row packing: assign non-overlapping events to shared rows ===== */
 function packRows(items){
   const sorted = [...items].sort((a,b) => a.startDay - b.startDay || a.endDay - b.endDay);
