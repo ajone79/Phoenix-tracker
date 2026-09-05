@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-05T17:56:31.087722+00:00",
+  "generatedAt": "2026-09-05T21:56:42.177795+00:00",
   "events": [
     {
       "id": 140,
@@ -10372,7 +10372,7 @@
       "description": "Infinite Incursions returns and will now run for 24 hours, with staggered start times across regions.For all the details, including updates, server pairings and which servers are on bye this week check out our new Incursions blog↗️",
       "imageUrl": "https://i.ibb.co/v4nXbKx5/6ada484cbe86.webp",
       "startUTC": "2026-09-12T09:00:00.000Z",
-      "endUTC": "2026-09-12T09:00:00.000Z",
+      "endUTC": "2026-09-13T09:00:00.000Z",
       "eventType": "pvp",
       "eventSubType": null,
       "eventFormat": "RLB",
