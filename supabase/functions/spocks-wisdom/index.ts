@@ -172,6 +172,55 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // Fleet Commanders — matched on the alliance's own rated content categories
+    // (e.g. "Solomadas", "Mining Rate", "Waves"), which is exactly how the FC guide
+    // tags who is good at what. This is real, alliance-curated data — prefer it
+    // completely over guessing at officer abilities from general knowledge.
+    try {
+      const { data: allRatings } = await sb.from("fc_ratings")
+        .select("fc_id,category_group,category")
+        .eq("active", true)
+        .limit(400);
+      const matchedRatings = (allRatings || []).filter((r) =>
+        keywords.length > 0 && anyMatch(`${r.category_group ?? ""} ${r.category ?? ""}`, keywords)
+      );
+      if (matchedRatings.length) {
+        const fcIds = [...new Set(matchedRatings.map((r) => r.fc_id))].slice(0, 6);
+        const { data: fcRows } = await sb.from("fc_commanders")
+          .select("id,display_name,f2p_access,key_features")
+          .in("id", fcIds);
+        const fcById = Object.fromEntries((fcRows || []).map((f) => [f.id, f]));
+        const fcLines = fcIds.map((id) => {
+          const fc = fcById[id];
+          if (!fc) return null;
+          const cats = matchedRatings.filter((r) => r.fc_id === id).map((r) => r.category);
+          return `- ${fc.display_name} — rated for: ${cats.join(", ")}` +
+            `${fc.f2p_access ? ` (F2P access: ${fc.f2p_access})` : ""}` +
+            `${fc.key_features?.length ? `; key features: ${fc.key_features.join(", ")}` : ""}`;
+        }).filter(Boolean);
+        if (fcLines.length) {
+          contextParts.push(
+            "FLEET COMMANDERS RATED FOR THIS (from the alliance's own FC guide):\n" + fcLines.join("\n")
+          );
+        }
+
+        // Pull a few real skill lines so the answer can cite actual effects/bonus
+        // ranges instead of inventing plausible-sounding numbers.
+        const { data: skillRows } = await sb.from("fc_skills")
+          .select("fc_id,tree,skill_name,type,effect,bonus_min,bonus_max,cc_unlock")
+          .in("fc_id", fcIds.slice(0, 3))
+          .limit(24);
+        if (skillRows && skillRows.length) {
+          contextParts.push(
+            "REAL FC SKILL DATA (exact effects and bonus ranges — use these numbers verbatim, never invent different ones):\n" +
+            skillRows.map((s) =>
+              `- ${fcById[s.fc_id]?.display_name || s.fc_id} [${s.tree}] "${s.skill_name}" (${s.type}): ${s.effect}, ${s.bonus_min}–${s.bonus_max} (unlocks at CC${s.cc_unlock})`
+            ).join("\n")
+          );
+        }
+      }
+    } catch (e) { console.error("fc lookup error:", (e as Error).message); }
+
     // F2P tasks — same keyword-relevance filter.
     const { data: allTasks } = await sb.from("f2p_tasks").select("task,category,notes").limit(300);
     const matchedTasks = (allTasks || []).filter((t) =>
@@ -212,7 +261,7 @@ FORMATTING: This chat window displays plain text only — it does not render mar
 
 FRESHNESS: The event, crew, task, and sheet information below (if any) is current — events and crews are fetched fresh for this exact question, and sheet content is refreshed daily. None of it is stale training data and you do not need internet access to use it. Never say you lack "live" or "real-time" access when current data is provided below; just answer from it directly. Only say you don't have information if the relevant section below is genuinely absent or empty.
 
-ACCURACY: Never invent officer or crew names that are not real Star Trek Fleet Command content. If the alliance-specific crew data provided below does not cover the situation asked about, say so plainly and either answer from genuine, real STFC officer knowledge you are confident in, or state that you do not have a confirmed recommendation — do not fabricate a plausible-sounding crew to fill the gap. Precision matters more than always having an answer.
+ACCURACY: Never invent officer or crew names that are not real Star Trek Fleet Command content, and never invent specific numbers — skill percentages, bonus ranges, unlock levels — for a real officer either. If exact FC skill data is provided below, use those numbers verbatim; if it is not provided, describe the effect in general terms rather than making up a precise figure. If the alliance-specific crew data provided below does not cover the situation asked about, say so plainly and either answer from genuine, real STFC officer knowledge you are confident in, or state that you do not have a confirmed recommendation — do not fabricate a plausible-sounding crew or statistic to fill the gap. Precision matters more than always having an answer.
 
 When alliance-specific context is provided below (events, crews, F2P tasks, reference sheets), prefer it over your own general knowledge. Keep answers reasonably concise unless the question calls for depth.
 
