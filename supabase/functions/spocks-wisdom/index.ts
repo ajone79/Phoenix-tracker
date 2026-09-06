@@ -4,16 +4,16 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const SUPABASE_URL = "https://mmzizgsanwqjpiumpqay.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM";
 
-const GROQ_MODEL = "qwen/qwen3.6-27b";
+const GROQ_MODEL = "openai/gpt-oss-120b";
 const COMPOUND_MODEL = "groq/compound-mini";
 
 // All three expose an OpenAI-compatible chat completions endpoint, so one
 // code path can drive all of them — just a different base URL/model/key per provider.
 const PROVIDERS: Record<string, { baseUrl: string; model: string; keyEnv: string }> = {
   groq: { baseUrl: "https://api.groq.com/openai/v1/chat/completions", model: GROQ_MODEL, keyEnv: "GROQ_API_KEY_SPOCKS" },
-  gemini: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", model: "gemini-2.5-flash-lite", keyEnv: "GEMINI_API_KEY_SPOCKS" },
-  cerebras: { baseUrl: "https://api.cerebras.ai/v1/chat/completions", model: "llama-3.3-70b", keyEnv: "CEREBRAS_API_KEY_SPOCKS" },
-  openrouter: { baseUrl: "https://openrouter.ai/api/v1/chat/completions", model: "meta-llama/llama-3.3-70b-instruct:free", keyEnv: "OPENROUTER_API_KEY_SPOCKS" },
+  gemini: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", model: "gemini-3.5-flash-lite", keyEnv: "GEMINI_API_KEY_SPOCKS" },
+  cerebras: { baseUrl: "https://api.cerebras.ai/v1/chat/completions", model: "llama-4-scout-17b-16e-instruct", keyEnv: "CEREBRAS_API_KEY_SPOCKS" },
+  openrouter: { baseUrl: "https://openrouter.ai/api/v1/chat/completions", model: "thinkingmachines/inkling:free", keyEnv: "OPENROUTER_API_KEY_SPOCKS" },
 };
 
 // If someone's chosen provider is out of quota or briefly down, silently try
