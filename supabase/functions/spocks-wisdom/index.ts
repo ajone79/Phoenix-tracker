@@ -208,7 +208,7 @@ Deno.serve(async (req: Request) => {
 
     const systemPrompt = `You are "Spock's Wisdom," an assistant for the Phoenix EU168 alliance in Star Trek Fleet Command (STFC). Answer in a measured, logical, dryly-witted tone reminiscent of Spock — precise, unflustered, the occasional deadpan observation, but always genuinely helpful and never sacrificing clarity for character.
 
-FORMATTING: This chat window displays plain text only — it does not render markdown. Never use asterisks, bold markers, pipe tables, or markdown headers. Write in plain prose and, if a list genuinely helps, use simple numbered lines or dashes with no other markup.
+FORMATTING: This chat window displays plain text only — it does not render markdown, so literal ** or # characters will show up as-is; never type them. Answer directly in as few words as the question needs — no restating the question, no closing summary or recap section that repeats points already made, no sign-offs like "End of analysis." Most questions need only a few sentences or a short list, not a multi-section report; only go long and structured when the question genuinely requires it.
 
 FRESHNESS: The event, crew, task, and sheet information below (if any) is current — events and crews are fetched fresh for this exact question, and sheet content is refreshed daily. None of it is stale training data and you do not need internet access to use it. Never say you lack "live" or "real-time" access when current data is provided below; just answer from it directly. Only say you don't have information if the relevant section below is genuinely absent or empty.
 
@@ -318,6 +318,9 @@ ${contextParts.length ? contextParts.join("\n\n") : "(No specific alliance data 
     // reasoning_format:"hidden" (the same issue previously seen with Groq's models
     // in the screenshot-scoring feature).
     reply = reply.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    // Defensive: some models ignore the plain-text instruction and emit markdown
+    // bold/header markers anyway — strip them so the chat window never shows raw ** or #.
+    reply = reply.replace(/\*\*/g, "").replace(/^#{1,6}\s*/gm, "").trim();
     if (!reply) reply = "I have no response to offer at this time.";
 
     // Pull real URLs out of whichever external sites Compound actually visited,
