@@ -1,7 +1,8 @@
 /* =========================================================
    PHX EU168 — SHARED GAME EVENTS DATA & LOGIC
-   Used by: events-calendar.html, events-calendar-gantt.html, and the header
-   ticker on index.html / f2p-task-guide.html.
+   Used by: events-calendar.html and events-calendar-gantt.html.
+   (No longer used for a header ticker on index.html / f2p-task-guide.html -
+   that ticker was removed; this file now only feeds the two calendar pages.)
 
    Keeping this in one file means Territory Capture times, Voyage
    Across the Void scoring notes, category colors, etc. only ever
