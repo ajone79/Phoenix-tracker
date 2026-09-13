@@ -532,9 +532,6 @@ function render(){
   document.querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click', ()=>saveName(b.dataset.save)));
   document.querySelectorAll('[data-admintoggle]').forEach(b=>b.addEventListener('click', ()=>toggleAdmin(b.dataset.admintoggle, b.dataset.current==='true')));
   document.querySelectorAll('[data-wa-open]').forEach(b=>b.addEventListener('click', () => {
-    const label = b.dataset.waLabel;
-    const name = b.dataset.waName;
-    if (!confirm(`Send "${label}" WhatsApp message to ${name}?`)) return;
     window.open(b.dataset.waOpen, '_blank');
   }));
 
