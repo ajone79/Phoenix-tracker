@@ -61,28 +61,32 @@ function formatRetry(seconds){
 
 async function loadDirectory(){
   const list = document.getElementById('directoryList');
-  const { data, error } = await sb.from('whatsapp_alert_directory').select('*').order('member_name');
-  if (error) {
-    list.innerHTML = `<div class="empty">Couldn't load the list — try refreshing.</div>`;
-    return;
-  }
-  if (!data || !data.length) {
-    list.innerHTML = `<div class="empty">No WhatsApp alert buttons set up yet.</div>`;
-    return;
-  }
-  list.innerHTML = data.map(item => `
-    <div class="directory-item">
-      <div class="who">
-        <div class="name">${escapeHtml(item.member_name)}</div>
-        <div class="label">${escapeHtml(item.label)}</div>
+  try {
+    const { data, error } = await sb.from('whatsapp_alert_directory').select('*').order('member_name');
+    if (error) {
+      list.innerHTML = `<div class="empty">DB error: ${escapeHtml(error.message || JSON.stringify(error))} (code: ${escapeHtml(error.code || 'none')})</div>`;
+      return;
+    }
+    if (!data || !data.length) {
+      list.innerHTML = `<div class="empty">No WhatsApp alert buttons set up yet. (Query succeeded, 0 rows.)</div>`;
+      return;
+    }
+    list.innerHTML = data.map(item => `
+      <div class="directory-item">
+        <div class="who">
+          <div class="name">${escapeHtml(item.member_name)}</div>
+          <div class="label">${escapeHtml(item.label)}</div>
+        </div>
+        <button class="wa-btn" data-link-id="${escapeHtml(item.link_id)}">Send</button>
       </div>
-      <button class="wa-btn" data-link-id="${escapeHtml(item.link_id)}">Send</button>
-    </div>
-  `).join('');
+    `).join('');
 
-  list.querySelectorAll('[data-link-id]').forEach(btn => {
-    btn.addEventListener('click', () => handleClick(btn));
-  });
+    list.querySelectorAll('[data-link-id]').forEach(btn => {
+      btn.addEventListener('click', () => handleClick(btn));
+    });
+  } catch (e) {
+    list.innerHTML = `<div class="empty">JS exception: ${escapeHtml(e.message || String(e))}</div>`;
+  }
 }
 
 async function handleClick(btn){
@@ -121,6 +125,16 @@ async function handleClick(btn){
 }
 
 document.addEventListener('tracker-auth-ready', loadDirectory);
+
+// Watchdog: if tracker-auth-ready never fires for some reason, don't leave
+// the page stuck on "Loading…" forever — try anyway after 5s and say so.
+setTimeout(() => {
+  const list = document.getElementById('directoryList');
+  if (list && list.textContent.trim() === 'Loading…') {
+    list.innerHTML = `<div class="empty">Still loading after 5s — the auth-ready signal may not have fired. Retrying directly…</div>`;
+    loadDirectory();
+  }
+}, 5000);
 </script>
 </body>
 </html>
