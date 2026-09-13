@@ -66,12 +66,13 @@
     <h2>WhatsApp Alert Buttons</h2>
     <div class="h2-sub">Set up one-tap WhatsApp buttons that only alliance admins can see and use — for example, a button labelled "🚨 Raided" that opens a pre-filled WhatsApp message to you. Nobody else can see or press these, and admins get a confirmation prompt before anything opens, so it can't be triggered by accident.</div>
     <div class="wa-instructions">
-      <b>How to build the link:</b> Easiest way — go to <a href="https://create.wa.link/" target="_blank" rel="noopener" style="color:var(--periwinkle);">create.wa.link</a>, enter your number and a message, and it'll give you a short link like <code>wa.link/abc123</code>. Paste that link below.
+      <b>How it works:</b> just fill in the three boxes below and hit Add — the WhatsApp link is built for you automatically. Use your number with country code, no spaces or leading zero (e.g. <code>447123456789</code> for a UK number).
     </div>
     <div class="wa-list" id="waList"></div>
     <div class="add-row">
       <input type="text" id="waLabelInput" placeholder="Button label, e.g. 🚨 Raided">
-      <input type="text" id="waUrlInput" placeholder="wa.link/... or https://wa.me/...">
+      <input type="text" id="waNumberInput" placeholder="Your number, e.g. 447123456789" inputmode="numeric">
+      <input type="text" id="waMessageInput" placeholder="Pre-filled message, e.g. We are being raided!">
       <button class="btn" id="waAddBtn">+ Add Button</button>
     </div>
     <div class="msg" id="waMsg"></div>
@@ -188,22 +189,24 @@ async function init(){
 
   document.getElementById('waAddBtn').addEventListener('click', async () => {
     const label = document.getElementById('waLabelInput').value.trim();
-    let url = document.getElementById('waUrlInput').value.trim();
+    const numberRaw = document.getElementById('waNumberInput').value.trim();
+    const message = document.getElementById('waMessageInput').value.trim();
     const msg = document.getElementById('waMsg');
-    if (!label || !url) { msg.textContent = 'Both a label and a link are needed.'; msg.className = 'msg err'; return; }
-    if (!/^https?:\/\//i.test(url)) url = 'https://' + url; // people often paste "wa.link/xyz" without the scheme
-    const isWhatsappLink = /^https:\/\/(wa\.me|wa\.link|api\.whatsapp\.com)\//i.test(url);
-    if (!isWhatsappLink) {
-      msg.textContent = 'That doesn\'t look like a WhatsApp link — it should be a wa.link, wa.me, or api.whatsapp.com link.';
+    if (!label || !numberRaw || !message) { msg.textContent = 'A label, number, and message are all needed.'; msg.className = 'msg err'; return; }
+    const number = numberRaw.replace(/[^0-9]/g, '');
+    if (number.length < 8) {
+      msg.textContent = 'That number doesn\'t look right — include the country code, no spaces, no leading zero.';
       msg.className = 'msg err';
       return;
     }
+    const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
     const { error } = await sb.from('member_contact_links').insert({ profile_id: myProfile.id, label, whatsapp_url: url });
     if (error) { msg.textContent = 'Could not save — try again.'; msg.className = 'msg err'; return; }
     msg.textContent = 'Added ✓';
     msg.className = 'msg ok';
     document.getElementById('waLabelInput').value = '';
-    document.getElementById('waUrlInput').value = '';
+    document.getElementById('waNumberInput').value = '';
+    document.getElementById('waMessageInput').value = '';
     loadWaLinks();
   });
 }
