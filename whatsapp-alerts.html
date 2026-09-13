@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix EU168 — Raid Alert</title>
+<meta name="description" content="One-tap WhatsApp alert buttons for alliance members.">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-eu168.png">
+<link rel="apple-touch-icon" href="/icon-eu168.png">
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/tracker-auth.js"></script>
+<script src="assets/phx-nav-rail.js"></script>
+<style>
+  :root{--void:#050507;--panel:#111116;--panel-2:#17171e;--hair:#2a2a34;--signal:#ff9142;--periwinkle:#8fa3ff;--mint:#5fd068;--gold:#ffc857;--alert:#ff5a5f;--wa-green:#25D366;--text:#e8e6e1;--text-dim:#8a8a94;--text-faint:#55555f;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--void);color:var(--text);font-family:'Space Mono',monospace;}
+  main{padding:26px 20px 80px;max-width:640px;margin:0 auto;}
+  h1{font-family:'Antonio',sans-serif;font-weight:700;font-size:24px;margin:0 0 4px;letter-spacing:.02em;}
+  .sub{color:var(--text-dim);font-size:12px;margin:0 0 20px;line-height:1.6;}
+  .panel{background:var(--panel);border:1px solid var(--hair);border-radius:12px;padding:18px 20px;margin-bottom:18px;}
+  .setup-callout{background:var(--panel-2);border:1px solid var(--hair);border-radius:10px;padding:14px 16px;margin-bottom:22px;font-size:12px;color:var(--text-dim);line-height:1.6;}
+  .setup-callout a{color:var(--periwinkle);}
+  .directory-list{display:flex;flex-direction:column;gap:10px;}
+  .directory-item{display:flex;align-items:center;gap:12px;background:var(--panel-2);border:1px solid var(--hair);border-radius:10px;padding:12px 14px;}
+  .directory-item .who{flex:1;}
+  .directory-item .name{font-size:13.5px;font-weight:700;color:var(--text);}
+  .directory-item .label{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+  .wa-btn{background:var(--wa-green);color:#052e16;font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.03em;text-transform:uppercase;font-size:11.5px;padding:9px 16px;border-radius:8px;border:none;cursor:pointer;flex-shrink:0;white-space:nowrap;}
+  .wa-btn:disabled{background:var(--hair);color:var(--text-faint);cursor:not-allowed;}
+  .empty{color:var(--text-faint);font-size:12px;padding:8px 0;}
+  .msg{font-size:11px;color:var(--text-faint);margin-top:4px;}
+</style>
+</head>
+<body>
+<main>
+  <h1>Raid <span style="color:var(--signal);">Alert</span></h1>
+  <p class="sub">One-tap WhatsApp buttons set up by members — for example, someone's "🚨 Raided" button. Numbers are never shown; tapping a button sends the pre-filled message straight to WhatsApp. To stop spamming, each button can only be tapped once per hour by the same person.</p>
+
+  <div class="setup-callout">
+    Don't have a button set up yet? Add your own on the <a href="self-admin.html#waSection">My Account</a> page — takes a minute.
+  </div>
+
+  <div class="panel">
+    <div class="directory-list" id="directoryList"><div class="empty">Loading…</div></div>
+  </div>
+</main>
+
+<script>
+const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function formatRetry(seconds){
+  const mins = Math.ceil(seconds / 60);
+  return mins <= 1 ? 'try again in a minute' : `try again in ${mins}m`;
+}
+
+async function loadDirectory(){
+  const list = document.getElementById('directoryList');
+  const { data, error } = await sb.from('whatsapp_alert_directory').select('*').order('member_name');
+  if (error) {
+    list.innerHTML = `<div class="empty">Couldn't load the list — try refreshing.</div>`;
+    return;
+  }
+  if (!data || !data.length) {
+    list.innerHTML = `<div class="empty">No WhatsApp alert buttons set up yet.</div>`;
+    return;
+  }
+  list.innerHTML = data.map(item => `
+    <div class="directory-item">
+      <div class="who">
+        <div class="name">${escapeHtml(item.member_name)}</div>
+        <div class="label">${escapeHtml(item.label)}</div>
+      </div>
+      <button class="wa-btn" data-link-id="${escapeHtml(item.link_id)}">Send</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-link-id]').forEach(btn => {
+    btn.addEventListener('click', () => handleClick(btn));
+  });
+}
+
+async function handleClick(btn){
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = 'Sending…';
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-alert-link`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': SUPABASE_KEY,
+      },
+      body: JSON.stringify({ link_id: btn.dataset.linkId }),
+    });
+    const result = await res.json();
+    if (res.status === 429) {
+      btn.textContent = formatRetry(result.retryAfterSeconds);
+      setTimeout(() => { btn.disabled = false; btn.textContent = originalText; }, Math.min(result.retryAfterSeconds * 1000, 60000));
+      return;
+    }
+    if (!res.ok || !result.url) {
+      btn.textContent = 'Failed — retry';
+      btn.disabled = false;
+      return;
+    }
+    window.open(result.url, '_blank');
+    btn.textContent = 'Sent ✓';
+    setTimeout(() => { btn.disabled = false; btn.textContent = originalText; }, 4000);
+  } catch (e) {
+    btn.textContent = 'Failed — retry';
+    btn.disabled = false;
+  }
+}
+
+document.addEventListener('tracker-auth-ready', loadDirectory);
+</script>
+</body>
+</html>

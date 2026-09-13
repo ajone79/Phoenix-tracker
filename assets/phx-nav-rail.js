@@ -5,6 +5,7 @@
     {href:'/events-calendar.html', label:'Events', icon:'🛰️'},
     {href:'/f2p-task-guide.html', label:'F2P', icon:'🎯'},
     {href:'/crewing.html', label:'Crewing', icon:'🖖'},
+    {href:'/whatsapp-alerts.html', label:'Raid Alert', icon:'🚨'},
   ];
   const MORE = [
     {href:'/self-admin.html', label:'My Account', icon:'🙋', desc:'Match your name, set up WhatsApp alerts'},
