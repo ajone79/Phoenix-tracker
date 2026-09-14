@@ -1,5 +1,5 @@
 // Push-notification service worker for Phoenix EU168.
-// Registered from push-alerts.html once a member opts in. Kept deliberately
+// Registered from self-admin.html once a member opts in. Kept deliberately
 // minimal — this project has no other offline/caching needs, so the only
 // jobs here are "show the push" and "focus/open the app on tap."
 
@@ -25,7 +25,7 @@ self.addEventListener('push', (event) => {
     // into a solid colored block, which is the "ugly rectangle" bug.
     tag: data.tag || 'phx-broadcast',
     renotify: true,
-    data: { url: data.url || '/push-alerts.html' },
+    data: { url: data.url || '/index.html' },
   };
 
   event.waitUntil(self.registration.showNotification(title, options));

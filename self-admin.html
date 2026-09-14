@@ -50,6 +50,14 @@
   .add-row{display:flex;flex-direction:column;gap:8px;}
   .add-row .btn{background:var(--periwinkle);color:var(--void);font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:12px;padding:10px 18px;border-radius:8px;border:none;cursor:pointer;align-self:flex-start;}
   .empty{color:var(--text-faint);font-size:12px;padding:8px 0;}
+  .btn{background:var(--signal);color:var(--void);font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.03em;text-transform:uppercase;font-size:12px;padding:10px 18px;border-radius:8px;border:none;cursor:pointer;white-space:nowrap;}
+  .btn:disabled{background:var(--hair);color:var(--text-faint);cursor:not-allowed;}
+  .status-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .status-dot{width:9px;height:9px;border-radius:50%;background:var(--text-faint);flex-shrink:0;}
+  .status-dot.on{background:var(--mint);}
+  .status-dot.off{background:var(--text-faint);}
+  .status-text{font-size:12.5px;color:var(--text-dim);flex:1;min-width:160px;}
+  .callout{background:var(--panel-2);border:1px solid var(--hair);border-radius:10px;padding:14px 16px;margin-top:14px;font-size:12px;color:var(--text-dim);line-height:1.6;}
 </style>
 </head>
 <body>
@@ -64,6 +72,20 @@
     <input type="text" id="nameSearch" placeholder="Start typing your in-game name…" autocomplete="off">
     <div class="search-results" id="searchResults"></div>
     <div class="msg" id="nameMsg"></div>
+  </div>
+
+  <div class="panel" id="pushSection">
+    <h2>Push Notifications</h2>
+    <div class="h2-sub">Real phone/desktop notifications for alliance-wide broadcasts — surge starting, raid incoming, that kind of thing. Separate from the WhatsApp buttons below, which are one-to-one pings between members.</div>
+    <div class="status-row">
+      <span class="status-dot" id="pushStatusDot"></span>
+      <span class="status-text" id="pushStatusText">Checking…</span>
+      <button class="btn" id="pushToggleBtn" disabled>…</button>
+    </div>
+    <div class="msg" id="pushMsg"></div>
+    <div class="callout" id="pushIosCallout" style="display:none;">
+      📱 <b>On iPhone:</b> push notifications only work once this site is added to your Home Screen (Share → Add to Home Screen), then opened from there — Apple doesn't allow it in a regular Safari tab. Once installed, come back here to enable notifications.
+    </div>
   </div>
 
   <div class="panel" id="waSection">
@@ -199,6 +221,113 @@ document.getElementById('waCopyBtn').addEventListener('click', async () => {
   }
 });
 
+const VAPID_PUBLIC_KEY = 'BNLoHnC3COwMpnznN6mOMHwxj94w8TqJAOe3e7pgs9ZuHUJpanaLkavCZAaS0Wh8AWpuuXWDR0u4ol29xx8FlFM';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+function isStandalone(){ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
+function isIos(){ return /iphone|ipad|ipod/i.test(navigator.userAgent); }
+const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window;
+
+async function currentPushSubscription(){
+  const reg = await navigator.serviceWorker.register('/sw.js');
+  return reg.pushManager.getSubscription();
+}
+
+function setPushStatus(on, text){
+  const dot = document.getElementById('pushStatusDot');
+  const btn = document.getElementById('pushToggleBtn');
+  dot.className = 'status-dot ' + (on ? 'on' : 'off');
+  document.getElementById('pushStatusText').textContent = text;
+  btn.textContent = on ? 'Disable' : 'Enable';
+  btn.disabled = false;
+}
+
+async function refreshPushStatus(){
+  if (!pushSupported) {
+    if (isIos() && !isStandalone()) document.getElementById('pushIosCallout').style.display = 'block';
+    setPushStatus(false, 'Not supported in this browser');
+    document.getElementById('pushToggleBtn').disabled = true;
+    return;
+  }
+  try {
+    const sub = await currentPushSubscription();
+    setPushStatus(!!sub, sub ? 'Notifications are on for this device' : 'Notifications are off for this device');
+  } catch (e) {
+    setPushStatus(false, 'Could not check status: ' + e.message);
+  }
+}
+
+async function enablePush(){
+  const btn = document.getElementById('pushToggleBtn');
+  const msg = document.getElementById('pushMsg');
+  btn.disabled = true;
+  msg.className = 'msg';
+  msg.textContent = '';
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      msg.className = 'msg err';
+      msg.textContent = 'Notification permission was not granted.';
+      return refreshPushStatus();
+    }
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+    const json = sub.toJSON();
+    const profile = await ensureProfile();
+    if (!profile) throw new Error('Could not confirm your session — refresh and try again.');
+    const { error } = await sb.from('push_subscriptions').upsert({
+      user_id: profile.id,
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth,
+      user_agent: navigator.userAgent,
+    }, { onConflict: 'user_id,endpoint' });
+    if (error) throw error;
+    msg.className = 'msg ok';
+    msg.textContent = 'Notifications enabled on this device.';
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'Could not enable: ' + e.message;
+  }
+  refreshPushStatus();
+}
+
+async function disablePush(){
+  const btn = document.getElementById('pushToggleBtn');
+  const msg = document.getElementById('pushMsg');
+  btn.disabled = true;
+  msg.className = 'msg';
+  msg.textContent = '';
+  try {
+    const sub = await currentPushSubscription();
+    if (sub) {
+      const endpoint = sub.endpoint;
+      await sub.unsubscribe();
+      const profile = await ensureProfile();
+      if (profile) await sb.from('push_subscriptions').delete().eq('user_id', profile.id).eq('endpoint', endpoint);
+    }
+    msg.className = 'msg ok';
+    msg.textContent = 'Notifications disabled on this device.';
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'Could not disable: ' + e.message;
+  }
+  refreshPushStatus();
+}
+
+document.getElementById('pushToggleBtn').addEventListener('click', async () => {
+  const sub = pushSupported ? await currentPushSubscription() : null;
+  if (sub) disablePush(); else enablePush();
+});
+
 async function ensureProfile(){
   if (myProfile && myProfile.id) return myProfile;
   // Self-heal: if init() hasn't completed yet (e.g. the page was suspended
@@ -259,6 +388,7 @@ async function init(){
 
   renderCurrentMatch();
   await loadRosterAndClaims();
+  refreshPushStatus();
   await loadWaLinks();
 
   document.getElementById('nameSearch').addEventListener('input', (e) => renderSearchResults(e.target.value));

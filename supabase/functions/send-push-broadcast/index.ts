@@ -39,7 +39,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const title = typeof body?.title === "string" ? body.title.trim().slice(0, 80) : "";
     const message = typeof body?.body === "string" ? body.body.trim().slice(0, 200) : "";
-    const url = typeof body?.url === "string" ? body.url.slice(0, 200) : "/push-alerts.html";
+    const url = typeof body?.url === "string" ? body.url.slice(0, 200) : "/index.html";
     if (!title || !message) return json({ error: "title and body are required" }, 400);
 
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
