@@ -70,7 +70,16 @@
 const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
 const VAPID_PUBLIC_KEY = 'BNLoHnC3COwMpnznN6mOMHwxj94w8TqJAOe3e7pgs9ZuHUJpanaLkavCZAaS0Wh8AWpuuXWDR0u4ol29xx8FlFM';
-const sb = window.__trackerSb || supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Resolved lazily (not captured once at parse time) so that if tracker-auth.js's
+// shared client isn't on window.__trackerSb yet when this script runs, later
+// calls still pick it up instead of being stuck with a separately-created one.
+function getSb() { return window.__trackerSb || (window.__trackerSb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)); }
+
+async function requireSession() {
+  const { data: { session } } = await getSb().auth.getSession();
+  if (!session) throw new Error('Not signed in — refresh the page and try again.');
+  return session;
+}
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -137,8 +146,8 @@ async function enable() {
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
     const json = sub.toJSON();
-    const { data: { session } } = await sb.auth.getSession();
-    const { error } = await sb.from('push_subscriptions').upsert({
+    const session = await requireSession();
+    const { error } = await getSb().from('push_subscriptions').upsert({
       user_id: session.user.id,
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
@@ -164,8 +173,8 @@ async function disable() {
     if (sub) {
       const endpoint = sub.endpoint;
       await sub.unsubscribe();
-      const { data: { session } } = await sb.auth.getSession();
-      await sb.from('push_subscriptions').delete().eq('user_id', session.user.id).eq('endpoint', endpoint);
+      const session = await requireSession();
+      await getSb().from('push_subscriptions').delete().eq('user_id', session.user.id).eq('endpoint', endpoint);
     }
     optinMsg.className = 'msg ok';
     optinMsg.textContent = 'Notifications disabled on this device.';
@@ -181,12 +190,15 @@ toggleBtn.addEventListener('click', async () => {
   if (sub) disable(); else enable();
 });
 
-document.addEventListener('tracker-auth-ready', (e) => {
-  const profile = e.detail;
+function showComposerIfAllowed(profile) {
   if (profile && profile.can_broadcast) {
     document.getElementById('composerPanel').style.display = 'block';
   }
-});
+}
+// tracker-auth.js may finish (and dispatch this) before this script even runs,
+// so check the already-set global first — don't rely solely on the event.
+showComposerIfAllowed(window.__trackerProfile);
+document.addEventListener('tracker-auth-ready', (e) => showComposerIfAllowed(e.detail));
 
 const sendBtn = document.getElementById('sendBtn');
 const sendMsg = document.getElementById('sendMsg');
@@ -203,7 +215,7 @@ sendBtn.addEventListener('click', async () => {
   sendBtn.disabled = true;
   sendBtn.textContent = 'Sending…';
   try {
-    const { data: { session } } = await sb.auth.getSession();
+    const session = await requireSession();
     const res = await fetch(`${SUPABASE_URL}/functions/v1/send-push-broadcast`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
