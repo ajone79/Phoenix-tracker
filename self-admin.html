@@ -188,26 +188,35 @@ async function init(){
   document.getElementById('nameSearch').addEventListener('input', (e) => renderSearchResults(e.target.value));
 
   document.getElementById('waAddBtn').addEventListener('click', async () => {
-    const label = document.getElementById('waLabelInput').value.trim();
-    const numberRaw = document.getElementById('waNumberInput').value.trim();
-    const message = document.getElementById('waMessageInput').value.trim();
     const msg = document.getElementById('waMsg');
-    if (!label || !numberRaw || !message) { msg.textContent = 'A label, number, and message are all needed.'; msg.className = 'msg err'; return; }
-    const number = numberRaw.replace(/[^0-9]/g, '');
-    if (number.length < 8) {
-      msg.textContent = 'That number doesn\'t look right — include the country code, no spaces, no leading zero.';
+    try {
+      const label = document.getElementById('waLabelInput').value.trim();
+      const numberRaw = document.getElementById('waNumberInput').value.trim();
+      const message = document.getElementById('waMessageInput').value.trim();
+      if (!label || !numberRaw || !message) { msg.textContent = 'A label, number, and message are all needed.'; msg.className = 'msg err'; return; }
+      const number = numberRaw.replace(/[^0-9]/g, '');
+      if (number.length < 8) {
+        msg.textContent = 'That number doesn\'t look right — include the country code, no spaces, no leading zero.';
+        msg.className = 'msg err';
+        return;
+      }
+      const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+      const { error } = await sb.from('member_contact_links').insert({ profile_id: myProfile.id, label, whatsapp_url: url });
+      if (error) {
+        msg.textContent = `Could not save — ${error.message || JSON.stringify(error)} (code: ${error.code || 'none'})`;
+        msg.className = 'msg err';
+        return;
+      }
+      msg.textContent = 'Added ✓';
+      msg.className = 'msg ok';
+      document.getElementById('waLabelInput').value = '';
+      document.getElementById('waNumberInput').value = '';
+      document.getElementById('waMessageInput').value = '';
+      loadWaLinks();
+    } catch (e) {
+      msg.textContent = `JS error — ${e.message || String(e)}`;
       msg.className = 'msg err';
-      return;
     }
-    const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
-    const { error } = await sb.from('member_contact_links').insert({ profile_id: myProfile.id, label, whatsapp_url: url });
-    if (error) { msg.textContent = 'Could not save — try again.'; msg.className = 'msg err'; return; }
-    msg.textContent = 'Added ✓';
-    msg.className = 'msg ok';
-    document.getElementById('waLabelInput').value = '';
-    document.getElementById('waNumberInput').value = '';
-    document.getElementById('waMessageInput').value = '';
-    loadWaLinks();
   });
 }
 
