@@ -58,6 +58,16 @@
   .status-dot.off{background:var(--text-faint);}
   .status-text{font-size:12.5px;color:var(--text-dim);flex:1;min-width:160px;}
   .callout{background:var(--panel-2);border:1px solid var(--hair);border-radius:10px;padding:14px 16px;margin-top:14px;font-size:12px;color:var(--text-dim);line-height:1.6;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(2,2,4,.75);display:none;align-items:center;justify-content:center;padding:20px;z-index:9999;}
+  .modal-overlay.open{display:flex;}
+  .modal-box{background:var(--panel);border:1px solid var(--hair);border-radius:14px;padding:22px 22px 18px;max-width:440px;width:100%;max-height:85vh;overflow-y:auto;}
+  .modal-box h2{margin:0 0 10px;text-transform:none;font-size:17px;color:var(--text);}
+  .modal-box p{font-size:12px;color:var(--text-dim);line-height:1.6;margin:0 0 14px;}
+  .platform-block{background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px;line-height:1.6;}
+  .platform-block b{color:var(--text);}
+  .modal-checkrow{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-dim);margin:14px 0;cursor:pointer;}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+  .btn.ghost{background:transparent;border:1px solid var(--hair);color:var(--text-dim);}
 </style>
 </head>
 <body>
@@ -110,6 +120,21 @@
     <div class="msg" id="waMsg"></div>
   </div>
 </main>
+
+<div class="modal-overlay" id="pushInstallModal">
+  <div class="modal-box">
+    <h2>Get the most reliable notifications</h2>
+    <p>Push alerts work best — and on iPhone, <b>only</b> work at all — once this site is installed as an app instead of just visited as a browser tab. Quick one-time setup:</p>
+    <div class="platform-block">📱 <b>iPhone (required):</b> Tap the Share icon → "Add to Home Screen" → open Phoenix EU168 from your Home Screen icon, then come back to this page.</div>
+    <div class="platform-block">🤖 <b>Android (recommended):</b> Tap the ⋮ menu in Chrome → "Install app" (or "Add to Home screen"), then open it from there.</div>
+    <div class="platform-block">🖥️ <b>Windows/Mac (recommended):</b> Click the install icon in the address bar (or the ⋮ menu → "Install Phoenix EU168…"), then open the installed app.</div>
+    <label class="modal-checkrow"><input type="checkbox" id="pushModalDontShow"> Don't show this again</label>
+    <div class="modal-actions">
+      <button class="btn ghost" id="pushModalCancel">Cancel</button>
+      <button class="btn" id="pushModalContinue">Continue anyway</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const SUPABASE_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
@@ -323,9 +348,39 @@ async function disablePush(){
   refreshPushStatus();
 }
 
+const PUSH_MODAL_DISMISS_KEY = 'phx_push_install_modal_dismissed';
+function installModalDismissed(){
+  try { return localStorage.getItem(PUSH_MODAL_DISMISS_KEY) === '1'; }
+  catch (e) { return false; }
+}
+function showInstallModal(onContinue){
+  const modal = document.getElementById('pushInstallModal');
+  const dontShow = document.getElementById('pushModalDontShow');
+  const cancelBtn = document.getElementById('pushModalCancel');
+  const continueBtn = document.getElementById('pushModalContinue');
+  dontShow.checked = false;
+  modal.classList.add('open');
+  function cleanup(){
+    modal.classList.remove('open');
+    cancelBtn.removeEventListener('click', onCancel);
+    continueBtn.removeEventListener('click', onContinueClick);
+  }
+  function onCancel(){ cleanup(); }
+  function onContinueClick(){
+    if (dontShow.checked) { try { localStorage.setItem(PUSH_MODAL_DISMISS_KEY, '1'); } catch (e) {} }
+    cleanup();
+    onContinue();
+  }
+  cancelBtn.addEventListener('click', onCancel);
+  continueBtn.addEventListener('click', onContinueClick);
+}
+
 document.getElementById('pushToggleBtn').addEventListener('click', async () => {
   const sub = pushSupported ? await currentPushSubscription() : null;
-  if (sub) disablePush(); else enablePush();
+  if (sub) { disablePush(); return; }
+  // Only the enable path needs the install nudge - disabling doesn't.
+  if (installModalDismissed()) enablePush();
+  else showInstallModal(enablePush);
 });
 
 async function ensureProfile(){
@@ -401,7 +456,12 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') loadWaLinks().catch(() => {});
 });
 
-document.addEventListener('tracker-auth-ready', init);
+// tracker-auth.js may finish (and dispatch this) before this script even
+// runs, so check the already-set global first — don't rely solely on the
+// event firing after we're listening (that race is what left the Push
+// Notifications panel stuck on "Checking…" forever).
+if (window.__trackerProfile) init();
+else document.addEventListener('tracker-auth-ready', init);
 </script>
 </body>
 </html>
