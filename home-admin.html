@@ -668,15 +668,18 @@ function editorsSectionHtml(){
         ${p.is_owner ? '<span class="owner-badge">Owner</span>' : ''}
         <div class="sub">${escapeHtml(p.discord_username || '')}</div>
       </div>
-      ${p.is_owner
-        ? '<span style="color:var(--text-faint);font-size:11px;">Always has access</span>'
-        : `<label class="checkrow"><input type="checkbox" data-editortoggle="${p.id}" ${p.is_home_editor ? 'checked' : ''}> Can edit home screen</label>`
-      }
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
+        ${p.is_owner
+          ? '<span style="color:var(--text-faint);font-size:11px;">Always has access</span>'
+          : `<label class="checkrow"><input type="checkbox" data-editortoggle="${p.id}" ${p.is_home_editor ? 'checked' : ''}> Can edit home screen</label>
+             <label class="checkrow"><input type="checkbox" data-broadcasttoggle="${p.id}" ${p.can_broadcast ? 'checked' : ''}> Can send push broadcasts</label>`
+        }
+      </div>
     </div>
   `).join('');
   return `
     <h2>Home Screen Editors</h2>
-    <div class="h2-sub">Owner-only. Grant trusted people access to this page without making them a full site admin.</div>
+    <div class="h2-sub">Owner-only. Grant trusted people access to this page, and/or the ability to send push broadcasts, without making them a full site admin. These are independent — one doesn't imply the other.</div>
     <div class="panel">
       ${rows || '<div class="empty">No approved members found.</div>'}
     </div>
@@ -692,6 +695,16 @@ function wireEditorsSection(){
       if (error) { alert('Update failed: ' + error.message); e.target.checked = !checked; return; }
       const p = profiles.find(p => p.id === id);
       if (p) p.is_home_editor = checked;
+    });
+  });
+  document.querySelectorAll('[data-broadcasttoggle]').forEach(cb => {
+    cb.addEventListener('change', async (e) => {
+      const id = e.target.dataset.broadcasttoggle;
+      const checked = e.target.checked;
+      const { error } = await sb.from('tracker_profiles').update({ can_broadcast: checked }).eq('id', id);
+      if (error) { alert('Update failed: ' + error.message); e.target.checked = !checked; return; }
+      const p = profiles.find(p => p.id === id);
+      if (p) p.can_broadcast = checked;
     });
   });
 }
