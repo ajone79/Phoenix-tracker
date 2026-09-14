@@ -20,7 +20,9 @@ self.addEventListener('push', (event) => {
   const options = {
     body: data.body || '',
     icon: '/icon-eu168.png',
-    badge: '/icon-eu168.png',
+    // No `badge` here on purpose: it must be a small monochrome/transparent
+    // image - the OS masks anything else (like our full-color app icon)
+    // into a solid colored block, which is the "ugly rectangle" bug.
     tag: data.tag || 'phx-broadcast',
     renotify: true,
     data: { url: data.url || '/push-alerts.html' },
