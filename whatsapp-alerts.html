@@ -38,6 +38,10 @@
   <h1>Raid <span style="color:var(--signal);">Alert</span></h1>
   <p class="sub">One-tap WhatsApp buttons set up by members — for example, someone's "🚨 Raided" button. Numbers are never shown; tapping a button sends the pre-filled message straight to WhatsApp. To stop spamming, each button can only be tapped once per hour by the same person.</p>
 
+  <div class="setup-callout" style="border-color:var(--signal);color:var(--text);">
+    ⏸️ <b>Sending is temporarily paused</b> while this page is upgraded to support alerts beyond just "Raided" (e.g. Surge starting). Buttons below are visible but won't send yet.
+  </div>
+
   <div class="setup-callout">
     Don't have a button set up yet? Add your own on the <a href="self-admin.html#waSection">My Account</a> page — takes a minute.
   </div>
@@ -77,7 +81,7 @@ async function loadDirectory(){
           <div class="name">${escapeHtml(item.member_name)}</div>
           <div class="label">${escapeHtml(item.label)}</div>
         </div>
-        <button class="wa-btn" data-link-id="${escapeHtml(item.link_id)}">Send</button>
+        <button class="wa-btn" data-link-id="${escapeHtml(item.link_id)}" disabled>Paused</button>
       </div>
     `).join('');
 
