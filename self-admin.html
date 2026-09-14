@@ -37,6 +37,10 @@
   .msg.ok{color:var(--mint);}
   .msg.err{color:var(--alert);}
   .wa-instructions{background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:12px 14px;font-size:11.5px;color:var(--text-dim);line-height:1.7;margin-bottom:16px;}
+  .copy-row{display:flex;align-items:center;gap:8px;margin-top:10px;background:var(--void);border:1px solid var(--hair);border-radius:6px;padding:8px 10px;}
+  .copy-row code{background:none;padding:0;color:var(--text);font-size:13px;flex:1;}
+  .copy-btn{background:var(--periwinkle);border:none;border-radius:6px;padding:6px 10px;font-size:14px;cursor:pointer;flex-shrink:0;}
+  .copy-btn:active{transform:scale(0.95);}
   .wa-instructions code{background:var(--void);padding:1px 5px;border-radius:4px;color:var(--periwinkle);}
   .wa-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
   .wa-item{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:10px 14px;}
@@ -66,8 +70,15 @@
     <h2>WhatsApp Alert Buttons</h2>
     <div class="h2-sub">Set up one-tap WhatsApp buttons — for example, a button labelled "🚨 Raided" that opens a pre-filled WhatsApp message to you. Your number is never shown to anyone; other members only ever see the button label, and can tap it at most once per hour each to stop spam. Your buttons also still show up in the admin tab.</div>
     <div class="wa-instructions">
-      <b>How to build the link:</b> Easiest way — go to <a href="https://create.wa.link/" target="_blank" rel="noopener" style="color:var(--periwinkle);">create.wa.link</a>, enter your number and a message, and it'll give you a short link like <code>wa.link/abc123</code>. Paste that link below.
+      <b>How to build the link:</b> Easiest way — visit <code>create.wa.link</code> in your own browser, enter your number and a message, and it'll give you a short link like <code>wa.link/abc123</code>. Paste that link below.
+      <br><br>
+      <span style="color:var(--text-faint);">Note: if you tap the address below, it may open inside a small in-app window instead of your normal browser — that's an Android/PWA quirk, not a bug on this page. Tap the copy icon instead, then open your browser app yourself and paste it into the address bar.</span>
+      <div class="copy-row">
+        <code id="waGenUrl">create.wa.link</code>
+        <button class="copy-btn" id="waCopyBtn" title="Copy to clipboard" aria-label="Copy to clipboard">📋</button>
+      </div>
     </div>
+    <div class="msg" id="waCopyMsg"></div>
     <div class="wa-list" id="waList"></div>
     <div class="add-row">
       <input type="text" id="waLabelInput" placeholder="Button label, e.g. 🚨 Raided">
@@ -174,6 +185,19 @@ async function loadWaLinks(){
     });
   });
 }
+
+document.getElementById('waCopyBtn').addEventListener('click', async () => {
+  const copyMsg = document.getElementById('waCopyMsg');
+  const text = 'https://create.wa.link/';
+  try {
+    await navigator.clipboard.writeText(text);
+    copyMsg.textContent = 'Copied — now open your browser app and paste it in.';
+    copyMsg.className = 'msg ok';
+  } catch (e) {
+    copyMsg.textContent = 'Could not copy automatically — long-press the text above to copy it manually.';
+    copyMsg.className = 'msg err';
+  }
+});
 
 async function ensureProfile(){
   if (myProfile && myProfile.id) return myProfile;
