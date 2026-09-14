@@ -175,6 +175,59 @@ async function loadWaLinks(){
   });
 }
 
+async function ensureProfile(){
+  if (myProfile && myProfile.id) return myProfile;
+  // Self-heal: if init() hasn't completed yet (e.g. the page was suspended
+  // while you were on an external site like create.wa.link and resumed in a
+  // half-finished state), fetch what we need right now instead of silently
+  // doing nothing.
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session || !session.user) return null;
+  const { data: profile } = await sb.from('tracker_profiles').select('*').eq('id', session.user.id).maybeSingle();
+  myProfile = profile;
+  return myProfile;
+}
+
+// Attached immediately at parse time (not inside init()) so this always
+// works, even if init()'s async chain hasn't finished yet.
+document.getElementById('waAddBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('waMsg');
+  msg.textContent = 'Saving…';
+  msg.className = 'msg';
+  try {
+    const label = document.getElementById('waLabelInput').value.trim();
+    let url = document.getElementById('waUrlInput').value.trim();
+    if (!label || !url) { msg.textContent = 'Both a label and a link are needed.'; msg.className = 'msg err'; return; }
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url; // people often paste "wa.link/xyz" without the scheme
+    const isWhatsappLink = /^https:\/\/(wa\.me|wa\.link|api\.whatsapp\.com)\//i.test(url);
+    if (!isWhatsappLink) {
+      msg.textContent = 'That doesn\'t look like a WhatsApp link — it should be a wa.link, wa.me, or api.whatsapp.com link.';
+      msg.className = 'msg err';
+      return;
+    }
+    const profile = await ensureProfile();
+    if (!profile) {
+      msg.textContent = 'Could not confirm your session — please refresh the page and try again.';
+      msg.className = 'msg err';
+      return;
+    }
+    const { error } = await sb.from('member_contact_links').insert({ profile_id: profile.id, label, whatsapp_url: url });
+    if (error) {
+      msg.textContent = `Could not save — ${error.message || JSON.stringify(error)} (code: ${error.code || 'none'})`;
+      msg.className = 'msg err';
+      return;
+    }
+    msg.textContent = 'Added ✓';
+    msg.className = 'msg ok';
+    document.getElementById('waLabelInput').value = '';
+    document.getElementById('waUrlInput').value = '';
+    loadWaLinks();
+  } catch (e) {
+    msg.textContent = `JS error — ${e.message || String(e)}`;
+    msg.className = 'msg err';
+  }
+});
+
 async function init(){
   const { data: { session } } = await sb.auth.getSession();
   const { data: profile } = await sb.from('tracker_profiles').select('*').eq('id', session.user.id).maybeSingle();
@@ -185,37 +238,14 @@ async function init(){
   await loadWaLinks();
 
   document.getElementById('nameSearch').addEventListener('input', (e) => renderSearchResults(e.target.value));
-
-  document.getElementById('waAddBtn').addEventListener('click', async () => {
-    const msg = document.getElementById('waMsg');
-    try {
-      const label = document.getElementById('waLabelInput').value.trim();
-      let url = document.getElementById('waUrlInput').value.trim();
-      if (!label || !url) { msg.textContent = 'Both a label and a link are needed.'; msg.className = 'msg err'; return; }
-      if (!/^https?:\/\//i.test(url)) url = 'https://' + url; // people often paste "wa.link/xyz" without the scheme
-      const isWhatsappLink = /^https:\/\/(wa\.me|wa\.link|api\.whatsapp\.com)\//i.test(url);
-      if (!isWhatsappLink) {
-        msg.textContent = 'That doesn\'t look like a WhatsApp link — it should be a wa.link, wa.me, or api.whatsapp.com link.';
-        msg.className = 'msg err';
-        return;
-      }
-      const { error } = await sb.from('member_contact_links').insert({ profile_id: myProfile.id, label, whatsapp_url: url });
-      if (error) {
-        msg.textContent = `Could not save — ${error.message || JSON.stringify(error)} (code: ${error.code || 'none'})`;
-        msg.className = 'msg err';
-        return;
-      }
-      msg.textContent = 'Added ✓';
-      msg.className = 'msg ok';
-      document.getElementById('waLabelInput').value = '';
-      document.getElementById('waUrlInput').value = '';
-      loadWaLinks();
-    } catch (e) {
-      msg.textContent = `JS error — ${e.message || String(e)}`;
-      msg.className = 'msg err';
-    }
-  });
 }
+
+// Re-sync whenever the tab/PWA regains visibility (e.g. after visiting
+// create.wa.link and coming back), so a stale/suspended state doesn't
+// silently linger.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') loadWaLinks().catch(() => {});
+});
 
 document.addEventListener('tracker-auth-ready', init);
 </script>
