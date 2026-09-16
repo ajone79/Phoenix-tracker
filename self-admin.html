@@ -441,12 +441,17 @@ async function init(){
   const { data: profile } = await sb.from('tracker_profiles').select('*').eq('id', session.user.id).maybeSingle();
   myProfile = profile;
 
-  renderCurrentMatch();
-  await loadRosterAndClaims();
-  refreshPushStatus();
-  await loadWaLinks();
+  // Each section runs independently now — a failure in one (e.g. roster
+  // matching) can no longer silently prevent the others from running, which
+  // is exactly what left Push Notifications stuck on "Checking…" before.
+  try { renderCurrentMatch(); } catch (e) { console.error('renderCurrentMatch failed', e); }
+  try { await loadRosterAndClaims(); } catch (e) { console.error('loadRosterAndClaims failed', e); }
+  try { await refreshPushStatus(); } catch (e) { console.error('refreshPushStatus failed', e); }
+  try { await loadWaLinks(); } catch (e) { console.error('loadWaLinks failed', e); }
 
-  document.getElementById('nameSearch').addEventListener('input', (e) => renderSearchResults(e.target.value));
+  try {
+    document.getElementById('nameSearch').addEventListener('input', (e) => renderSearchResults(e.target.value));
+  } catch (e) { console.error('nameSearch listener failed', e); }
 }
 
 // Re-sync whenever the tab/PWA regains visibility (e.g. after visiting
@@ -462,6 +467,13 @@ document.addEventListener('visibilitychange', () => {
 // Notifications panel stuck on "Checking…" forever).
 if (window.__trackerProfile) init();
 else document.addEventListener('tracker-auth-ready', init);
+
+setTimeout(() => {
+  const statusText = document.getElementById('pushStatusText');
+  if (statusText && statusText.textContent.trim() === 'Checking…') {
+    refreshPushStatus().catch(e => setPushStatus(false, 'Could not check status: ' + e.message));
+  }
+}, 5000);
 </script>
 </body>
 </html>
