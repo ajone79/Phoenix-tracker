@@ -281,7 +281,34 @@ async function refreshPushStatus(){
   }
   try {
     const sub = await currentPushSubscription();
-    setPushStatus(!!sub, sub ? 'Notifications are on for this device' : 'Notifications are off for this device');
+    if (!sub) {
+      setPushStatus(false, 'Notifications are off for this device');
+      return;
+    }
+    // The browser remembering a subscription is NOT the same as it being
+    // saved in our database — verify the row actually exists, and if it
+    // doesn't (e.g. the table was rebuilt at some point, or a previous save
+    // silently failed), re-save it now instead of just displaying "on"
+    // based on stale browser-only state.
+    const profile = await ensureProfile();
+    if (!profile) { setPushStatus(false, 'Could not confirm your session'); return; }
+    const json = sub.toJSON();
+    const { data: row } = await sb.from('push_subscriptions').select('id')
+      .eq('user_id', profile.id).eq('endpoint', json.endpoint).maybeSingle();
+    if (!row) {
+      const { error } = await sb.from('push_subscriptions').upsert({
+        user_id: profile.id,
+        endpoint: json.endpoint,
+        p256dh: json.keys.p256dh,
+        auth: json.keys.auth,
+        user_agent: navigator.userAgent,
+      }, { onConflict: 'user_id,endpoint' });
+      if (error) {
+        setPushStatus(false, 'Subscribed in browser but could not save — tap Enable to retry');
+        return;
+      }
+    }
+    setPushStatus(true, 'Notifications are on for this device');
   } catch (e) {
     setPushStatus(false, 'Could not check status: ' + e.message);
   }
