@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-17T09:14:15.188330+00:00",
+  "generatedAt": "2026-09-17T16:21:17.980350+00:00",
   "events": [
     {
       "id": 174,
@@ -11133,11 +11133,11 @@
     },
     {
       "id": 1055,
-      "title": "Update 95: Coming Soon...",
+      "title": "Update 95: Haven",
       "description": "October Arc Banner",
-      "imageUrl": "https://i.redd.it/6aieswh5y66d1.gif",
-      "startUTC": "2026-09-17T15:00:00.000Z",
-      "endUTC": "2026-10-15T16:00:00.000Z",
+      "imageUrl": "https://i.ibb.co/1JvDhbyt/d405934e2076.webp",
+      "startUTC": "2026-09-17T16:00:00.000Z",
+      "endUTC": "2026-10-14T16:00:00.000Z",
       "eventType": "arc_banner",
       "eventSubType": "",
       "eventFormat": null,
