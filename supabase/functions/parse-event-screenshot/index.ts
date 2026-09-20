@@ -4,7 +4,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const SUPABASE_URL = "https://mmzizgsanwqjpiumpqay.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM";
 
-const GROQ_MODEL = "qwen/qwen3.6-27b";
+const GROQ_MODEL = "qwen/qwen3.8-27b";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -154,3 +154,4 @@ Deno.serve(async (req: Request) => {
     return json({ error: String(e) }, 500);
   }
 });
+
