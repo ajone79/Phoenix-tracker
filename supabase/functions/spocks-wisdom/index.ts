@@ -75,6 +75,20 @@ function anyMatch(haystack: string, keywords: string[]): boolean {
   return keywords.some((k) => h.includes(k));
 }
 
+// Weighted match: a hit on a word from the CURRENT question counts double a hit on a
+// word borrowed from earlier in the chat, so a new topic isn't crowded out by an old one.
+function rank<T>(rows: T[], textOf: (r: T) => string, primary: string[], context: string[]): T[] {
+  return rows
+    .map((r) => {
+      const h = textOf(r).toLowerCase();
+      const score = primary.filter((k) => h.includes(k)).length * 2 + context.filter((k) => h.includes(k)).length;
+      return { r, score };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((x) => x.r);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -103,7 +117,17 @@ Deno.serve(async (req: Request) => {
     // falling back to groq for anything unrecognized.
     const requestedProvider = (typeof body?.provider === "string" && PROVIDERS[body.provider]) ? body.provider : "groq";
 
-    const keywords = keywordsFrom(lastUserMsg);
+    // Always blend in what the chat has already been about: the last two earlier user
+    // questions, plus the names/terms in Spock's previous answer. Words from the current
+    // question still rank first (see rank()).
+    const primaryKeywords = keywordsFrom(lastUserMsg);
+    const earlierUserMsgs = messages.filter((m) => m.role === "user").map((m) => m.content).slice(-3, -1);
+    const lastAssistantMsg = [...messages].reverse().find((m) => m.role === "assistant")?.content ?? "";
+    const assistantTerms = [...new Set(lastAssistantMsg.match(/\b[A-Z][A-Za-z'’-]{2,}\b/g) || [])].slice(0, 8);
+    const contextKeywords = [...new Set([
+      ...earlierUserMsgs.reverse().flatMap(keywordsFrom),
+      ...keywordsFrom(assistantTerms.join(" ")),
+    ])].filter((k) => !primaryKeywords.includes(k)).slice(0, 12);
     const contextParts: string[] = [];
     const sources: { type: string; title: string; url?: string; image?: string }[] = [];
     const useExternal = requestedProvider === "groq" && needsExternalSearch(lastUserMsg);
@@ -155,8 +179,10 @@ Deno.serve(async (req: Request) => {
 
     // Crews — only pull rows that look relevant to the question, to keep this cheap.
     const { data: allCrews } = await sb.from("crews").select("title,hostile_types,notes,warning,link_url,link_label,image_url").limit(300);
-    const matchedCrews = (allCrews || []).filter((c) =>
-      keywords.length === 0 || anyMatch(`${c.title} ${(c.hostile_types || []).join(" ")} ${c.notes ?? ""}`, keywords)
+    const matchedCrews = rank(
+      allCrews || [],
+      (c) => `${c.title} ${(c.hostile_types || []).join(" ")} ${c.notes ?? ""}`,
+      primaryKeywords, contextKeywords,
     ).slice(0, 8);
     if (matchedCrews.length) {
       contextParts.push(
@@ -181,8 +207,10 @@ Deno.serve(async (req: Request) => {
         .select("fc_id,category_group,category")
         .eq("active", true)
         .limit(400);
-      const matchedRatings = (allRatings || []).filter((r) =>
-        keywords.length > 0 && anyMatch(`${r.category_group ?? ""} ${r.category ?? ""}`, keywords)
+      const matchedRatings = rank(
+        allRatings || [],
+        (r) => `${r.category_group ?? ""} ${r.category ?? ""}`,
+        primaryKeywords, contextKeywords,
       );
       if (matchedRatings.length) {
         const fcIds = [...new Set(matchedRatings.map((r) => r.fc_id))].slice(0, 6);
@@ -223,8 +251,10 @@ Deno.serve(async (req: Request) => {
 
     // F2P tasks — same keyword-relevance filter.
     const { data: allTasks } = await sb.from("f2p_tasks").select("task,category,notes").limit(300);
-    const matchedTasks = (allTasks || []).filter((t) =>
-      keywords.length > 0 && anyMatch(`${t.task} ${t.category ?? ""} ${t.notes ?? ""}`, keywords)
+    const matchedTasks = rank(
+      allTasks || [],
+      (t) => `${t.task} ${t.category ?? ""} ${t.notes ?? ""}`,
+      primaryKeywords, contextKeywords,
     ).slice(0, 8);
     if (matchedTasks.length) {
       contextParts.push(
@@ -240,9 +270,10 @@ Deno.serve(async (req: Request) => {
       const { data: allSheets } = await sb.from("sheet_content_index")
         .select("title,category,tags,description,sheet_url,image_link,content_text")
         .limit(200);
-      const matchedSheets = (allSheets || []).filter((s) =>
-        keywords.length > 0 &&
-        anyMatch(`${s.title ?? ""} ${s.category ?? ""} ${s.description ?? ""} ${s.tags ?? ""} ${s.content_text ?? ""}`, keywords)
+      const matchedSheets = rank(
+        allSheets || [],
+        (s) => `${s.title ?? ""} ${s.category ?? ""} ${s.description ?? ""} ${s.tags ?? ""} ${s.content_text ?? ""}`,
+        primaryKeywords, contextKeywords,
       ).slice(0, 2);
       console.log("sheet index rows available:", (allSheets || []).length, "| matched:", matchedSheets.map((s) => s.title));
       for (const sheet of matchedSheets) {
