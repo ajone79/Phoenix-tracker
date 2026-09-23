@@ -218,6 +218,34 @@
   .gallery-card .gc-caption{ color:var(--muted); font-size:11.5px; line-height:1.4; margin-bottom:6px; }
   .gallery-card .gc-credit{ color:var(--teal); font-size:11px; }
 
+  .g7carousel{ background:var(--panel-2); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .g7carousel-track{ position:relative; aspect-ratio:16/9; background:var(--panel); }
+  .g7carousel-track img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; transition:opacity .35s ease; pointer-events:none; }
+  .g7carousel-track img.active{ opacity:1; }
+  .g7carousel-nav{
+    position:absolute; top:50%; transform:translateY(-50%);
+    background:rgba(10,13,22,.55); border:1px solid var(--line); color:var(--text);
+    width:36px; height:36px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:19px; line-height:1; user-select:none;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  .g7carousel-nav:hover{ background:rgba(10,13,22,.85); border-color:var(--amber-dim); }
+  .g7carousel-prev{ left:10px; }
+  .g7carousel-next{ right:10px; }
+  .g7carousel-counter{
+    position:absolute; top:10px; right:12px;
+    background:rgba(10,13,22,.6); color:var(--muted); font-size:11px;
+    padding:3px 9px; border-radius:20px; font-family:'Share Tech Mono', monospace;
+  }
+  .g7carousel-dots{ display:flex; justify-content:center; flex-wrap:wrap; gap:6px; padding:12px; }
+  .g7carousel-dot{
+    width:7px; height:7px; border-radius:50%; background:var(--line); cursor:pointer;
+    transition:background .15s ease, transform .15s ease;
+  }
+  .g7carousel-dot.active{ background:var(--amber); transform:scale(1.35); }
+  .g7carousel-credit{ text-align:center; color:var(--teal); font-size:11px; padding:0 12px 12px; }
+
   .glightbox{
     position:fixed; inset:0; z-index:70;
     background:rgba(4,6,12,.94);
@@ -282,6 +310,7 @@
     <a href="#weekly">Weekly Events</a>
     <a href="#overview">Arc Overview</a>
     <a href="#crews">Suggested Crews</a>
+    <a href="#g7guide">Welcome to G7</a>
     <a href="#promo">Promo Codes</a>
     <a href="#trivia">Trivia Answers</a>
   </div>
@@ -315,6 +344,12 @@
     <h2>Suggested Crews</h2>
     <div class="block-sub">Recommended officer crews for this arc's content. Tap a card to view full size.</div>
     <div class="gallery" id="crewsGallery"></div>
+  </section>
+
+  <section class="block" id="g7guide">
+    <h2>Welcome to G7</h2>
+    <div class="block-sub">Intro guide for hitting Grade 7 — swipe or use the arrows to step through.</div>
+    <div id="g7guideCarousel"></div>
   </section>
 
   <section class="block" id="promo">
@@ -466,6 +501,59 @@ loadTrivia();
 // edited from home-admin.html without touching this file.
 let galleryData = { overviewGallery: [], crewsGallery: [] };
 
+function renderCarousel(containerId, items){
+  const el = document.getElementById(containerId);
+  const section = el.closest('.block');
+  if(!items.length){
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+  let idx = 0;
+  el.innerHTML = `
+    <div class="g7carousel">
+      <div class="g7carousel-track">
+        ${items.map((it,i) => `<img src="${it.image}" alt="${escapeHtml(it.title)}" loading="${i===0?'eager':'lazy'}" class="${i===0?'active':''}" data-i="${i}">`).join('')}
+        <div class="g7carousel-counter" id="${containerId}Counter">1 / ${items.length}</div>
+        <div class="g7carousel-nav g7carousel-prev" id="${containerId}Prev">‹</div>
+        <div class="g7carousel-nav g7carousel-next" id="${containerId}Next">›</div>
+      </div>
+      <div class="g7carousel-dots" id="${containerId}Dots">
+        ${items.map((it,i) => `<div class="g7carousel-dot${i===0?' active':''}" data-i="${i}"></div>`).join('')}
+      </div>
+      ${items[0].credit ? `<div class="g7carousel-credit">${escapeHtml(items[0].credit)}</div>` : ''}
+    </div>
+  `;
+  const track = el.querySelector('.g7carousel-track');
+  const imgs = [...track.querySelectorAll('img')];
+  const dots = [...el.querySelectorAll('.g7carousel-dot')];
+  const counter = document.getElementById(`${containerId}Counter`);
+  let timer;
+  function show(i){
+    idx = (i + items.length) % items.length;
+    imgs.forEach((img, n) => img.classList.toggle('active', n === idx));
+    dots.forEach((d, n) => d.classList.toggle('active', n === idx));
+    counter.textContent = `${idx + 1} / ${items.length}`;
+  }
+  function next(){ show(idx + 1); }
+  function prev(){ show(idx - 1); }
+  function restart(){ clearInterval(timer); timer = setInterval(next, 6000); }
+  document.getElementById(`${containerId}Next`).addEventListener('click', () => { next(); restart(); });
+  document.getElementById(`${containerId}Prev`).addEventListener('click', () => { prev(); restart(); });
+  dots.forEach(d => d.addEventListener('click', () => { show(Number(d.dataset.i)); restart(); }));
+  el.addEventListener('mouseenter', () => clearInterval(timer));
+  el.addEventListener('mouseleave', restart);
+  let touchX = null;
+  track.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, {passive:true});
+  track.addEventListener('touchend', e => {
+    if(touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if(Math.abs(dx) > 40){ dx < 0 ? next() : prev(); restart(); }
+    touchX = null;
+  }, {passive:true});
+  restart();
+}
+
 function renderGallery(containerId, items){
   const el = document.getElementById(containerId);
   if(!items.length){
@@ -512,13 +600,16 @@ async function loadGalleries(){
     const rows = await sb('home_gallery_items?select=*&order=gallery.asc,sort_order.asc');
     const overview = rows.filter(r => r.gallery === 'overview').map(r => ({title:r.title, image:r.image_url, caption:r.caption, credit:r.credit}));
     const crews = rows.filter(r => r.gallery === 'crews').map(r => ({title:r.title, image:r.image_url, caption:r.caption, credit:r.credit}));
+    const g7guide = rows.filter(r => r.gallery === 'g7-guide').map(r => ({title:r.title, image:r.image_url, caption:r.caption, credit:r.credit}));
     galleryData = { overviewGallery: overview, crewsGallery: crews };
     renderGallery('overviewGallery', overview);
     renderGallery('crewsGallery', crews);
+    renderCarousel('g7guideCarousel', g7guide);
   }catch(e){
     console.error('loadGalleries failed', e);
     renderGallery('overviewGallery', []);
     renderGallery('crewsGallery', []);
+    renderCarousel('g7guideCarousel', []);
   }
 }
 

@@ -726,6 +726,7 @@ function render(){
       ${briefingSectionHtml()}
       ${gallerySectionHtml('overview', 'Arc Overview Gallery', 'Cards shown in the Arc Overview block on the home screen.')}
       ${gallerySectionHtml('crews', 'Suggested Crews Gallery', 'Cards shown in the Suggested Crews block on the home screen.')}
+      ${gallerySectionHtml('g7-guide', 'G7 Guide Carousel', 'Slides shown in the "Welcome to G7" carousel on the home screen. Sort order controls slide sequence.')}
       ${promoSectionHtml()}
       ${triviaSectionHtml()}
       ${scheduleSectionHtml()}
@@ -736,6 +737,7 @@ function render(){
   wireBriefingSection();
   wireGallerySection('overview');
   wireGallerySection('crews');
+  wireGallerySection('g7-guide');
   wirePromoSection();
   wireTriviaSection();
   wireScheduleSection();
