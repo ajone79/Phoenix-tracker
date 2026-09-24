@@ -669,8 +669,21 @@ async function saveName(id){
 
 // ==================== Score import from screenshot ====================
 
+// Transliterate to plain ASCII (mirrors unidecode in scripts/sync_roster.py) so roster names
+// containing Cyrillic/Greek/accented lookalikes still compare against OCR'd Latin text.
+const TRANSLIT_MAP = {
+  'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'e','ж':'zh','з':'z','и':'i','й':'i','к':'k','л':'l','м':'m',
+  'н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'shch',
+  'ъ':'','ы':'y','ь':'','э':'e','ю':'iu','я':'ia','і':'i','ї':'i','є':'e','ґ':'g',
+  'α':'a','β':'b','γ':'g','δ':'d','ε':'e','ζ':'z','η':'e','θ':'th','ι':'i','κ':'k','λ':'l','μ':'m','ν':'n','ξ':'x',
+  'ο':'o','π':'p','ρ':'r','σ':'s','ς':'s','τ':'t','υ':'u','φ':'ph','χ':'kh','ψ':'ps','ω':'o',
+  'đ':'d','ð':'d','ł':'l','ø':'o','ß':'ss','æ':'ae','œ':'oe','þ':'th','ı':'i'
+};
 function normalizeName(s){
-  return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const lowered = String(s||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  let out = '';
+  for (const ch of lowered) out += (TRANSLIT_MAP[ch] !== undefined ? TRANSLIT_MAP[ch] : ch);
+  return out.replace(/[^a-z0-9]/g,'');
 }
 
 function levenshtein(a, b){
@@ -699,7 +712,12 @@ function bestRosterMatch(extractedName){
   const exact = roster.find(r => normalizeName(r.name) === norm);
   if (exact) return { playerId: exact.id, confidence: 'exact' };
 
-  const contains = roster.find(r => normalizeName(r.name).includes(norm) || norm.includes(normalizeName(r.name)));
+  // Guard: a roster name that normalizes to '' (or is very short) would "match" everything via includes().
+  const contains = norm.length >= 3 ? roster.find(r => {
+    const rn = normalizeName(r.name);
+    if (rn.length < 3) return false;
+    return rn.includes(norm) || norm.includes(rn);
+  }) : null;
   if (contains) return { playerId: contains.id, confidence: 'substring' };
 
   let best = null, bestDist = Infinity;
@@ -919,7 +937,7 @@ function reviewTableHtml(){
   const rows = extractedRows.map((r, i) => {
     const isFlagged = r.existingScore != null && r.score < r.existingScore;
     const noMatch = !r.playerId;
-    const isFuzzy = r.matchConfidence === 'fuzzy';
+    const isFuzzy = r.matchConfidence === 'fuzzy' || r.matchConfidence === 'substring';
     const rowClass = isFlagged ? 'flagged' : (noMatch ? 'nomatch' : (isFuzzy ? 'fuzzymatch' : ''));
     return `
       <tr class="${rowClass}" data-row="${i}">
@@ -930,7 +948,7 @@ function reviewTableHtml(){
             <option value="">— no match, pick manually —</option>
             ${roster.map(p=>`<option value="${p.id}" ${p.id===r.playerId?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}
           </select>
-          ${isFuzzy ? `<div class="fuzzy-note">⚠ auto-matched (closest name) — please verify</div>` : ''}
+          ${isFuzzy ? `<div class="fuzzy-note">⚠ auto-matched (${r.matchConfidence==='substring'?'partial name':'closest name'}) — please verify</div>` : ''}
         </td>
         <td><input type="number" data-scoreinput="${i}" value="${r.score}"></td>
         <td>
