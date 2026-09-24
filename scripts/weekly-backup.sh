@@ -32,16 +32,37 @@ mkdir -p "$OUT_DIR"
 
 echo "Backing up to ${OUT_DIR}/ ..."
 
+# Supabase returns at most 1000 rows per request, so each table is fetched in pages of 1000
+# using Range headers and merged. (A single request silently truncated `scores` at 1000 rows.)
+PAGE=1000
+
+fetch_table() {
+  local table="$1" out="$2" offset=0 order="" tmp http_code n
+  if [ "$table" = "scores" ]; then order="&order=event_id.asc,player_id.asc"; fi  # stable order across pages
+  echo "[]" > "$out"
+  while true; do
+    tmp=$(mktemp)
+    http_code=$(curl -s -o "$tmp" -w "%{http_code}" \
+      "${SUPABASE_URL}/rest/v1/${table}?select=*${order}" \
+      -H "apikey: ${SUPABASE_ANON_KEY}" \
+      -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+      -H "Range-Unit: items" \
+      -H "Range: ${offset}-$((offset + PAGE - 1))")
+    if [ "$http_code" = "416" ]; then rm -f "$tmp"; break; fi   # past the last row
+    if [ "$http_code" != "200" ] && [ "$http_code" != "206" ]; then
+      echo "    !! HTTP ${http_code} fetching ${table} -- see ${out} for the error body"
+      cp "$tmp" "$out"; rm -f "$tmp"; exit 1
+    fi
+    n=$(python3 scripts/merge_page.py "$out" "$tmp")
+    rm -f "$tmp"
+    if [ "$n" -lt "$PAGE" ]; then break; fi
+    offset=$((offset + PAGE))
+  done
+}
+
 for table in "${TABLES[@]}"; do
   echo "  - ${table}"
-  http_code=$(curl -s -o "${OUT_DIR}/${table}.json" -w "%{http_code}" \
-    "${SUPABASE_URL}/rest/v1/${table}?select=*" \
-    -H "apikey: ${SUPABASE_ANON_KEY}" \
-    -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
-  if [ "$http_code" != "200" ]; then
-    echo "    !! HTTP ${http_code} fetching ${table} -- see ${OUT_DIR}/${table}.json for the error body"
-    exit 1
-  fi
+  fetch_table "$table" "${OUT_DIR}/${table}.json"
   # sanity check: valid JSON array
   python3 -c "import json,sys; d=json.load(open('${OUT_DIR}/${table}.json')); assert isinstance(d, list); print(f'    {len(d)} rows')"
 done
