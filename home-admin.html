@@ -59,6 +59,12 @@
   .sched-day-box textarea{min-height:44px;font-size:11.5px;}
   .sched-day-box textarea:focus{min-height:140px;font-size:13px;}
   .sched-day-box input[type=text]{font-size:11.5px;margin-bottom:6px;}
+  .tabbar{display:flex;gap:6px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid var(--hair);margin:0 0 6px;position:sticky;top:0;background:var(--void);z-index:50;}
+  .tab-btn{font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:12px;padding:10px 16px;background:transparent;color:var(--text-dim);border:none;border-bottom:3px solid transparent;cursor:pointer;flex-shrink:0;}
+  .tab-btn:hover{color:var(--text);}
+  .tab-btn.active{color:var(--signal);border-bottom-color:var(--signal);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
 </style>
 </head>
 <body>
@@ -84,6 +90,8 @@ async function uploadHomeImage(file, statusEl){
 }
 
 
+let activeTab = 'briefing';
+try { const t = sessionStorage.getItem('phxHomeAdminTab'); if (t) activeTab = t; } catch(e) {}
 let me = null;
 let session = null;
 let homeContent = null;
@@ -711,6 +719,14 @@ function wireEditorsSection(){
 
 /* ---------------- Shell ---------------- */
 function render(){
+  const tabs = [
+    { key: 'briefing',  label: '🏠 Briefing &amp; Schedule' },
+    { key: 'galleries', label: '🖼 Galleries' },
+    { key: 'arc',       label: '🎯 Arc Content' },
+  ];
+  if (me.can_broadcast) tabs.push({ key: 'broadcast', label: '🚨 Broadcast' });
+  if (me.is_owner) tabs.push({ key: 'editors', label: '👥 Editors' });
+  if (!tabs.some(t => t.key === activeTab)) activeTab = 'briefing';
   document.getElementById('app').innerHTML = `
     <div class="topbar">
       <div class="elbow"><span>PHX</span></div>
@@ -722,15 +738,33 @@ function render(){
       </div>
     </div>
     <main>
-      ${broadcastSectionHtml()}
-      ${briefingSectionHtml()}
-      ${gallerySectionHtml('overview', 'Arc Overview Gallery', 'Cards shown in the Arc Overview block on the home screen.')}
-      ${gallerySectionHtml('crews', 'Suggested Crews Gallery', 'Cards shown in the Suggested Crews block on the home screen.')}
-      ${gallerySectionHtml('g7-guide', 'G7 Guide Carousel', 'Slides shown in the "Welcome to G7" carousel on the home screen. Sort order controls slide sequence.')}
-      ${promoSectionHtml()}
-      ${triviaSectionHtml()}
-      ${scheduleSectionHtml()}
-      ${editorsSectionHtml()}
+      <div class="tabbar" role="tablist">
+        ${tabs.map(t => `<button class="tab-btn ${activeTab===t.key?'active':''}" data-tab="${t.key}">${t.label}</button>`).join('')}
+      </div>
+
+      <div class="tab-panel ${activeTab==='briefing'?'active':''}" data-panel="briefing">
+        ${briefingSectionHtml()}
+        ${scheduleSectionHtml()}
+      </div>
+
+      <div class="tab-panel ${activeTab==='galleries'?'active':''}" data-panel="galleries">
+        ${gallerySectionHtml('overview', 'Arc Overview Gallery', 'Cards shown in the Arc Overview block on the home screen.')}
+        ${gallerySectionHtml('crews', 'Suggested Crews Gallery', 'Cards shown in the Suggested Crews block on the home screen.')}
+        ${gallerySectionHtml('g7-guide', 'G7 Guide Carousel', 'Slides shown in the "Welcome to G7" carousel on the home screen. Sort order controls slide sequence.')}
+      </div>
+
+      <div class="tab-panel ${activeTab==='arc'?'active':''}" data-panel="arc">
+        ${promoSectionHtml()}
+        ${triviaSectionHtml()}
+      </div>
+
+      ${me.can_broadcast ? `<div class="tab-panel ${activeTab==='broadcast'?'active':''}" data-panel="broadcast">
+        ${broadcastSectionHtml()}
+      </div>` : ''}
+
+      ${me.is_owner ? `<div class="tab-panel ${activeTab==='editors'?'active':''}" data-panel="editors">
+        ${editorsSectionHtml()}
+      </div>` : ''}
     </main>
   `;
   wireBroadcastSection();
@@ -742,6 +776,14 @@ function render(){
   wireTriviaSection();
   wireScheduleSection();
   wireEditorsSection();
+
+  document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => {
+    activeTab = btn.dataset.tab;
+    try { sessionStorage.setItem('phxHomeAdminTab', activeTab); } catch(e) {}
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === activeTab));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === activeTab));
+    window.scrollTo({ top: 0 });
+  }));
 }
 
 init();

@@ -93,6 +93,13 @@
   .stitch-thumb img{width:100%;display:block;max-height:220px;object-fit:cover;object-position:top;}
   .stitch-thumb .lbl{font-size:9px;color:var(--text-faint);padding:3px 6px;}
   .stitch-thumb .rm{position:absolute;top:4px;right:4px;background:rgba(10,10,13,.85);border:1px solid var(--alert);color:var(--alert);width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:11px;line-height:1;}
+  .tabbar{display:flex;gap:6px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid var(--hair);margin:14px 0 6px;padding-bottom:0;position:sticky;top:0;background:var(--void);z-index:50;}
+  .tab-btn{font-family:'Antonio',sans-serif;font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:12px;padding:10px 16px;background:transparent;color:var(--text-dim);border:none;border-bottom:3px solid transparent;cursor:pointer;flex-shrink:0;}
+  .tab-btn:hover{color:var(--text);}
+  .tab-btn.active{color:var(--signal);border-bottom-color:var(--signal);}
+  .tab-badge{display:inline-block;min-width:16px;padding:1px 6px;margin-left:4px;border-radius:20px;background:var(--gold);color:var(--void);font-size:10px;text-align:center;}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
 </style>
 </head>
 <body>
@@ -146,6 +153,8 @@ let mySession = null;
 
 let extractedRows = []; // {name, score, playerId, existingScore}
 let extractStatus = { loading: false, message: '', kind: '' };
+let activeTab = 'members';
+try { const t = sessionStorage.getItem('phxAdminTab'); if (t) activeTab = t; } catch(e) {}
 let guideOpen = false;
 let thresholdsOpen = false;
 let membersOpen = false;
@@ -443,10 +452,56 @@ function render(){
       <div class="topbar-bar"><div class="topbar-title"><b>PHOENIX</b> EU168 — ACCESS ADMIN</div></div>
     </div>
     <main>
+      <div class="tabbar" role="tablist">
+        <button class="tab-btn ${activeTab==='members'?'active':''}" data-tab="members">👥 Members${pending.length?` <span class="tab-badge">${pending.length}</span>`:''}</button>
+        <button class="tab-btn ${activeTab==='scores'?'active':''}" data-tab="scores">📊 Scores</button>
+        <button class="tab-btn ${activeTab==='events'?'active':''}" data-tab="events">🗓 Events</button>
+        <button class="tab-btn ${activeTab==='roster'?'active':''}" data-tab="roster">🔔 Roster${reviewQueue.length?` <span class="tab-badge">${reviewQueue.length}</span>`:''}</button>
+        <button class="tab-btn ${activeTab==='guide'?'active':''}" data-tab="guide">📖 Guide</button>
+      </div>
+
+      <div class="tab-panel ${activeTab==='members'?'active':''}" data-panel="members">
       <p style="font-size:11.5px;color:#8a8a94;">Signed in as <b>${escapeHtml(me.discord_username)}</b>. Approve pending Discord logins below and, since Discord names rarely match in-game names, type the correct in-game name next to each person yourself — matching this list against the roster.</p>
 
-      ${inviteSectionHtml()}
+      <h2>Pending approval (${pending.length})</h2>
+      <div id="pendingList">${pending.length ? pending.map(rowHtml).join('') : '<div class="empty">Nobody waiting.</div>'}</div>
 
+      <div class="allowlist-banner"><b>Intended admins:</b><br>${allowChips}</div>
+
+      <h2>👑 Admins (${admins.length})</h2>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Full access to this page. Kept separate and always visible so it's easy to spot who currently has it.</div>
+      <div id="adminsList">${admins.length ? admins.map(rowHtml).join('') : '<div class="empty">No admins yet.</div>'}</div>
+
+      <h2>Approved members (${regularMembers.length})</h2>
+      <div id="membersBox" style="margin-top:10px;">
+        <div id="approvedList">${regularMembers.length ? regularMembers.map(rowHtml).join('') : '<div class="empty">No approved members yet.</div>'}</div>
+      </div>
+      ${inviteSectionHtml()}
+      </div>
+
+      <div class="tab-panel ${activeTab==='scores'?'active':''}" data-panel="scores">
+      <h2>Import scores from screenshot</h2>
+      <div id="importBoxWrap">${importSectionHtml()}</div>
+
+      </div>
+
+      <div class="tab-panel ${activeTab==='events'?'active':''}" data-panel="events">
+      <h2>Event thresholds</h2>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Scoring type, completion mode and threshold for every event. New events are created from the Scores tab, next to the event dropdown.</div>
+      <div id="thresholdsBox">
+        <div class="import-box">
+          <table class="review-table" id="eventThresholdsTable">
+            <thead><tr><th>Event</th><th>Scoring Type</th><th>Completion Mode</th><th>Threshold</th><th></th><th></th></tr></thead>
+            <tbody>
+              ${events.map(e => eventThresholdRowHtml(e)).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      </div>
+
+      <div class="tab-panel ${activeTab==='roster'?'active':''}" data-panel="roster">
       ${reviewQueue.length > 0 ? `
       <h2>🔔 Roster Sync Review (${reviewQueue.length})</h2>
       <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Flagged automatically by the stfc.pro sync every 6 hours — new/unmatched players, possible departures, and low-confidence name matches. Renames are applied automatically already (shown here just for your audit trail); everything else waits for you to act.</div>
@@ -458,8 +513,17 @@ function render(){
       </div>
       ` : ''}
 
-      <button class="btn admin" id="guideToggle" style="margin-bottom:10px;">📖 How to use this page ${guideOpen ? '(hide)' : '(show)'}</button>
-      <div id="guideBox" style="${guideOpen ? '' : 'display:none;'}background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:16px 20px;margin-bottom:18px;font-size:11.5px;color:var(--text-dim);line-height:1.7;">
+      ${reviewQueue.length === 0 ? '<div class="empty">Nothing flagged by the roster sync right now.</div>' : ''}
+      <div class="import-box" style="margin:18px 0 4px;">
+        <div style="font-size:12px;color:var(--text-dim);">
+          ⚙️ AJ worked some magic — player names and levels now auto-update from stfc.pro every 6 hours. No manual editing needed here anymore.
+        </div>
+      </div>
+
+      </div>
+
+      <div class="tab-panel ${activeTab==='guide'?'active':''}" data-panel="guide">
+      <div id="guideBox" style="background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:16px 20px;margin-bottom:18px;font-size:11.5px;color:var(--text-dim);line-height:1.7;">
         <b style="color:var(--signal);">Approving new members</b><br>
         When someone signs in with Discord for the first time, they show up under "Pending approval" (right at the top of this page) with just a Discord name. Type their real in-game name into the box next to their row (check it against the roster if unsure), then hit <b>Approve</b>. They don't need to log in again — access takes effect immediately.<br><br>
 
@@ -490,39 +554,6 @@ function render(){
         10. <b>Save all checked (non-flagged)</b> writes everything else straight into the scores table and shows a green confirmation banner. Only the rows that actually got saved disappear from the table — anything skipped (unchecked, flagged, unmatched) stays visible so nothing gets lost. <b>Clear all rows</b> wipes the table completely if you want to start fresh.
       </div>
 
-      <div class="allowlist-banner"><b>Intended admins:</b><br>${allowChips}</div>
-
-      <h2>Pending approval (${pending.length})</h2>
-      <div id="pendingList">${pending.length ? pending.map(rowHtml).join('') : '<div class="empty">Nobody waiting.</div>'}</div>
-
-      <h2>Import scores from screenshot</h2>
-      <div id="importBoxWrap">${importSectionHtml()}</div>
-
-      <button class="btn admin" id="thresholdsToggle" style="margin:18px 0 4px;">Manage event thresholds ${thresholdsOpen ? '▲ (hide)' : '▼ (show)'}</button>
-      <div id="thresholdsBox" style="${thresholdsOpen ? '' : 'display:none;'}">
-        <div class="import-box">
-          <table class="review-table" id="eventThresholdsTable">
-            <thead><tr><th>Event</th><th>Scoring Type</th><th>Completion Mode</th><th>Threshold</th><th></th><th></th></tr></thead>
-            <tbody>
-              ${events.map(e => eventThresholdRowHtml(e)).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="import-box" style="margin:18px 0 4px;">
-        <div style="font-size:12px;color:var(--text-dim);">
-          ⚙️ AJ worked some magic — player names and levels now auto-update from stfc.pro every 6 hours. No manual editing needed here anymore.
-        </div>
-      </div>
-
-      <h2>👑 Admins (${admins.length})</h2>
-      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Full access to this page. Kept separate and always visible so it's easy to spot who currently has it.</div>
-      <div id="adminsList">${admins.length ? admins.map(rowHtml).join('') : '<div class="empty">No admins yet.</div>'}</div>
-
-      <button class="btn admin" id="membersToggle" style="margin:22px 0 4px;">Approved members (${regularMembers.length}) ${membersOpen ? '▲ (hide)' : '▼ (show)'}</button>
-      <div id="membersBox" style="${membersOpen ? '' : 'display:none;'}margin-top:10px;">
-        <div id="approvedList">${regularMembers.length ? regularMembers.map(rowHtml).join('') : '<div class="empty">No approved members yet.</div>'}</div>
       </div>
     </main>
   `;
@@ -587,6 +618,14 @@ function render(){
   });
 
   wireThresholdsTable();
+
+  document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => {
+    activeTab = btn.dataset.tab;
+    try { sessionStorage.setItem('phxAdminTab', activeTab); } catch(e) {}
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === activeTab));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === activeTab));
+    window.scrollTo({ top: 0 });
+  }));
 
   if (window.__phxInitNavMenu) window.__phxInitNavMenu();
 }
