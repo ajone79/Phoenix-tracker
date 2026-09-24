@@ -246,6 +246,12 @@ async function init(){
   if (!session) { location.href = 'login.html?next=admin.html'; return; }
   mySession = session;
 
+  if ((function(){ try { return sessionStorage.getItem('phxViewAs') === 'member'; } catch(e){ return false; } })()) {
+    document.getElementById('app').innerHTML = `<div class="gate"><div class="gate-box"><h2 style="color:#ffc857">Member view is on</h2><p style="color:#8a8a94;font-size:12px;">You're viewing the site as a regular member, so this page is hidden. Exit member view to get back in.</p><button class="btn admin" id="exitViewAs">Exit member view</button></div></div>`;
+    document.getElementById('exitViewAs').addEventListener('click', () => { try { sessionStorage.removeItem('phxViewAs'); } catch(e){} location.reload(); });
+    return;
+  }
+
   let { data: myProfile } = await sb.from('tracker_profiles').select('*').eq('id', session.user.id).maybeSingle();
   if (!myProfile || !myProfile.is_admin) {
     document.getElementById('app').innerHTML = `<div class="gate"><div class="gate-box"><h2 style="color:#ff5a5f">Not authorized</h2><p style="color:#8a8a94;font-size:12px;">This page is for alliance admins only.</p><a href="index.html" style="color:#ff9142;">← Back to tracker</a></div></div>`;
@@ -449,7 +455,7 @@ function render(){
   document.getElementById('app').innerHTML = `
     <div class="topbar">
       <div class="elbow"><span>PHX</span></div>
-      <div class="topbar-bar"><div class="topbar-title"><b>PHOENIX</b> EU168 — ACCESS ADMIN</div></div>
+      <div class="topbar-bar"><div class="topbar-title"><b>PHOENIX</b> EU168 — ACCESS ADMIN</div><button class="btn admin" style="margin-left:auto;" onclick="try{sessionStorage.setItem('phxViewAs','member');}catch(e){} location.href='/index.html';">👁 View as member</button></div>
     </div>
     <main>
       <div class="tabbar" role="tablist">

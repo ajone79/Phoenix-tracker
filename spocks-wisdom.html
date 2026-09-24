@@ -179,7 +179,7 @@ async function initGateOrSkipForAdmin(){
     const { data: { session } } = await sb.auth.getSession();
     if (session){
       const { data: profile } = await sb.from('tracker_profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
-      isAdmin = !!profile?.is_admin;
+      isAdmin = !!profile?.is_admin && !(function(){ try { return sessionStorage.getItem('phxViewAs') === 'member'; } catch(e){ return false; } })();
       renderProviderToggle();
       if (isAdmin && !forceGate){ unlockChat(); return; }
     }

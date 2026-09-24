@@ -1,4 +1,8 @@
 (function(){
+  // "View as member" (set from the admin pages): hides admin/owner UI in this browser tab only.
+  // Display-only - it does not change what the database allows.
+  const VIEW_AS_MEMBER = (function(){ try { return sessionStorage.getItem('phxViewAs') === 'member'; } catch(e){ return false; } })();
+  function maskProfile(p){ return (p && VIEW_AS_MEMBER) ? Object.assign({}, p, { is_admin:false, is_owner:false, is_home_editor:false, can_broadcast:false }) : p; }
   const PRIMARY = [
     {href:'/index.html', label:'Home', icon:'🪐'},
     {href:'/alb-participation.html', label:'ALB Part.', icon:'📡'},
@@ -84,7 +88,7 @@
     document.head.appendChild(style);
 
     let profile = window.__trackerProfile || null;
-    function P(){ if(!profile && window.__trackerProfile) profile = window.__trackerProfile; return profile; }
+    function P(){ if(!profile && window.__trackerProfile) profile = window.__trackerProfile; return maskProfile(profile); }
     function isAdmin(){ const p = P(); return !!(p && p.is_admin); }
     function isHomeEditor(){ const p = P(); return !!(p && (p.is_owner || p.is_home_editor)); }
 
@@ -159,6 +163,15 @@
 
     document.addEventListener('tracker-auth-ready', (e)=>{ profile = e.detail; refreshMorePanel(); });
     setTimeout(ensureProfile, 1200);
+
+    if (VIEW_AS_MEMBER) {
+      const pill = document.createElement('div');
+      pill.id = 'phx-viewas-pill';
+      pill.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:76px;z-index:100000;background:#ffc857;color:#050507;font-family:Antonio,sans-serif;font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:12px;padding:8px 14px;border-radius:24px;box-shadow:0 2px 12px rgba(0,0,0,.6);display:flex;gap:10px;align-items:center;';
+      pill.innerHTML = '<span>\u{1F441} Viewing as member</span><button type="button" style="all:unset;cursor:pointer;background:#050507;color:#ffc857;padding:3px 10px;border-radius:12px;">Exit</button>';
+      pill.querySelector('button').addEventListener('click', ()=>{ try{ sessionStorage.removeItem('phxViewAs'); }catch(e){} location.reload(); });
+      document.body.appendChild(pill);
+    }
   }
 
   if(document.readyState !== 'loading') init();

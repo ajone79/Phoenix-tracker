@@ -107,6 +107,12 @@ async function init(){
   if (!currentSession) { location.href = 'login.html?next=home-admin.html'; return; }
   session = currentSession;
 
+  if ((function(){ try { return sessionStorage.getItem('phxViewAs') === 'member'; } catch(e){ return false; } })()) {
+    document.getElementById('app').innerHTML = `<div class="gate"><div class="gate-box"><h2 style="color:#ffc857">Member view is on</h2><p style="color:#8a8a94;font-size:12px;">You're viewing the site as a regular member, so this page is hidden. Exit member view to get back in.</p><button class="btn admin" id="exitViewAs">Exit member view</button></div></div>`;
+    document.getElementById('exitViewAs').addEventListener('click', () => { try { sessionStorage.removeItem('phxViewAs'); } catch(e){} location.reload(); });
+    return;
+  }
+
   const { data: myProfile } = await sb.from('tracker_profiles').select('*').eq('id', session.user.id).maybeSingle();
   if (!myProfile || !(myProfile.is_owner || myProfile.is_home_editor)) {
     document.getElementById('app').innerHTML = `<div class="gate"><div class="gate-box"><h2 style="color:#ff5a5f;font-family:'Antonio',sans-serif;">Not authorized</h2><p style="color:#8a8a94;font-size:12px;">This page is restricted to the alliance owner and people granted home-screen editing access.</p><a href="index.html" style="color:#ff9142;">← Back to home</a></div></div>`;
@@ -735,6 +741,7 @@ function render(){
           <div class="topbar-title"><b>PHOENIX</b> Home Screen Admin</div>
           <div class="topbar-sub">${me.is_owner ? 'Owner access' : 'Home editor access'} — changes here appear on the live home screen immediately.</div>
         </div>
+        <button class="btn ghost" style="margin-left:auto;" onclick="try{sessionStorage.setItem('phxViewAs','member');}catch(e){} location.href='/index.html';">👁 View as member</button>
       </div>
     </div>
     <main>
