@@ -720,14 +720,17 @@ function bestRosterMatch(extractedName){
   }) : null;
   if (contains) return { playerId: contains.id, confidence: 'substring' };
 
-  let best = null, bestDist = Infinity;
+  // Fuzzy: only accept a close, unambiguous match. Anything further away is left for manual picking.
+  const maxDist = norm.length <= 5 ? 1 : Math.ceil(norm.length * 0.3);
+  let best = null, bestDist = Infinity, secondDist = Infinity;
   for (const r of roster) {
     const rn = normalizeName(r.name);
     if (!rn) continue;
     const d = levenshtein(norm, rn);
-    if (d < bestDist) { bestDist = d; best = r; }
+    if (d < bestDist) { secondDist = bestDist; bestDist = d; best = r; }
+    else if (d < secondDist) { secondDist = d; }
   }
-  if (best) return { playerId: best.id, confidence: 'fuzzy', distance: bestDist };
+  if (best && bestDist <= maxDist && bestDist < secondDist) return { playerId: best.id, confidence: 'fuzzy', distance: bestDist };
   return { playerId: null, confidence: null };
 }
 
