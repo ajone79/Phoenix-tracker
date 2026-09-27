@@ -1,0 +1,16 @@
+{
+  "backup_date": "2026-09-27",
+  "tables": {
+    "arc_promo_codes": 3,
+    "arc_trivia": 0,
+    "arcs": 4,
+    "crews": 21,
+    "events": 26,
+    "f2p_tasks": 109,
+    "fc_commanders": 9,
+    "fc_ratings": 216,
+    "fc_skills": 271,
+    "roster": 104,
+    "scores": 1200
+  }
+}
