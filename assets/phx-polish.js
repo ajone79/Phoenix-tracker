@@ -19,7 +19,7 @@
     '.btn,.btn-sm,.card,.link-card,.pill,.tag{' +
       'transition:color .18s var(--phx-ease),background-color .18s var(--phx-ease),' +
       'border-color .18s var(--phx-ease),box-shadow .22s var(--phx-ease),transform .22s var(--phx-ease);}\n' +
-    '.btn:hover,.btn-sm:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.35);filter:brightness(1.06);}\n' +
+    '.btn:hover,.btn-sm:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.35);}\n' +
     '.btn:active,.btn-sm:active{transform:translateY(0);filter:brightness(.96);}\n' +
     '.card:hover,.link-card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.4);' +
       'border-color:var(--amber,#f2a93b);}\n' +
@@ -31,8 +31,8 @@
     '::-webkit-scrollbar-thumb:hover{background:#4b5170;}\n' +
     // Scroll/entrance reveal for top-level page sections.
     '@media (prefers-reduced-motion: no-preference){' +
-      '.phx-reveal{opacity:0;transform:translateY(22px);' +
-        'transition:opacity .6s var(--phx-ease),transform .6s var(--phx-ease);}' +
+      '.phx-reveal{opacity:0;transform:translateY(12px);' +
+        'transition:opacity .3s var(--phx-ease),transform .3s var(--phx-ease);}' +
       '.phx-reveal.phx-in{opacity:1;transform:translateY(0);}' +
     '}';
   document.head.appendChild(style);
@@ -53,16 +53,17 @@
       });
     }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
 
-    var delay = 0;
+    var viewportH = window.innerHeight;
     targets.forEach(function(el){
       if(el.classList.contains('phx-reveal')) return; // already queued
       // Leave anything that starts hidden (toggled tabs/banners) alone -
       // it has no box for IntersectionObserver to ever fire on, so it
       // must stay visible-by-default for whenever it's later shown.
       if(window.getComputedStyle(el).display === 'none') return;
+      // Anything already visible in the first screenful loads instantly,
+      // full stop - only content you'd actually scroll to reveal animates.
+      if(el.getBoundingClientRect().top < viewportH) return;
       el.classList.add('phx-reveal');
-      el.style.transitionDelay = Math.min(delay, 240) + 'ms';
-      delay += 40;
       io.observe(el);
     });
   }
