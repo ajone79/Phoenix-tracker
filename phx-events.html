@@ -104,11 +104,15 @@ async function load(){
     $('retry').onclick = () => { $('list').textContent='Loading…'; load(); };
   }
 }
-$('shareBtn').onclick = () => {
-  const up = EVENTS.filter(e => new Date(e.starts_at) > Date.now());
-  const lines = up.map(e => { const d = new Date(e.starts_at);
-    return 'Phx • ' + e.name + ' — ' + d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}) + ' ' + fmtUtc(d).slice(6); });
-  window.phxShare(up.length ? 'Phx upcoming events (UTC):\n' + lines.join('\n') : 'Phx Events', {title:'Phx Events', url: location.origin + '/phx-events.html'});
+$('shareBtn').onclick = async () => {
+  // Share the bare page link only - nothing else in the message.
+  const url = location.origin + '/phx-events.html';
+  if (navigator.share) {
+    try { await navigator.share({ url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(url); $('msg').textContent = 'Link copied.'; }
+  catch (e) { $('msg').textContent = url; }
 };
 $('icsAll').onclick = () => downloadIcs(EVENTS.filter(e=>new Date(e.starts_at)>Date.now()), 'phx-events.ics');
 load();
