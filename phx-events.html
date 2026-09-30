@@ -84,15 +84,25 @@ function render(){
     ${d>Date.now()?`<button class="btn small" data-id="${e.id}">⬇ Add this one (.ics)</button>`:''}</div>`; }).join('');
   $('list').querySelectorAll('button[data-id]').forEach(b=>b.onclick=()=>{ const e=EVENTS.find(x=>x.id===b.dataset.id); downloadIcs([e],'phx-'+e.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.ics'); });
 }
+const SB_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+// Events are public-read, so fetch them directly (no dependency on the auth client's timing).
 async function load(){
-  const sb = window.__trackerSb;
-  const since = new Date(Date.now()-6*3600000).toISOString();
-  const { data, error } = await sb.from('phx_events').select('id,name,starts_at').gte('starts_at', since).order('starts_at');
-  if (error){ $('list').textContent='Could not load events: '+error.message; return; }
-  EVENTS = data||[]; render(); setInterval(render, 30000);
+  try{
+    const since = new Date(Date.now()-6*3600000).toISOString();
+    const ctl = new AbortController(); const to = setTimeout(()=>ctl.abort(), 10000);
+    const r = await fetch(SB_URL+'/rest/v1/phx_events?select=id,name,starts_at&order=starts_at.asc&starts_at=gte.'+encodeURIComponent(since),
+      {headers:{apikey:SB_KEY, Authorization:'Bearer '+SB_KEY}, signal:ctl.signal});
+    clearTimeout(to);
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    EVENTS = await r.json(); render(); setInterval(render, 30000);
+  }catch(e){
+    $('list').innerHTML = 'Could not load events ('+esc(e.message)+'). <button class="btn small" id="retry">Retry</button>';
+    $('retry').onclick = () => { $('list').textContent='Loading…'; load(); };
+  }
 }
 $('icsAll').onclick = () => downloadIcs(EVENTS.filter(e=>new Date(e.starts_at)>Date.now()), 'phx-events.ics');
-if (window.__trackerProfile) load(); else document.addEventListener('tracker-auth-ready', load, {once:true});
+load();
 </script>
 </body>
 </html>
