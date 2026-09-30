@@ -6,6 +6,8 @@
 <title>Phoenix EU168 — Phx Events</title>
 <script src="assets/phx-nav-rail.js"></script>
 <script src="assets/phx-polish.js"></script>
+<script>window.__phxShareNoAuto = true;</script>
+<script src="assets/phx-share.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/tracker-auth.js"></script>
 <style>
@@ -40,6 +42,7 @@
   <div class="actions">
     <button class="btn" id="icsAll">⬇ Download calendar (.ics)</button>
     <a class="btn" href="/self-admin.html#pushSection">🔔 Turn on alerts</a>
+    <button class="btn" id="shareBtn">🔗 Share</button>
   </div>
   <div class="msg" id="msg"></div>
   <div class="note">Alerts arrive 12 hours and 1 hour before each event. Push alerts are sent to everyone who has notifications enabled under My Account. The .ics file adds the same two reminders to your own calendar app.</div>
@@ -101,6 +104,12 @@ async function load(){
     $('retry').onclick = () => { $('list').textContent='Loading…'; load(); };
   }
 }
+$('shareBtn').onclick = () => {
+  const up = EVENTS.filter(e => new Date(e.starts_at) > Date.now());
+  const lines = up.map(e => { const d = new Date(e.starts_at);
+    return 'Phx • ' + e.name + ' — ' + d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}) + ' ' + fmtUtc(d).slice(6); });
+  window.phxShare(up.length ? 'Phx upcoming events (UTC):\n' + lines.join('\n') : 'Phx Events', {title:'Phx Events', url: location.origin + '/phx-events.html'});
+};
 $('icsAll').onclick = () => downloadIcs(EVENTS.filter(e=>new Date(e.starts_at)>Date.now()), 'phx-events.ics');
 load();
 </script>
