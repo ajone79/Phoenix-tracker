@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix EU168 — Phx Events</title>
+<script src="assets/phx-nav-rail.js"></script>
+<script src="assets/phx-polish.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/tracker-auth.js"></script>
+<style>
+  :root{--bg:#0A0D12;--panel:#12161D;--border:#232A35;--text:#D8DEE9;--muted:#7C8798;--amber:#FFB454;--blue:#5FB4E5;--green:#6EE7B7;
+        --mono:'SF Mono','Consolas','Menlo',monospace;--disp:'Segoe UI Semibold','Segoe UI',system-ui,sans-serif;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--disp);padding:0 0 60px;}
+  header{padding:22px 16px 12px;border-bottom:1px solid var(--border);}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);}
+  h1{margin:6px 0 4px;font-size:22px;}
+  .sub{color:var(--muted);font-size:13px;font-family:var(--mono);}
+  main{padding:14px 16px;max-width:680px;}
+  .actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;}
+  .btn{font-family:var(--mono);font-size:13px;padding:10px 14px;border-radius:6px;border:1px solid var(--amber);background:transparent;color:var(--amber);cursor:pointer;text-decoration:none;display:inline-block;}
+  .btn.small{font-size:11px;padding:6px 10px;border-color:var(--border);color:var(--muted);}
+  .note{color:var(--muted);font-size:12px;font-family:var(--mono);line-height:1.5;margin:8px 0 14px;}
+  .ev{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;}
+  .ev.past{opacity:.4;}
+  .n{font-size:17px;font-weight:600;}
+  .t{font-size:14px;margin-top:2px;}
+  .m{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px;}
+  .msg{font-family:var(--mono);font-size:12px;color:var(--green);min-height:16px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">Phoenix EU168</div>
+  <h1>Phx Events</h1>
+  <div class="sub">Times shown in your local timezone</div>
+</header>
+<main>
+  <div class="actions">
+    <button class="btn" id="icsAll">⬇ Download calendar (.ics)</button>
+    <a class="btn" href="/self-admin.html#pushSection">🔔 Turn on alerts</a>
+  </div>
+  <div class="msg" id="msg"></div>
+  <div class="note">Alerts arrive 12 hours and 1 hour before each event. Push alerts are sent to everyone who has notifications enabled under My Account. The .ics file adds the same two reminders to your own calendar app.</div>
+  <div id="list">Loading…</div>
+</main>
+<script>
+let EVENTS = [];
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,'0');
+const icsDate = d => d.getUTCFullYear()+pad(d.getUTCMonth()+1)+pad(d.getUTCDate())+'T'+pad(d.getUTCHours())+pad(d.getUTCMinutes())+pad(d.getUTCSeconds())+'Z';
+const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function fmtLocal(d){ return d.toLocaleString([], {weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZoneName:'short'}); }
+function fmtUtc(d){ return d.toISOString().slice(5,16).replace('T',' ')+' UTC'; }
+function rel(d){ let ms=d-Date.now(); const past=ms<0; ms=Math.abs(ms)/60000; const h=Math.floor(ms/60), m=Math.floor(ms%60);
+  return (past?'started ':'in ')+(h?h+'h ':'')+m+'m'+(past?' ago':''); }
+
+function buildIcs(list){
+  const L = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Phoenix EU168//Phx Events//EN','CALSCALE:GREGORIAN','X-WR-CALNAME:Phx Events'];
+  const stamp = icsDate(new Date());
+  for (const e of list){
+    const s = new Date(e.starts_at), end = new Date(s.getTime()+3600000);
+    L.push('BEGIN:VEVENT','UID:'+e.id+'@stfc.phoenixeu168.space','DTSTAMP:'+stamp,'DTSTART:'+icsDate(s),'DTEND:'+icsDate(end),'SUMMARY:Phx • '+e.name);
+    for (const [mins,lbl] of [[720,'12 hours'],[60,'1 hour']])
+      L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:Phx • '+e.name+' in '+lbl,'TRIGGER:-PT'+mins+'M','END:VALARM');
+    L.push('END:VEVENT');
+  }
+  L.push('END:VCALENDAR');
+  return L.join('\r\n')+'\r\n';
+}
+function downloadIcs(list, filename){
+  if (!list.length){ $('msg').textContent='No upcoming events to export.'; return; }
+  const blob = new Blob([buildIcs(list)], {type:'text/calendar;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  $('msg').textContent='Calendar file downloaded — open it to add the events.';
+}
+function render(){
+  if (!EVENTS.length){ $('list').textContent='No events scheduled.'; return; }
+  $('list').innerHTML = EVENTS.map(e=>{ const d=new Date(e.starts_at);
+    return `<div class="ev ${d<Date.now()?'past':''}"><div class="n">Phx • ${esc(e.name)}</div><div class="t">${fmtLocal(d)}</div><div class="m">${fmtUtc(d)} • ${rel(d)}</div>
+    ${d>Date.now()?`<button class="btn small" data-id="${e.id}">⬇ Add this one (.ics)</button>`:''}</div>`; }).join('');
+  $('list').querySelectorAll('button[data-id]').forEach(b=>b.onclick=()=>{ const e=EVENTS.find(x=>x.id===b.dataset.id); downloadIcs([e],'phx-'+e.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.ics'); });
+}
+async function load(){
+  const sb = window.__trackerSb;
+  const since = new Date(Date.now()-6*3600000).toISOString();
+  const { data, error } = await sb.from('phx_events').select('id,name,starts_at').gte('starts_at', since).order('starts_at');
+  if (error){ $('list').textContent='Could not load events: '+error.message; return; }
+  EVENTS = data||[]; render(); setInterval(render, 30000);
+}
+$('icsAll').onclick = () => downloadIcs(EVENTS.filter(e=>new Date(e.starts_at)>Date.now()), 'phx-events.ics');
+if (window.__trackerProfile) load(); else document.addEventListener('tracker-auth-ready', load, {once:true});
+</script>
+</body>
+</html>

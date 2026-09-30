@@ -68,3 +68,24 @@ Supabase CLI:
 ```
 supabase functions deploy send-push-broadcast --project-ref mmzizgsanwqjpiumpqay
 ```
+
+## send-event-reminders
+
+Pushes "Phx • <event> — starts in N" notifications 12 hours and 1 hour
+before each row in `phx_events`, to every row in `push_subscriptions`
+(same VAPID keys/secrets as `send-push-broadcast`). Triggered every 5
+minutes by pg_cron job `phx-event-reminders` (via pg_net). Deployed with
+`verify_jwt=false` — safe because it is idempotent: it only sends reminders
+that are due (within 30 min after fire time) and not yet recorded in
+`phx_event_alerts_sent`, so repeat calls do nothing.
+
+**Schema:** `supabase/migrations/20260930_event_reminders.sql`
+(`phx_events` public-read / admin-write, `phx_event_alerts_sent`, cron job).
+Add events by inserting into `phx_events (name, starts_at)` (UTC).
+Front end: `phx-events.html` (event list + .ics download).
+
+**To redeploy:**
+
+```
+supabase functions deploy send-event-reminders --no-verify-jwt --project-ref mmzizgsanwqjpiumpqay
+```
