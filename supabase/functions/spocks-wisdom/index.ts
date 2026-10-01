@@ -198,6 +198,34 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // stfc.club community crew library — an ADDITIONAL crew source, scraped weekly into
+    // club-crews.json by a GitHub Action (scripts/stfc_club_scraper.py). Best-effort: never
+    // blocks the answer.
+    try {
+      const clubRes = await fetch("https://stfc.phoenixeu168.space/club-crews.json", { cache: "no-store" });
+      if (clubRes.ok) {
+        const club = await clubRes.json();
+        const officer = (o: any) => (o?.name ? `${o.name}${o.minRank ? ` (min ${o.minRank})` : ""}` : "?");
+        const matchedClub = rank(
+          club.crews || [],
+          (c: any) => `${c.name} ${[c.captain, c.officer1, c.officer2].map((o: any) => o?.name ?? "").join(" ")} ${(c.situations || []).join(" ")} ${c.notes ?? ""}`,
+          primaryKeywords, contextKeywords,
+        ).slice(0, 6);
+        if (matchedClub.length) {
+          contextParts.push(
+            "COMMUNITY CREW LIBRARY (from stfc.club — an additional crew source alongside the alliance's own crew guide; where both cover the question, present both, point out where they differ, and say which looks stronger and why):\n" +
+            matchedClub.map((c: any) =>
+              `- ${c.name}: Captain ${officer(c.captain)}, 1st officer ${officer(c.officer1)}, 2nd officer ${officer(c.officer2)}` +
+              `${c.situations?.length ? ` [${c.situations.join(", ")}]` : ""}${c.notes ? ` — ${c.notes}` : ""}`
+            ).join("\n")
+          );
+          for (const c of matchedClub.slice(0, 3)) {
+            sources.push({ type: "crew", title: `${c.name} (stfc.club)`, url: c.url });
+          }
+        }
+      }
+    } catch { /* community crew library is best-effort */ }
+
     // Fleet Commanders — matched on the alliance's own rated content categories
     // (e.g. "Solomadas", "Mining Rate", "Waves"), which is exactly how the FC guide
     // tags who is good at what. This is real, alliance-curated data — prefer it
