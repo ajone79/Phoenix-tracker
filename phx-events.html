@@ -29,6 +29,8 @@
   .n{font-size:17px;font-weight:600;}
   .t{font-size:14px;margin-top:2px;}
   .m{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px;}
+  .opt{display:block;font-size:14px;margin:4px 0;}
+  .opt.inline{display:inline-block;margin-right:14px;}
   .msg{font-family:var(--mono);font-size:12px;color:var(--green);min-height:16px;}
 </style>
 </head>
@@ -46,6 +48,24 @@
   </div>
   <div class="msg" id="msg"></div>
   <div class="note">Alerts arrive 12 hours and 1 hour before each event. Push alerts are sent to everyone who has notifications enabled under My Account. The .ics file adds the same two reminders to your own calendar app.</div>
+  <div class="ev" id="sub">
+    <div class="n">🔄 Live calendar subscription</div>
+    <div class="m" style="margin:4px 0 8px">Subscribe once; your calendar keeps itself up to date.</div>
+    <label class="opt"><input type="checkbox" class="cat" value="territory" checked> Phx territory takeovers (weekly)</label>
+    <label class="opt"><input type="checkbox" class="cat" value="tournament" checked> Alliance tournaments</label>
+    <label class="opt"><input type="checkbox" class="cat" value="incursion" checked> Incursions</label>
+    <div class="m" style="margin:6px 0 2px">Incursion regions:</div>
+    <label class="opt inline"><input type="checkbox" class="reg" value="eu" checked> EU</label>
+    <label class="opt inline"><input type="checkbox" class="reg" value="us"> US</label>
+    <label class="opt inline"><input type="checkbox" class="reg" value="apac"> APAC</label>
+    <input id="feedUrl" readonly style="width:100%;margin:10px 0 6px;padding:8px;background:#0A0D12;color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:var(--mono);font-size:11px">
+    <div class="actions">
+      <button class="btn small" id="feedCopy">Copy link</button>
+      <a class="btn small" id="feedGoogle" target="_blank" rel="noopener">Add to Google Calendar</a>
+      <a class="btn small" id="feedApp">Open in calendar app</a>
+    </div>
+    <div class="m">Calendars refresh subscribed feeds on their own schedule (Google: roughly every 12–24 hours). Google ignores alarms in subscribed feeds — set notifications for the calendar in Google Calendar.</div>
+  </div>
   <div id="list">Loading…</div>
 </main>
 <script>
@@ -116,6 +136,29 @@ $('shareBtn').onclick = async () => {
 };
 $('icsAll').onclick = () => downloadIcs(EVENTS.filter(e=>new Date(e.starts_at)>Date.now()), 'phx-events.ics');
 load();
+
+const FEED = 'https://mmzizgsanwqjpiumpqay.supabase.co/functions/v1/calendar-feed';
+function feedUrl(){
+  const cats = [...document.querySelectorAll('.cat:checked')].map(x=>x.value);
+  const regs = [...document.querySelectorAll('.reg:checked')].map(x=>x.value);
+  if (!cats.length) return '';
+  let u = FEED + '?cats=' + cats.join(',');
+  if (cats.includes('incursion') && regs.length) u += '&regions=' + regs.join(',');
+  return u;
+}
+function refreshFeed(){
+  const u = feedUrl(); $('feedUrl').value = u || 'Pick at least one category';
+  const web = u.replace(/^https:/,'webcal:');
+  $('feedGoogle').href = u ? 'https://calendar.google.com/calendar/r?cid=' + encodeURIComponent(web) : '#';
+  $('feedApp').href = u ? web : '#';
+}
+document.querySelectorAll('.cat,.reg').forEach(x=>x.onchange=refreshFeed);
+$('feedCopy').onclick = async () => {
+  const u = feedUrl(); if (!u) return;
+  try { await navigator.clipboard.writeText(u); $('msg').textContent='Subscription link copied.'; }
+  catch(e){ $('feedUrl').select(); $('msg').textContent='Select and copy the link above.'; }
+};
+refreshFeed();
 </script>
 </body>
 </html>

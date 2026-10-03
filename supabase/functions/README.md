@@ -89,3 +89,15 @@ Front end: `phx-events.html` (event list + .ics download).
 ```
 supabase functions deploy send-event-reminders --no-verify-jwt --project-ref mmzizgsanwqjpiumpqay
 ```
+
+## calendar-feed
+
+Public live iCalendar subscription (`verify_jwt=false`; calendar apps can't sign in, and it only
+exposes public game events). `GET /functions/v1/calendar-feed?cats=territory,tournament,incursion&regions=eu`
+- `territory`: Phx weekly takeovers from `phx_territory_schedule` (UTC, repeating weekly, 12h + 1h alarms).
+  A daily pg_cron job (`phx-territory-events`) also materialises the next 14 days into `phx_events`
+  so push reminders, the Phx Events page and its .ics download include them.
+- `tournament` / `incursion`: game-wide events read from `events-data-game.json` (raw GitHub URL).
+- `regions` (incursions only): eu | us | apac, default eu.
+Change the takeover times by editing rows in `phx_territory_schedule` (weekday 0=Sun..6=Sat, start_utc).
+Schema: `supabase/migrations/20261003_territory_schedule.sql`.
