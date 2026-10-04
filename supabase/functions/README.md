@@ -101,3 +101,13 @@ exposes public game events). `GET /functions/v1/calendar-feed?cats=territory,tou
 - `regions` (incursions only): eu | us | apac, default eu.
 Change the takeover times by editing rows in `phx_territory_schedule` (weekday 0=Sun..6=Sat, start_utc).
 Schema: `supabase/migrations/20261003_territory_schedule.sql`.
+
+## Alert preferences (opt-in)
+
+`push_subscriptions.notify_territory` / `notify_game_events` default to **false**: nobody receives
+event alerts until they switch them on at `/alerts.html`. `send-event-reminders` (every 5 min via
+pg_cron) now also ingests EU incursions + alliance tournaments from `events-data-game.json`
+(cache-busted) into `phx_events` (`kind` = territory | tournament | incursion), sends a one-time
+"New: <event>" push (`announced_at`) for incursions/tournaments, and 12h + 1h reminders for all
+kinds - each only to people who opted in to that group.
+Schema: `supabase/migrations/20261004_alert_preferences.sql`.

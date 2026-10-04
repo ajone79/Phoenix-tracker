@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix EU168 — Alerts</title>
+<script src="assets/phx-nav-rail.js"></script>
+<script src="assets/phx-polish.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/tracker-auth.js"></script>
+<style>
+  :root{--bg:#0A0D12;--panel:#12161D;--border:#232A35;--text:#D8DEE9;--muted:#7C8798;--amber:#FFB454;--green:#6EE7B7;--red:#FF6B6B;
+        --mono:'SF Mono','Consolas','Menlo',monospace;--disp:'Segoe UI Semibold','Segoe UI',system-ui,sans-serif;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--disp);padding:0 0 70px;}
+  header{padding:22px 16px 12px;border-bottom:1px solid var(--border);}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);}
+  h1{margin:6px 0 4px;font-size:22px;}
+  .sub{color:var(--muted);font-size:13px;font-family:var(--mono);line-height:1.5;}
+  main{padding:14px 16px;max-width:680px;}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px;}
+  .card h2{margin:0 0 4px;font-size:17px;}
+  .card .desc{color:var(--muted);font-size:12px;font-family:var(--mono);line-height:1.5;margin-bottom:10px;}
+  .row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--border);}
+  .row .t{flex:1;font-size:14px;line-height:1.35;}
+  .row .t small{display:block;color:var(--muted);font-family:var(--mono);font-size:11px;margin-top:2px;}
+  .btn{font-family:var(--mono);font-size:13px;padding:9px 13px;border-radius:6px;border:1px solid var(--amber);background:transparent;color:var(--amber);cursor:pointer;text-decoration:none;display:inline-block;margin:2px 4px 2px 0;}
+  .btn.small{font-size:11px;padding:6px 10px;border-color:var(--border);color:var(--muted);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#555;margin-right:8px;}
+  .dot.on{background:var(--green);} .dot.off{background:#555;}
+  .msg{font-family:var(--mono);font-size:12px;min-height:16px;margin-top:6px;color:var(--muted);}
+  .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+  /* toggle switch */
+  .sw{position:relative;width:48px;height:28px;flex-shrink:0;}
+  .sw input{opacity:0;width:100%;height:100%;position:absolute;margin:0;cursor:pointer;z-index:2;}
+  .sw span{position:absolute;inset:0;background:#2a3140;border-radius:28px;transition:.2s;}
+  .sw span:before{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;background:#9aa4b5;border-radius:50%;transition:.2s;}
+  .sw input:checked + span{background:#1f7a5a;} .sw input:checked + span:before{transform:translateX(20px);background:#fff;}
+  .sw input:disabled{cursor:not-allowed;} .sw input:disabled + span{opacity:.4;}
+  .urlbox{width:100%;margin:8px 0 6px;padding:8px;background:#0A0D12;color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:var(--mono);font-size:11px;}
+  ol.steps{margin:6px 0 8px 18px;padding:0;font-size:13px;line-height:1.55;}
+  ol.steps li{margin-bottom:4px;}
+  a{color:#8fb8ff;}
+  .callout{background:#171c25;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--muted);font-family:var(--mono);line-height:1.5;margin-top:8px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">Phoenix EU168</div>
+  <h1>Alerts</h1>
+  <div class="sub">Everything is off until you switch it on. Each one can be turned off again here.</div>
+</header>
+<main>
+
+  <!-- PUSH -->
+  <div class="card" id="pushCard">
+    <h2>🔔 Push notifications</h2>
+    <div class="desc">Phone notifications for this device. Android works best. Officers' alliance-wide broadcasts (surge starting, raid incoming) also arrive this way once push is on.</div>
+    <div class="row" style="border-top:none">
+      <div class="t"><span class="dot off" id="pushDot"></span><span id="pushText">Checking…</span></div>
+      <button class="btn" id="pushBtn" disabled>…</button>
+    </div>
+    <div class="row">
+      <div class="t">Territory takeovers<small>12 hours and 1 hour before each one</small></div>
+      <label class="sw"><input type="checkbox" id="swTerritory" disabled><span></span></label>
+    </div>
+    <div class="row">
+      <div class="t">EU incursions &amp; alliance tournaments<small>When they appear in the events calendar, then 12 hours and 1 hour before</small></div>
+      <label class="sw"><input type="checkbox" id="swGame" disabled><span></span></label>
+    </div>
+    <div class="msg" id="pushMsg"></div>
+    <div class="callout" id="pushIos" style="display:none">📱 On iPhone, push only works once this site is added to your Home Screen (Share → Add to Home Screen) and opened from there.</div>
+  </div>
+
+  <!-- LIVE CALENDAR -->
+  <div class="card" id="feedCard">
+    <h2>🔄 Live calendar subscription</h2>
+    <div class="desc">Subscribe once and your calendar app keeps itself up to date. Same two groups, with 12 hour and 1 hour alarms on every event.</div>
+    <div class="row" style="border-top:none">
+      <div class="t">Territory takeovers<small>Weekly, repeating</small></div>
+      <label class="sw"><input type="checkbox" class="fcat" value="territory"><span></span></label>
+    </div>
+    <div class="row">
+      <div class="t">EU incursions &amp; alliance tournaments<small>Appear as soon as the game publishes them</small></div>
+      <label class="sw"><input type="checkbox" class="fcat" value="tournament,incursion"><span></span></label>
+    </div>
+    <input id="feedUrl" class="urlbox" readonly value="Switch at least one on above">
+    <div>
+      <button class="btn small" id="feedCopy" disabled>Copy link</button>
+      <a class="btn small" id="feedGoogle" target="_blank" rel="noopener">Add to Google Calendar</a>
+      <a class="btn small" id="feedApp">Open in calendar app</a>
+    </div>
+    <div class="callout">Google Calendar can take hours to fetch a new subscription, and ignores alarms from subscriptions (set notifications on that calendar yourself). For an instant start on Android, use the free <a href="https://play.google.com/store/apps/details?id=at.bitfire.icsdroid" target="_blank" rel="noopener">ICSx⁵</a> app: paste the link, subscribe, and the events appear in Google Calendar within a minute.<br><br><b>To turn it off:</b> remove the calendar in Google Calendar (Settings → your account → the Phx calendar → Unsubscribe) or delete it in ICSx⁵.</div>
+    <div class="msg" id="feedMsg"></div>
+  </div>
+
+  <!-- CALENDAR FILE -->
+  <div class="card" id="fileCard">
+    <h2>⬇ Calendar file (one-off)</h2>
+    <div class="desc">A snapshot of the upcoming Phx events with 12 hour and 1 hour alarms. It doesn't update itself — download again for new ones.</div>
+    <button class="btn" id="icsBtn">Download calendar (.ics)</button>
+    <div class="msg" id="icsMsg"></div>
+  </div>
+
+  <!-- WHATSAPP ME -->
+  <div class="card" id="waCard">
+    <h2>💬 WhatsApp me (raid alert buttons)</h2>
+    <div class="desc">A one-tap button other members can press to message you on WhatsApp, such as "🚨 Raided". Your number is never shown, and each button can be tapped once an hour per person.</div>
+    <ol class="steps">
+      <li>In your browser, open <a href="https://create.wa.link" target="_blank" rel="noopener">create.wa.link</a>, enter your number and a message (for example "🚨 Raided"), and copy the short link it gives you (like wa.link/abc123).</li>
+      <li>Open <a href="/self-admin.html#waSection">My Account → WhatsApp Alert Buttons</a>.</li>
+      <li>Type a label, paste your link, and tap <b>+ Add Button</b>.</li>
+      <li>Check it appears on the <a href="/whatsapp-alerts.html">Raid Alert page</a>.</li>
+    </ol>
+    <div class="callout"><b>To turn it off:</b> delete the button in My Account → WhatsApp Alert Buttons.</div>
+  </div>
+
+</main>
+<script>
+const SB_URL = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+const VAPID_PUBLIC_KEY = 'BNLoHnC3COwMpnznN6mOMHwxj94w8TqJAOe3e7pgs9ZuHUJpanaLkavCZAaS0Wh8AWpuuXWDR0u4ol29xx8FlFM';
+const FEED = SB_URL + '/functions/v1/calendar-feed';
+const $ = id => document.getElementById(id);
+const setMsg = (id, text, cls) => { const m = $(id); m.textContent = text || ''; m.className = 'msg' + (cls ? ' ' + cls : ''); };
+
+let sb = null, uid = null, started = false;
+
+/* ---------- push ---------- */
+const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window;
+const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+function b64ToU8(s){ const p='='.repeat((4-s.length%4)%4); const r=atob((s+p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from([...r].map(c=>c.charCodeAt(0))); }
+async function currentSub(){ const reg = await navigator.serviceWorker.register('/sw.js'); return reg.pushManager.getSubscription(); }
+
+function showPush(on, text){
+  $('pushDot').className = 'dot ' + (on ? 'on' : 'off');
+  $('pushText').textContent = text;
+  $('pushBtn').textContent = on ? 'Turn off' : 'Turn on';
+  $('pushBtn').disabled = false;
+  $('swTerritory').disabled = !on; $('swGame').disabled = !on;
+}
+async function loadSwitches(){
+  const { data } = await sb.from('push_subscriptions').select('notify_territory,notify_game_events').eq('user_id', uid);
+  $('swTerritory').checked = (data || []).some(r => r.notify_territory);
+  $('swGame').checked = (data || []).some(r => r.notify_game_events);
+}
+async function refreshPush(){
+  if (!pushSupported){
+    if (isIos() && !isStandalone()) $('pushIos').style.display = 'block';
+    showPush(false, 'Not supported in this browser'); $('pushBtn').disabled = true; return;
+  }
+  try {
+    const sub = await currentSub();
+    if (!sub){ showPush(false, 'Off for this device'); $('swTerritory').checked = false; $('swGame').checked = false; return; }
+    const j = sub.toJSON();
+    const { data: row } = await sb.from('push_subscriptions').select('id').eq('user_id', uid).eq('endpoint', j.endpoint).maybeSingle();
+    if (!row){
+      const { error } = await sb.from('push_subscriptions').upsert({ user_id: uid, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_agent: navigator.userAgent }, { onConflict: 'user_id,endpoint' });
+      if (error){ showPush(false, 'Subscribed in browser but could not save — tap Turn on to retry'); return; }
+    }
+    showPush(true, 'On for this device');
+    await loadSwitches();
+  } catch (e){ showPush(false, 'Could not check status: ' + e.message); }
+}
+async function enablePush(){
+  $('pushBtn').disabled = true; setMsg('pushMsg', '');
+  try {
+    if ((await Notification.requestPermission()) !== 'granted'){ setMsg('pushMsg', 'Notification permission was not granted.', 'err'); return refreshPush(); }
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID_PUBLIC_KEY) });
+    const j = sub.toJSON();
+    const { error } = await sb.from('push_subscriptions').upsert({ user_id: uid, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_agent: navigator.userAgent }, { onConflict: 'user_id,endpoint' });
+    if (error) throw error;
+    setMsg('pushMsg', 'Push is on. Now switch on the alerts you want below.', 'ok');
+  } catch (e){ setMsg('pushMsg', 'Could not turn on: ' + e.message, 'err'); }
+  refreshPush();
+}
+async function disablePush(){
+  $('pushBtn').disabled = true; setMsg('pushMsg', '');
+  try {
+    const sub = await currentSub();
+    if (sub){ const ep = sub.endpoint; await sub.unsubscribe(); await sb.from('push_subscriptions').delete().eq('user_id', uid).eq('endpoint', ep); }
+    setMsg('pushMsg', 'Push is off for this device.', 'ok');
+  } catch (e){ setMsg('pushMsg', 'Could not turn off: ' + e.message, 'err'); }
+  refreshPush();
+}
+async function saveSwitch(col, el){
+  el.disabled = true;
+  const { error } = await sb.from('push_subscriptions').update({ [col]: el.checked }).eq('user_id', uid);
+  el.disabled = false;
+  if (error){ el.checked = !el.checked; setMsg('pushMsg', 'Could not save: ' + error.message, 'err'); }
+  else setMsg('pushMsg', 'Saved.', 'ok');
+}
+
+/* ---------- live calendar ---------- */
+function feedLink(){
+  const cats = [...document.querySelectorAll('.fcat:checked')].map(x => x.value).join(',');
+  if (!cats) return '';
+  return FEED + '?cats=' + cats + '&regions=eu';
+}
+function refreshFeed(){
+  const u = feedLink();
+  $('feedUrl').value = u || 'Switch at least one on above';
+  $('feedCopy').disabled = !u;
+  const web = u.replace(/^https:/, 'webcal:');
+  $('feedGoogle').href = u ? 'https://calendar.google.com/calendar/r?cid=' + encodeURIComponent(web) : '#';
+  $('feedApp').href = u ? web : '#';
+}
+$('feedCopy').onclick = async () => {
+  const u = feedLink(); if (!u) return;
+  try { await navigator.clipboard.writeText(u); setMsg('feedMsg', 'Link copied.', 'ok'); }
+  catch (e){ $('feedUrl').select(); setMsg('feedMsg', 'Select and copy the link above.'); }
+};
+document.querySelectorAll('.fcat').forEach(x => x.onchange = refreshFeed);
+
+/* ---------- one-off .ics ---------- */
+const pad = n => String(n).padStart(2, '0');
+const icsDate = d => d.getUTCFullYear()+pad(d.getUTCMonth()+1)+pad(d.getUTCDate())+'T'+pad(d.getUTCHours())+pad(d.getUTCMinutes())+pad(d.getUTCSeconds())+'Z';
+function buildIcs(list){
+  const L = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Phoenix EU168//Phx Events//EN','CALSCALE:GREGORIAN','X-WR-CALNAME:Phx Events'];
+  const stamp = icsDate(new Date());
+  for (const e of list){
+    const s = new Date(e.starts_at), end = new Date(s.getTime() + 3600000);
+    const title = (e.kind === 'territory' ? 'Phx • ' : '') + e.name;
+    L.push('BEGIN:VEVENT','UID:'+e.id+'@stfc.phoenixeu168.space','DTSTAMP:'+stamp,'DTSTART:'+icsDate(s),'DTEND:'+icsDate(end),'SUMMARY:'+title);
+    for (const [m, l] of [[720,'12 hours'],[60,'1 hour']]) L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+title+' in '+l,'TRIGGER:-PT'+m+'M','END:VALARM');
+    L.push('END:VEVENT');
+  }
+  L.push('END:VCALENDAR');
+  return L.join('\r\n') + '\r\n';
+}
+$('icsBtn').onclick = async () => {
+  setMsg('icsMsg', 'Preparing…');
+  try {
+    const r = await fetch(SB_URL + '/rest/v1/phx_events?select=id,name,starts_at,kind&order=starts_at.asc&starts_at=gt.' + encodeURIComponent(new Date().toISOString()), { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const list = await r.json();
+    if (!list.length){ setMsg('icsMsg', 'No upcoming events to export.'); return; }
+    const url = URL.createObjectURL(new Blob([buildIcs(list)], { type: 'text/calendar;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'phx-events.ics'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    setMsg('icsMsg', list.length + ' events downloaded — open the file to add them.', 'ok');
+  } catch (e){ setMsg('icsMsg', 'Could not download: ' + e.message, 'err'); }
+};
+
+/* ---------- init ---------- */
+async function init(){
+  if (started) return; started = true;
+  sb = window.__trackerSb;
+  uid = window.__trackerProfile && window.__trackerProfile.id;
+  if (!uid && sb){ const { data } = await sb.auth.getSession(); uid = data.session && data.session.user.id; }
+  if (!sb || !uid){ showPush(false, 'Could not confirm your sign-in — refresh the page'); $('pushBtn').disabled = true; return; }
+  $('pushBtn').onclick = () => ($('pushText').textContent.startsWith('On') ? disablePush() : enablePush());
+  $('swTerritory').onchange = e => saveSwitch('notify_territory', e.target);
+  $('swGame').onchange = e => saveSwitch('notify_game_events', e.target);
+  refreshPush();
+}
+refreshFeed();
+if (window.__trackerProfile) init(); else document.addEventListener('tracker-auth-ready', init, { once: true });
+setTimeout(() => { if (!started && window.__trackerSb) init(); }, 5000); // watchdog if the ready signal is missed
+</script>
+</body>
+</html>

@@ -12,6 +12,7 @@
     {href:'/whatsapp-alerts.html', label:'Raid Alert', icon:'🚨'},
   ];
   const MORE = [
+    {href:'/alerts.html', label:'Alerts', icon:'🔔', desc:'Push, calendar & WhatsApp alert settings — all in one place'},
     {href:'/phx-events.html', label:'Phx Events', icon:'⏰', desc:'Alliance event times, reminders & calendar download'},
     {href:'/self-admin.html', label:'My Account', icon:'🙋', desc:'Match your name, enable notifications, set up WhatsApp alerts'},
     {href:'/sheets/stfc-sheets.html', label:'STFC Sheets', icon:'📑', desc:'Planning & calculation tools'},

@@ -54,7 +54,7 @@ Deno.serve(async (req: Request) => {
   const cats = wantCats.length ? wantCats : Object.keys(CATS);
   const regions = (url.searchParams.get("regions") ?? "eu").split(",").map((s) => s.trim().toLowerCase());
 
-  const res = await fetch(DATA_URL, { cache: "no-store" });
+  const res = await fetch(`${DATA_URL}?cb=${Math.floor(Date.now() / 60000)}`, { cache: "no-store" }); // cache-bust: raw.githubusercontent serves stale content
   if (!res.ok) return new Response("Event data unavailable", { status: 502 });
   const data = await res.json();
   const stamp = icsDate(new Date(data.generatedAt ?? Date.now()));
@@ -89,6 +89,7 @@ Deno.serve(async (req: Request) => {
     );
     if (e.description) L.push(`DESCRIPTION:${esc(String(e.description).slice(0, 800))}`);
     L.push(
+      "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${esc(title)} starts in 12 hours`, "TRIGGER:-PT720M", "END:VALARM",
       "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${esc(title)} starts in 1 hour`, "TRIGGER:-PT60M", "END:VALARM",
       "END:VEVENT",
     );
