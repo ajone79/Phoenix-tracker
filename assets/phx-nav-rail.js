@@ -16,7 +16,6 @@
     {href:'/phx-events.html', label:'Phx Events', icon:'⏰', desc:'Alliance event times, reminders & calendar download'},
     {href:'/self-admin.html', label:'My Account', icon:'🙋', desc:'Match your name, enable notifications, set up WhatsApp alerts'},
     {href:'/sheets/stfc-sheets.html', label:'STFC Resources', icon:'📑', desc:'Sheets retired - now at stfc.phd/resources'},
-    {href:'/fleet-commanders.html', label:'Fleet Commanders', icon:'🧭', desc:'Officer rankings & loadouts (work in progress)'},
     {href:'/credits.html', label:'Links & Credits', icon:'🔗', desc:'External links, thanks'},
     {href:'/admin.html', label:'Admin', icon:'🛠️', desc:'Approve members, import scores', adminOnly:true},
     {href:'/home-admin.html', label:'Home Screen Admin', icon:'🖋️', desc:'Edit briefing, galleries, codes & trivia', homeEditorOnly:true},
