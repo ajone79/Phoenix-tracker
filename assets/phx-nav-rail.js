@@ -15,7 +15,7 @@
     {href:'/alerts.html', label:'Alerts', icon:'🔔', desc:'Push, calendar & WhatsApp alert settings — all in one place'},
     {href:'/phx-events.html', label:'Phx Events', icon:'⏰', desc:'Alliance event times, reminders & calendar download'},
     {href:'/self-admin.html', label:'My Account', icon:'🙋', desc:'Match your name, enable notifications, set up WhatsApp alerts'},
-    {href:'/sheets/stfc-sheets.html', label:'STFC Sheets', icon:'📑', desc:'Planning & calculation tools'},
+    {href:'/sheets/stfc-sheets.html', label:'STFC Resources', icon:'📑', desc:'Sheets retired - now at stfc.phd/resources'},
     {href:'/spocks-wisdom.html', label:"Spock's Wisdom", icon:'🖖', desc:'Ask about crews, events & gameplay'},
     {href:'/fleet-commanders.html', label:'Fleet Commanders', icon:'🧭', desc:'Officer rankings & loadouts (work in progress)'},
     {href:'/credits.html', label:'Links & Credits', icon:'🔗', desc:'External links, thanks'},
