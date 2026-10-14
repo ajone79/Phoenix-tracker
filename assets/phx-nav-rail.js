@@ -7,7 +7,6 @@
     {href:'/index.html', label:'Home', icon:'🪐'},
     {href:'/alb-participation.html', label:'ALB Part.', icon:'📡'},
     {href:'/events-calendar.html', label:'Events', icon:'🛰️'},
-    {href:'/f2p-task-guide.html', label:'F2P', icon:'🎯'},
     {href:'/crewing.html', label:'Crewing', icon:'🖖'},
     {href:'/whatsapp-alerts.html', label:'Raid Alert', icon:'🚨'},
   ];
