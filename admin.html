@@ -61,6 +61,13 @@
   .tag.admintag{background:rgba(255,200,87,.2);color:var(--gold);border:1px solid var(--gold);}
   .allowlist-banner{background:rgba(255,200,87,.08);border:1px solid var(--gold);border-radius:8px;padding:12px 16px;margin-bottom:18px;font-size:11.5px;}
   .allowlist-banner b{color:var(--gold);}
+  details.fold{margin:18px 0 0;border:1px solid var(--hair);border-radius:10px;background:var(--panel);}
+  details.fold>summary{cursor:pointer;list-style:none;padding:14px 16px;font-family:'Antonio',sans-serif;font-size:16px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim);display:flex;align-items:center;gap:8px;}
+  details.fold>summary::-webkit-details-marker{display:none;}
+  details.fold>summary:after{content:"\25BC  show";margin-left:auto;font-size:11px;color:var(--text-faint);}
+  details.fold[open]>summary:after{content:"\25B2  hide";}
+  details.fold>.fold-body{padding:0 16px 16px;}
+  .scores-note{background:rgba(255,200,87,.08);border:1px solid var(--gold);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--text);line-height:1.5;}
   .allow-chip{display:inline-flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--hair);border-radius:20px;padding:3px 10px 3px 10px;margin:4px 6px 0 0;font-size:11px;}
   .allow-chip.matched{border-color:var(--mint);color:var(--mint);}
   .allow-chip.waiting{color:var(--text-faint);}
@@ -159,6 +166,8 @@ try { const t = sessionStorage.getItem('phxAdminTab'); if (t) activeTab = t; } c
 let guideOpen = false;
 let thresholdsOpen = false;
 let membersOpen = false;
+let openFolds = {};            // which collapsed Members-tab sections are open (survives re-renders)
+let newEventFormOpen = true;   // Upload scores: creating a new event is the default mode
 let stitchedPreviews = []; // {id, dataUrl, sourceCount}
 let screensPerStitch = 5;
 let selectedEventId = '';
@@ -314,7 +323,6 @@ function inviteTokenRowHtml(t){
 
 function inviteSectionHtml(){
   return `
-    <h2>🔗 Invite Links</h2>
     <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Anyone who signs in via one of these links is approved automatically — no need to wait for an officer. Good for handing to a specific new recruit or a small batch, not for posting publicly.</div>
     <div class="import-box" style="margin-bottom:14px;">
       <div class="import-row">
@@ -461,7 +469,7 @@ function render(){
     <main>
       <div class="tabbar" role="tablist">
         <button class="tab-btn ${activeTab==='members'?'active':''}" data-tab="members">👥 Members${pending.length?` <span class="tab-badge">${pending.length}</span>`:''}</button>
-        <button class="tab-btn ${activeTab==='scores'?'active':''}" data-tab="scores">📊 Scores</button>
+        <button class="tab-btn ${activeTab==='scores'?'active':''}" data-tab="scores">📊 Upload scores</button>
         <button class="tab-btn ${activeTab==='events'?'active':''}" data-tab="events">🗓 Events</button>
         <button class="tab-btn ${activeTab==='roster'?'active':''}" data-tab="roster">🔔 Roster${reviewQueue.length?` <span class="tab-badge">${reviewQueue.length}</span>`:''}</button>
         <button class="tab-btn ${activeTab==='guide'?'active':''}" data-tab="guide">📖 Guide</button>
@@ -473,17 +481,18 @@ function render(){
       <h2>Pending approval (${pending.length})</h2>
       <div id="pendingList">${pending.length ? pending.map(rowHtml).join('') : '<div class="empty">Nobody waiting.</div>'}</div>
 
-      <div class="allowlist-banner"><b>Intended admins:</b><br>${allowChips}</div>
+      ${foldHtml('admins', `👑 Admins (${admins.length})`, `
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Full access to this page.</div>
+        <div id="adminsList">${admins.length ? admins.map(rowHtml).join('') : '<div class="empty">No admins yet.</div>'}</div>`)}
 
-      <h2>👑 Admins (${admins.length})</h2>
-      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Full access to this page. Kept separate and always visible so it's easy to spot who currently has it.</div>
-      <div id="adminsList">${admins.length ? admins.map(rowHtml).join('') : '<div class="empty">No admins yet.</div>'}</div>
+      ${foldHtml('members', `Approved members (${regularMembers.length})`, `
+        <div id="membersBox">
+          <div id="approvedList">${regularMembers.length ? regularMembers.map(rowHtml).join('') : '<div class="empty">No approved members yet.</div>'}</div>
+        </div>`)}
 
-      <h2>Approved members (${regularMembers.length})</h2>
-      <div id="membersBox" style="margin-top:10px;">
-        <div id="approvedList">${regularMembers.length ? regularMembers.map(rowHtml).join('') : '<div class="empty">No approved members yet.</div>'}</div>
-      </div>
-      ${inviteSectionHtml()}
+      ${foldHtml('invites', '🔗 Invite links', inviteSectionHtml())}
+
+      ${foldHtml('allow', 'Intended admins', `<div style="font-size:11.5px;">${allowChips}</div>`)}
       </div>
 
       <div class="tab-panel ${activeTab==='scores'?'active':''}" data-panel="scores">
@@ -494,7 +503,7 @@ function render(){
 
       <div class="tab-panel ${activeTab==='events'?'active':''}" data-panel="events">
       <h2>Event thresholds</h2>
-      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Scoring type, completion mode and threshold for every event. New events are created from the Scores tab, next to the event dropdown.</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Scoring type, completion mode and threshold for every event. New events are created from the Upload scores tab.</div>
       <div id="thresholdsBox">
         <div class="import-box">
           <table class="review-table" id="eventThresholdsTable">
@@ -634,7 +643,13 @@ function render(){
     window.scrollTo({ top: 0 });
   }));
 
+  document.querySelectorAll('details.fold').forEach(d => d.addEventListener('toggle', () => { openFolds[d.dataset.fold] = d.open; }));
+
   if (window.__phxInitNavMenu) window.__phxInitNavMenu();
+}
+
+function foldHtml(key, title, body){
+  return `<details class="fold" data-fold="${key}" ${openFolds[key] ? 'open' : ''}><summary>${title}</summary><div class="fold-body">${body}</div></details>`;
 }
 
 function rowHtml(p){
@@ -783,15 +798,18 @@ function bestRosterMatch(extractedName){
 function importSectionHtml(){
   return `
     <div class="import-box">
+      <div class="scores-note">⏳ <b>Heads up:</b> processing screenshots is <b>slow</b>. 20 screenshots can take 10–20 minutes. Send them, then go and do something else — it runs on the server, so you can close this page and come back later.</div>
       <div class="import-row">
+        <button class="btn admin" id="newEventToggle" type="button">${newEventFormOpen ? 'Add to an existing event instead' : 'Create a new event instead'}</button>
+      </div>
+      <div class="import-row" id="existingEventRow" style="${newEventFormOpen ? 'display:none;' : ''}">
         <label style="font-size:11px;color:#8a8a94;">Event:</label>
         <select id="importEventSelect">
           <option value="">— pick an event to update existing scores —</option>
           ${events.map(e=>`<option value="${e.id}" ${e.id===selectedEventId?'selected':''}>${escapeHtml(e.name)} (${e.date})</option>`).join('')}
         </select>
-        <button class="btn admin" id="newEventToggle" type="button">Or create a new event and add scores</button>
       </div>
-      <div class="import-row" id="newEventForm" style="display:none;background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:12px;">
+      <div class="import-row" id="newEventForm" style="display:${newEventFormOpen ? 'flex' : 'none'};background:var(--panel-2);border:1px solid var(--hair);border-radius:8px;padding:12px;">
         <div class="field-group">
           <label class="field-label">Event name</label>
           <input type="text" id="newEventName" placeholder="e.g. Sector Strike - ALB" style="min-width:220px;">
@@ -950,6 +968,7 @@ async function handleLoadJobResults(){
 
   await sb.from('import_jobs').update({ dismissed: true }).eq('id', activeJob.id);
   selectedEventId = eventId;
+  newEventFormOpen = false; // loaded job already has its event — show it
   activeJob = null;
   setImportStatus(`Loaded ${rows.length} row(s) from the completed job — ${extractedRows.length} total in review.`, 'ok');
   refreshImportSectionOnly();
@@ -1030,6 +1049,15 @@ function stitchGalleryHtml(){  return stitchedPreviews.map((p, i) => `
   `).join('');
 }
 
+function applyEventMode(){
+  const row = document.getElementById('existingEventRow');
+  const form = document.getElementById('newEventForm');
+  const btn = document.getElementById('newEventToggle');
+  if (row) row.style.display = newEventFormOpen ? 'none' : '';
+  if (form) form.style.display = newEventFormOpen ? 'flex' : 'none';
+  if (btn) btn.textContent = newEventFormOpen ? 'Add to an existing event instead' : 'Create a new event instead';
+}
+
 function wireImportSection(){
   const previewBtn = document.getElementById('previewBtn');
   if (previewBtn) previewBtn.addEventListener('click', handlePreviewStitch);
@@ -1048,8 +1076,14 @@ function wireImportSection(){
   }));
   const newEventToggle = document.getElementById('newEventToggle');
   if (newEventToggle) newEventToggle.addEventListener('click', () => {
-    const form = document.getElementById('newEventForm');
-    form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+    newEventFormOpen = !newEventFormOpen;
+    if (newEventFormOpen) {
+      // never leave a stale (hidden) event selected while in "create new" mode
+      selectedEventId = '';
+      const sel = document.getElementById('importEventSelect');
+      if (sel) sel.value = '';
+    }
+    applyEventMode();
   });
   const createEventBtn = document.getElementById('createEventBtn');
   if (createEventBtn) createEventBtn.addEventListener('click', handleCreateEvent);
@@ -1094,7 +1128,7 @@ function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
 async function handleSendToGroq(){
   const eventId = document.getElementById('importEventSelect').value;
-  if (!eventId) { setImportStatus('Pick an event first.', 'err'); return; }
+  if (!eventId) { setImportStatus(newEventFormOpen ? 'Create the event first — fill in the form above and tap "Create event", then send.' : 'Pick an event first.', 'err'); return; }
   if (stitchedPreviews.length === 0) { setImportStatus('Nothing to send — build a preview first.', 'err'); return; }
 
   const batches = stitchedPreviews.map((p) => ({
@@ -1160,7 +1194,8 @@ async function handleCreateEvent(){
   sel.innerHTML = `<option value="">— pick an event to update existing scores —</option>` + events.map(e=>`<option value="${e.id}">${escapeHtml(e.name)} (${e.date})</option>`).join('');
   sel.value = id;
   selectedEventId = id;
-  document.getElementById('newEventForm').style.display = 'none';
+  newEventFormOpen = false;
+  applyEventMode();
   document.getElementById('newEventName').value = '';
   document.getElementById('newEventThreshold').value = '';
 }
