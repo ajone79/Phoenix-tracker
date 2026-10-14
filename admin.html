@@ -162,10 +162,11 @@ let mySession = null;
 let extractedRows = []; // {name, score, playerId, existingScore}
 let extractStatus = { loading: false, message: '', kind: '' };
 let activeTab = 'members';
-try { const t = sessionStorage.getItem('phxAdminTab'); if (t) activeTab = t; } catch(e) {}
+try { const t = sessionStorage.getItem('phxAdminTab'); if (t && t !== 'events') activeTab = t; } catch(e) {}
 let guideOpen = false;
 let thresholdsOpen = false;
 let membersOpen = false;
+let eventsShowAll = false;      // Upload scores > Edit or delete events: false = current arc only
 let openFolds = {};            // which collapsed Members-tab sections are open (survives re-renders)
 let newEventFormOpen = true;   // Upload scores: creating a new event is the default mode
 let stitchedPreviews = []; // {id, dataUrl, sourceCount}
@@ -205,8 +206,24 @@ function eventThresholdRowHtml(e){
   `;
 }
 
+function visibleThresholdEvents(){
+  const active = arcs.find(a => a.status === 'active');
+  if (eventsShowAll || !active) return events;
+  return events.filter(e => e.arc_id === active.id);
+}
+
+function eventsCountNoteText(){
+  const shown = visibleThresholdEvents().length;
+  const active = arcs.find(a => a.status === 'active');
+  return eventsShowAll || !active
+    ? `Showing all ${events.length} events.`
+    : `Showing ${shown} of ${events.length} events (current arc: ${active.name}).`;
+}
+
 function rerenderThresholdsTable(){
-  document.querySelector('#eventThresholdsTable tbody').innerHTML = events.map(e => eventThresholdRowHtml(e)).join('');
+  document.querySelector('#eventThresholdsTable tbody').innerHTML = visibleThresholdEvents().map(e => eventThresholdRowHtml(e)).join('');
+  const note = document.getElementById('eventsCountNote');
+  if (note) note.textContent = eventsCountNoteText();
   wireThresholdsTable();
 }
 
@@ -470,7 +487,6 @@ function render(){
       <div class="tabbar" role="tablist">
         <button class="tab-btn ${activeTab==='members'?'active':''}" data-tab="members">👥 Members${pending.length?` <span class="tab-badge">${pending.length}</span>`:''}</button>
         <button class="tab-btn ${activeTab==='scores'?'active':''}" data-tab="scores">📊 Upload scores</button>
-        <button class="tab-btn ${activeTab==='events'?'active':''}" data-tab="events">🗓 Events</button>
         <button class="tab-btn ${activeTab==='roster'?'active':''}" data-tab="roster">🔔 Roster${reviewQueue.length?` <span class="tab-badge">${reviewQueue.length}</span>`:''}</button>
         <button class="tab-btn ${activeTab==='guide'?'active':''}" data-tab="guide">📖 Guide</button>
       </div>
@@ -499,21 +515,20 @@ function render(){
       <h2>Import scores from screenshot</h2>
       <div id="importBoxWrap">${importSectionHtml()}</div>
 
-      </div>
-
-      <div class="tab-panel ${activeTab==='events'?'active':''}" data-panel="events">
-      <h2>Event thresholds</h2>
-      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Scoring type, completion mode and threshold for every event. New events are created from the Upload scores tab.</div>
-      <div id="thresholdsBox">
-        <div class="import-box">
-          <table class="review-table" id="eventThresholdsTable">
-            <thead><tr><th>Event</th><th>Scoring Type</th><th>Completion Mode</th><th>Threshold</th><th></th><th></th></tr></thead>
-            <tbody>
-              ${events.map(e => eventThresholdRowHtml(e)).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      ${foldHtml('events', 'Edit or delete events', `
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">Change an event's scoring type, completion mode or threshold, or delete it. New events are created above.</div>
+        <label style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:5px;margin-bottom:6px;"><input type="checkbox" id="eventsShowAll" ${eventsShowAll ? 'checked' : ''}> Show events from all arcs</label>
+        <div style="font-size:10.5px;color:var(--text-faint);margin-bottom:10px;" id="eventsCountNote">${eventsCountNoteText()}</div>
+        <div id="thresholdsBox">
+          <div class="import-box">
+            <table class="review-table" id="eventThresholdsTable">
+              <thead><tr><th>Event</th><th>Scoring Type</th><th>Completion Mode</th><th>Threshold</th><th></th><th></th></tr></thead>
+              <tbody>
+                ${visibleThresholdEvents().map(e => eventThresholdRowHtml(e)).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>`)}
 
       </div>
 
@@ -634,6 +649,8 @@ function render(){
   });
 
   wireThresholdsTable();
+  const showAllBox = document.getElementById('eventsShowAll');
+  if (showAllBox) showAllBox.addEventListener('change', () => { eventsShowAll = showAllBox.checked; rerenderThresholdsTable(); });
 
   document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => {
     activeTab = btn.dataset.tab;
@@ -1188,6 +1205,7 @@ async function handleCreateEvent(){
   if (error) { statusEl.textContent = `Error: ${error.message}`; statusEl.style.color = 'var(--alert)'; return; }
 
   events = [data, ...events];
+  rerenderThresholdsTable(); // keep the Edit or delete events list in step
   statusEl.textContent = `Created "${name}".`;
   statusEl.style.color = 'var(--mint)';
   const sel = document.getElementById('importEventSelect');
