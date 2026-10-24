@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="assets/phx-nav-rail.js"></script>
+<script src="assets/phx-polish.js"></script>
+<script src="assets/phx-share.js"></script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix EU168 — Alliance Tournament Task Guide</title>
+<meta name="description" content="Alliance Tournament task list by point pool and player grade, for Phoenix EU168.">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-eu168.png">
+<link rel="apple-touch-icon" href="/icon-eu168.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0d16;
+    --panel: #121729;
+    --panel-2: #171d33;
+    --line: #262e4a;
+    --amber: #f2a93b;
+    --amber-dim: #7a5a24;
+    --teal: #4fd1c5;
+    --text: #e7ecf3;
+    --muted: #8b93a7;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 15% -10%, #14203a 0%, transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, #1a1030 0%, transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Rajdhani', sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .starfield{
+    position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.5;
+    background-image:
+      radial-gradient(1px 1px at 20px 30px, #ffffff55, transparent),
+      radial-gradient(1px 1px at 140px 80px, #ffffff44, transparent),
+      radial-gradient(1.5px 1.5px at 300px 150px, #ffffff55, transparent),
+      radial-gradient(1px 1px at 60px 220px, #ffffff33, transparent),
+      radial-gradient(1px 1px at 260px 300px, #ffffff40, transparent),
+      radial-gradient(1.5px 1.5px at 380px 60px, #ffffff55, transparent);
+    background-repeat: repeat;
+    background-size: 420px 420px;
+  }
+  header{
+    position:relative; z-index:1;
+    padding:28px 20px 18px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(18,23,41,.9), rgba(18,23,41,.4));
+    backdrop-filter: blur(6px);
+  }
+  h1{
+    font-family:'Orbitron', sans-serif;
+    font-weight:800;
+    font-size:clamp(24px, 6vw, 36px);
+    margin:8px 0 4px;
+    letter-spacing:.02em;
+    color:#fff;
+    text-shadow: 0 0 24px rgba(242,169,59,.25);
+  }
+  h1 span{color:var(--amber);}
+  .eyebrow{
+    font-family:'Share Tech Mono', monospace;
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--teal); margin-bottom:6px;
+  }
+  .section-desc{
+    color:var(--muted);
+    font-size:14.5px;
+    max-width:640px;
+    line-height:1.5;
+  }
+  main{position:relative; z-index:1; max-width:820px; margin:0 auto; padding:18px 16px 80px;}
+
+  .controls{position:sticky; top:0; z-index:5; padding:14px 0 12px; background:linear-gradient(180deg, var(--bg) 82%, transparent);}
+  .picker-row{display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; -webkit-overflow-scrolling:touch;}
+  .picker-row::-webkit-scrollbar{height:4px;}
+  .pill{
+    font-family:'Share Tech Mono', monospace;
+    font-size:12.5px; padding:7px 14px; border-radius:999px; white-space:nowrap; cursor:pointer;
+    border:1px solid var(--line); background:var(--panel-2); color:var(--muted);
+    transition:border-color .15s ease, color .15s ease, background .15s ease;
+    flex-shrink:0;
+  }
+  .pill:hover{ color:var(--text); border-color:var(--amber-dim); }
+  .pill.active{ color:#0a0a0d; background:var(--amber); border-color:var(--amber); font-weight:700; }
+
+  .count-row{display:flex; justify-content:space-between; align-items:baseline; margin:10px 0 12px; font-family:'Share Tech Mono', monospace; font-size:12px; color:var(--muted);}
+
+  .list{border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--panel);}
+  .task-row{padding:12px 16px; font-size:15px; border-bottom:1px solid var(--line);}
+  .task-row:last-child{border-bottom:none;}
+  .task-row:nth-child(odd){background:var(--panel-2);}
+  .empty{padding:20px 16px; color:var(--muted); font-size:14px; text-align:center;}
+
+  footer{position:relative; z-index:1; text-align:center; padding:28px 16px 50px; color:var(--muted); font-size:12px; font-family:'Share Tech Mono', monospace;}
+  footer a{color:var(--teal);}
+</style>
+</head>
+<body>
+<div class="starfield"></div>
+<header>
+  <div class="eyebrow">Officer Tool &middot; STFC Community</div>
+  <h1>Alliance Tournament <span>Task Guide</span></h1>
+  <p class="section-desc">Which Alliance Tournament tasks show up for your point pool and grade. Grades follow the tracker's own G1&ndash;G8 bands. The game's task mapping is genuinely inconsistent between grades in the same pool &mdash; that's not a bug in this guide, it's how the event works.</p>
+</header>
+<main>
+  <div class="controls">
+    <div class="picker-row" id="pools"></div>
+    <div class="picker-row" id="grades"></div>
+  </div>
+  <div class="count-row"><span id="count"></span><span id="poolGradeLabel"></span></div>
+  <div class="list" id="list"></div>
+</main>
+<footer>
+  Source: Alliance Tournament M95 community task map (JulesVern, Quasel, BlueMandalorian &amp; the STFC community) &middot; <a href="/credits.html">Credits</a>
+</footer>
+<script>
+const DATA = {"5000": {"G1": ["4-Hour Chests", "Alliance Contribution", "Alliance Help", "Battleships", "Battleships in Fostaa", "Battleships in Imgra", "Claim Final Dailies Chest", "Complete Away Teams", "Complete Missions", "Explorers", "Explorers in Honsao", "Explorers in Weh", "Federation in A", "Federation in L", "Federation in V", "Hostiles in Aindia", "Hostiles in Aum", "Hostiles in Orion", "Hostiles in Somaochu", "Hostiles in Tellun", "Interceptors", "Interceptors in Clytomenes", "Interceptors in Nausicaa", "Klingons in A", "Klingons in I", "Klingons in K", "Mine Data", "Mine Dilithium", "Mine Parsteel", "Mine Tritanium", "Romulans in D", "Romulans in R", "Romulans in W", "Swarm in A", "Swarm in ACH", "Swarm in AO", "Swarm in CAE", "Swarm in E", "Swarm in H", "Swarm in KAH", "Swarm in KOE", "Upgrade Academy", "Use Battleship", "Use Battleship in Astrida", "Use Battleship in Zaurak", "Use Explorer", "Use Explorer in Eojur", "Use Explorer in Zehoro", "Use Interceptor", "Use Interceptor in Bellas", "Use Interceptor in Pyr", "Use Kehra"], "G2": ["1★ Raw Isogen", "2★ Raw Isogen", "4-Hour Chests", "Alliance Contribution", "Alliance Help", "Anomalous Hostiles", "Augment", "Battleships", "Borg Probes", "Claim Final Dailies Chest", "Common Transogen Ore", "Complete Away Teams", "Complete Missions", "DQ R Formation Armadas", "DQ U Formation Armadas", "E FKR Armadas", "Explorers", "FKR Elite Assassins", "Fed Elite Assassins", "Fed Hostiles", "Federation in A", "Federation in L", "Federation in V", "Hijacked D3 Class", "Hijacked Legionary", "Hijacked Mayflower", "Hirogen", "Hirogen Hostiles", "Interceptors", "Klingons in A", "Klingons in I", "Klingons in K", "Kln Elite Assassins", "Kln Hostiles", "Lost Hostiles", "Mine Data", "Mine Parsteel", "Mine Tritanium", "R FKR Armadas", "Raw Latinum", "Rom Elite Assassins", "Rom Hostiles", "Romulans in D", "Romulans in R", "Romulans in W", "Swarm Cluster", "Swarm in A", "Swarm in E", "Swarm in H", "UC Exchange Armadas", "UC FKR Armadas", "Upgrade Academy", "Use Battleship", "Use Borg Cube", "Use Explorer", "Use Federation UC Ships", "Use Interceptor", "Use Kehra", "Use Klingon UC Ships", "Use Romulan UC Ships", "Use U.S.S Discovery", "Use Vi'dar"], "G3": ["2★ Raw Isogen", "3★ Raw Isogen", "4-Hour Chests", "Actian Apex", "Augment", "Borg Probes", "Common Transogen Ore", "Complete Missions", "Concentrated Latinum", "DQ R Formation Armadas", "DQ U Formation Armadas", "Doomsday Worms", "E FKR Armadas", "FKR Elite Assassins", "Fed Elite Assassins", "Fed Hostiles", "Freebooters", "Gorn", "Hijacked D3 Class", "Hijacked Legionary", "Hijacked Mayflower", "Hirogen Hostiles", "Jem'Hadar", "Kln Elite Assassins", "Kln Hostiles", "Lost Hostiles", "R FKR Armadas", "Raw Latinum", "Raw Trellium", "Rom Elite Assassins", "Rom Hostiles", "Silent Enemy", "Swarm Cluster", "Texas Class", "UC Exchange Armadas", "UC FKR Armadas", "Uncommon Transogen Ore", "Use Battleship", "Use Borg Cube", "Use Federation R/E Ships", "Use Federation UC Ships", "Use Klingon R/E Ships", "Use Klingon UC Ships", "Use Mantis", "Use Romulan R/E Ships", "Use Romulan UC Ships", "Use Vi'dar", "Xindi"], "G4": ["3★ Raw Isogen", "4-Hour Chests", "Actian Apex", "Augment", "Borg Probes", "Complete Missions", "DQ R Formation Armadas", "Doomsday Worms", "E FKR Armadas", "FKR Elite Assassins", "Fed Elite Assassins", "Fed Hostiles", "Freebooters", "Gorn", "Hirogen Hostiles", "Jem'Hadar", "Kln Elite Assassins", "Kln Hostiles", "R FKR Armadas", "Raw Trellium", "Rom Elite Assassins", "Rom Hostiles", "Silent Enemy", "Swarm Cluster", "Texas Class", "UC FKR Armadas", "Uncommon Transogen Ore", "Use Borg Cube", "Use Federation R/E Ships", "Use G4 Fed Ships", "Use G4 Kln Ships", "Use G4 Rom Ships", "Use Klingon R/E Ships", "Use Romulan R/E Ships", "Xindi"], "G5": ["4-Hour Chests", "Actian Apex", "Augment", "Borg Probes", "Complete Missions", "E FKR Armadas", "Fed Hostiles", "Freebooters", "Gorn", "Hirogen Elite", "Invading Entities", "Jem'Hadar", "Kln Hostiles", "MU Federation", "MU Klingons", "MU Romulans", "Mine 1★ Isogenite", "Mirror Universe", "R FKR Armadas", "Rare Transogen Ore", "Raw Trellium", "Rom Hostiles", "Silent Enemy", "Solo Wave Defense", "Texas Class", "Use Borg Cube", "Use Borg Sphere", "Use G4 Fed Ships", "Use G4 Kln Ships", "Use G4 Rom Ships", "Use G5 Fed Ships", "Use G5 Kln Ships", "Use G5 Rom Ships", "Use Revenant on Borg Armadas", "Xindi Aquatics", "Xindi Reptilians"], "G6": ["4-Hour Chests", "Agg. Hostiles", "Augment", "Breen Hostiles", "Complete Missions", "Duo Wave Defense Waves", "E FKR G6 Solo Armadas", "Epic Transogen Ore", "Fed Hostiles", "Frontier Raiders", "Gorn", "I.S.S. Enterprise-E", "Invading Entities", "Kln Hostiles", "MU Federation", "MU Klingons", "MU Romulans", "Mine 2★ Isogenite", "Mirror Universe", "Q-Continuum Hostiles", "R FKR G6 Solo Armadas", "Raw Trellium", "Rom Hostiles", "Silent Enemy", "Use Borg Sphere", "Use G5 Fed Ships", "Use G5 Kln Ships", "Use G5 Rom Ships", "Use G6 Fed Ships", "Use G6 Kln Ships", "Use G6 Rom Ships", "Use Revenant on Borg Armadas", "Use Vindicator on Armadas", "V'ger", "Venari Ral"], "G7": ["4-Hour Chests", "Agg. Hostiles", "Augment", "Complete Missions", "Conqueror Borg Solo Armadas", "Duo Wave Defense Waves", "E FKR G6 Solo Armadas", "Elite Solo Wave Defense", "Epic Transogen Ore", "Fed Hostiles", "Gorn", "I.S.S. Enterprise-E", "Invading Entities", "Kln Hostiles", "Mine 3★ Isogenite", "Mine Veil Space", "Open Armadas", "Q-Continuum Hostiles", "Quantum Tesseract Armadas", "R FKR G6 Solo Armadas", "Rom Hostiles", "Silent Enemy", "Use Borg Sphere", "Use G6 Fed Ships", "Use G6 Kln Ships", "Use G6 Rom Ships", "Use G7 Fed Ships", "Use G7 Kln Ships", "Use G7 Rom Ships", "Use Revenant on Borg Armadas", "V'ger", "Veil Fed Hostiles", "Veil Kln Hostiles", "Veil Rom Hostiles", "Venari Ral"]}, "10000": {"G1": ["Alliance Contribution", "Alliance Help", "Complete Away Teams", "Complete Missions", "FT Fusion Rods", "FT Protomatter (55,000)", "Federation", "Gain Power", "Galactic Recruit Tokens (7,000)", "Hostiles in Collep", "Hostiles in Pune", "Klingons", "Latinum", "Officer XP", "Romulans", "Standard Recruit Tokens", "Swarm", "Swarm in C", "Swarm in K", "UC Skill Points (1,500)", "Upgrade Academy", "Use Battleship in Deneva", "Use Battleship in Madra", "Use Explorer in Lycia", "Use Explorer in Rigel", "Use Interceptor in Moston", "Use Interceptor in Súilneimhe"], "G2": ["Anomalous Hostiles", "Augment", "Complete Away Teams", "Complete Missions", "DQ R Formation Armadas", "DQ U Formation Armadas", "E FKR Armada Directives", "Exchange Hostiles", "FKR Armadas", "FT Fusion Rods", "FT Protomatter (55,000)", "Fed Elite Assassins", "Federation", "Gain Power", "Galactic Recruit Tokens (7,000)", "Hirogen", "Hostile Phenomena", "Hostiles in Collep", "Hostiles in Pune", "Klingons", "Kln Elite Assassins", "Latinum", "Officer XP", "R FKR Armada Directives", "R FKR Armadas", "Rom Elite Assassins", "Romulans", "Standard Recruit Tokens", "Suliban Transports", "Swarm", "Swarm in C", "Swarm in K", "Temporal Disruptors (15,000)", "UC Exchange Armadas", "UC FKR Armadas", "UC Skill Points (1,500)", "Upgrade Academy", "Use Explorer in Lycia", "Use Federation UC Ships", "Use Klingon UC Ships", "Use Reliant on Augment", "Use Romulan UC Ships", "Use U.S.S Discovery", "Use Vi'dar on Borg", "Wrath Credits"], "G3": ["Agg. Hostiles", "Augment", "DQ R Formation Armadas", "DQ U Formation Armadas", "Dominion Solo Armadas", "E FKR Armada Directives", "Epic Borg Solo Directives (500)", "Epic Dom Solo Directives (500)", "FKR Armadas", "FT Protomatter (55,000)", "Fed Elite Assassins", "Galactic Recruit Tokens (7,000)", "Gorn", "Hirogen", "Kln Elite Assassins", "Mirror Universe", "Q-Continuum Hostiles", "R Borg Solo Armadas", "R FKR Armada Directives", "Rom Elite Assassins", "Silent Enemy", "Suliban Transports", "Swarm", "Temporal Disruptors (15,000)", "UC Borg Solo Armadas", "UC Ex-Borg Credits (6,000)", "UC Exchange Armadas", "UC Skill Points (1,500)", "Use Augur", "Use B'Rel", "Use D4 Class", "Use Federation UC Ships", "Use Franklin-A on Swarm", "Use Gladius", "Use Klingon UC Ships", "Use Reliant on Augment", "Use Romulan UC Ships", "Use Talios on Borg", "Use U.S.S. Enterprise", "Use U.S.S. Intrepid", "Use Vi'dar on Borg", "Use Vindicator on Armadas", "Wrath Credits", "Xindi Hostiles"], "G4": ["Agg. Hostiles", "Augment", "Dominion Solo Armadas", "Epic Borg Solo Directives (500)", "Epic Dom Solo Directives (500)", "FKR Armadas", "FT Protomatter (55,000)", "Fed Elite Assassins", "Galactic Recruit Tokens (7,000)", "Gorn", "Kln Elite Assassins", "Mirror Universe", "Q-Continuum Hostiles", "Rom Elite Assassins", "Silent Enemy", "Temporal Disruptors (15,000)", "UC Borg Solo Armadas", "UC Ex-Borg Credits (6,000)", "UC Skill Points (1,500)", "Use D4 Class", "Use Relativity on Krenim Warships", "Use Revenant on Borg Type 03", "Use Talios on Borg", "Use Vindicator on Armadas", "Xindi Hostiles"], "G5": ["Agg. Hostiles", "Augment", "Conqueror Borg Hostiles (varies*)", "Dominion Solo Armadas", "Epic Borg Solo Directives (500)", "Epic Dom Solo Directives (500)", "FKR Armadas", "FT Protomatter (55,000)", "Galactic Recruit Tokens (7,000)", "Jem'Hadar", "MU Federation", "MU Klingons", "MU Romulans", "Outpost Retaliation Hostiles  (varies*)", "Q-Continuum Hostiles", "Temporal Disruptors (15,000)", "Temporal Dreadnoughts", "UC Ex-Borg Credits (6,000)", "UC Skill Points (1,500)", "Use Revenant on Borg Type 03", "Use Talios on Borg", "Use Vindicator on Armadas", "V'ger Hostiles (varies*)", "Xindi Hostiles"], "G6": ["Academy Training Drone (varies*)", "Aggregation Hostiles  (varies*)", "Augment", "Conqueror Borg Hostiles (varies*)", "Conqueror Borg Solo Armadas", "Duo Wave Defense Waves (10)", "Epic Borg Solo Directives (500)", "Epic Dom Solo Directives (500)", "FT Protomatter (55,000)", "G6 Solo Armadas (4)", "Galactic Recruit Tokens (7,000)", "Jem'Hadar", "MU Federation", "MU Klingons", "MU Romulans", "Outpost Retaliation Hostiles  (varies*)", "Temporal Disruptors (15,000)", "Temporal Dreadnoughts", "UC Ex-Borg Credits (6,000)", "UC Skill Points (1,500)", "Use Vindicator on Armadas", "V'ger Hostiles (varies*)", "Venari Ral  (varies*)"], "G7": ["Academy Training Drone (varies*)", "Aggregation Hostiles  (varies*)", "Breen Warships (10)", "Conqueror Borg Hostiles (varies*)", "Conqueror Borg Solo Armadas", "Duo Wave Defense Waves (10)", "Epic Borg Solo Directives (500)", "Epic Dom Solo Directives (500)", "FT Protomatter (55,000)", "G6 Solo Armadas (4)", "Galactic Recruit Tokens (7,000)", "Open Armadas (4)", "Outpost Retaliation Hostiles  (varies*)", "Q-Continuum Hostiles (varies*)", "Temporal Disruptors (15,000)", "UC Ex-Borg Credits (6,000)", "UC Skill Points (1,500)", "Use Vindicator on Armadas", "V'ger Hostiles (varies*)", "Veil Fed Hostiles (varies*)", "Veil Kln Hostiles (varies*)", "Veil Rom Hostiles (varies*)", "Venari Ral  (varies*)"]}, "12500": {"G1": ["Away Teams Crit Success", "Cadre Requisition Tokens", "Complete 15 Missions", "Dilithium", "Federation Credits", "G2 Battleship Parts", "G2 Explorer Parts", "G2 Interceptor Parts", "G2 UC Crystal", "G2 UC Gas", "G2 UC Ore", "G3 UC Crystal", "G3 UC Gas", "G3 UC Ore", "Gain Power", "Independent Credits", "Klingon Credits", "Mine Using North Star", "Parsteel", "Premium Recruit Tokens", "Romulan Credits", "Tritanium", "Ultra Recruit Tokens", "Use Franklin on Swarm", "Use Jellyfish"], "G2": ["Away Teams Crit Success", "Cadre Requisition Tokens", "Complete 15 Missions", "Federation Credits", "G2 Battleship Parts", "G2 Explorer Parts", "G2 Interceptor Parts", "G3 Battleship Parts", "G3 Explorer Parts", "G3 Interceptor Parts", "G3 UC Crystal", "G3 UC Gas", "G3 UC Ore", "Independent Credits", "Klingon Credits", "Pioneer Crests", "Romulan Credits", "Ultra Recruit Tokens", "Use Borg Cube", "Use Franklin on Swarm", "Use Serene Squall", "Use Stella on Eclipse", "Use U.S.S Discovery", "Use U.S.S Reliant on WOK", "Use Vi'dar on Borg"], "G3": ["C Ex-Borg Credits", "Cadre Requisition Tokens", "Ex-Borg Credits", "Federation Credits", "G3 Battleship Parts", "G3 Explorer Parts", "G3 Interceptor Parts", "G3 UC Crystal", "G3 UC Gas", "G3 UC Ore", "G4 Crystal", "G4 Gas", "G4 Ore", "Independent Credits", "Klingon Credits", "Pioneer Crests", "Q-Continuum Hostiles", "Romulan Credits", "Use Borg Cube", "Use Eviscerator on Gorn", "Use Franklin on Swarm", "Use Franklin-A on Swarm", "Use Serene Squall", "Use U.S.S Reliant on WOK", "Use Vi'dar on Borg", "Use Voyager on Hirogen"], "G4": ["Cadre Requisition Tokens", "Ex-Borg Credits", "Federation Credits", "G3 Battleship Parts", "G3 Explorer Parts", "G3 Interceptor Parts", "G4 Battleship Parts", "G4 Crystal", "G4 Explorer Parts", "G4 Gas", "G4 Interceptor Parts", "G4 Ore", "Independent Credits", "Klingon Credits", "Q-Continuum Hostiles", "Romulan Credits", "Use Borg Cube", "Use Dauntless on Agg. Hostiles", "Use Eviscerator on Gorn", "Use U.S.S Reliant on WOK", "Use Voyager on Hirogen"], "G5": ["Cadre Requisition Tokens", "Ex-Borg Credits", "Federation Credits", "G4 Battleship Parts", "G4 Explorer Parts", "G4 Interceptor Parts", "G5 Battleship Parts", "G5 Crystal", "G5 Explorer Parts", "G5 Gas", "G5 Interceptor Parts", "G5 Ore", "Independent Credits", "Klingon Credits", "Outpost Retaliation Hostiles", "Romulan Credits", "Use Borg Cube", "Use Borg Sphere on Conq. Borg Hostiles  (varies*)", "Use Dauntless on Agg. Hostiles", "Use Eviscerator on Gorn", "Use Excelsior on V'ger Hostiles  (varies*)"], "G6": ["Cadre Requisition Tokens", "Ex-Borg Credits", "Federation Credits", "G5 Battleship Parts", "G5 Explorer Parts", "G5 Interceptor Parts", "G6 Battleship Parts", "G6 Crystal", "G6 Explorer Parts", "G6 Gas", "G6 Interceptor Parts", "G6 Ore", "Independent Credits", "Klingon Credits", "Outpost Retaliation Hostiles", "Romulan Credits", "Use Athena on Venari Ral  (varies*)", "Use Borg Sphere on Conq. Borg Hostiles  (varies*)", "Use Excelsior on V'ger Hostiles  (varies*)", "Use Protector on I.S.S. Ent"], "G7": ["Cadre Requisition Tokens", "G6 Battleship Parts", "G6 Explorer Parts", "G6 Interceptor Parts", "G7 Battleship Parts", "G7 Crystal", "G7 Explorer Parts", "G7 Gas", "G7 Interceptor Parts", "G7 Ore", "Independent Credits", "Maverick Periphery Intel", "Outpost Retaliation Hostiles", "Sigma Federation Credits (50,000)", "Sigma Klingon Credits (50,000)", "Sigma Romulan Credits (50,000)", "Use Athena on Venari Ral  (varies*)", "Use Borg Sphere on Conq. Borg Hostiles  (varies*)", "Use Excelsior on V'ger Hostiles  (varies*)", "Use Vengeance on Breen (50)"]}, "15000": {"G1": ["Building Upgrades", "Defeat FKR Hostiles", "Defeat Hostiles", "Defeat Swarm Hostiles", "Emblems of Assessment", "FC Lorca Skill Points", "FKR Hostiles", "FT Protomatter", "Frequency Modulators", "Gain Power", "Hostiles  (varies*)", "Officer Depot Tokens", "Optical Diodes", "Quantum Communicators", "Research", "Ship XP", "Use Epic Officer"], "G2": ["ACC Cores", "CAR Armadas", "D'Vor Parts", "DQ Formation Armadas", "Defeat Swarm Hostiles", "E FKR Armadas", "E Reg. Armada Directives", "Emblems of Assessment", "FC Khan Skill Points", "FC Lorca Skill Points", "FC Sloan Skill Points", "FKR Elite Assassins", "FKR Hostiles", "FT Protomatter", "Frequency Modulators", "Gain Power", "Hostiles  (varies*)", "Nadion", "Officer Depot Tokens", "Optical Diodes", "Quantum Communicators", "R FKR Armadas", "R Reg. Armada Directives", "S31 Transmitter", "Spore Drive Components", "Starfleet Honors", "Stella Parts", "Use Epic Officer"], "G3": ["ACC Cores", "CAR Armadas", "Cerritos Parts", "Chaosmatter", "Complete Waves", "D'Vor Feesha Parts", "D'Vor Parts", "DQ Formation Armadas", "Defiant Parts", "FC Khan Skill Points", "FC Sloan Skill Points", "FKR Elite Assassins", "FT Protomatter", "Hostiles  (varies*)", "Mirror Dust", "Nadion", "Reliant Parts", "S31 Transmitter", "Starfleet Honors", "Stella Parts", "Transogen Forge", "Use Epic Officer"], "G4": ["ACC Cores", "Chaosmatter", "Complete Waves", "DQ Formation Armadas", "Defiant Parts", "FC Sloan Skill Points", "FKR Elite Assassins", "Hostiles  (varies*)", "Mirror Dust", "Recon Locus", "Reliant Parts", "S31 Transmitter", "Starfleet Honors", "Transogen Forge", "Use Epic Officer"], "G5": ["Complete MU Waves", "DQ Formation Armadas", "DTI Headquarters", "District 56", "Hostiles  (varies*)", "MU Hostiles", "Mirror Dust", "Outpost Control Cores", "PTT Protomatter", "Recon Locus", "Reliant Parts", "S31 Transmitter", "Transogen Forge", "Use Epic Officer"], "G6": ["Aggregation Smuggled Studies", "Complete Duo Waves (20)", "Enhanced Section 31 Transmitter", "Hostiles  (varies*)", "MU Hostiles", "Outpost Control Cores", "PTT Protomatter", "Quantum Tesseract Armadas (8)", "Recon Locus", "Sigma Commander Credits", "Signal Observatory Schematics", "Spend GS-31 Parts", "Use Epic Officer", "Warp Dive Bar (1,500)"], "G7": ["Complete Duo Waves (20)", "Consulate Luminous Cores (16,350)", "Enhanced Section 31 Transmitter", "Hostiles  (varies*)", "Officer Laurels (2,500)", "Outpost Control Cores", "PTT Protomatter", "Quantum Tesseract Armadas (8)", "Sigma Commander Credits", "Signal Observatory Schematics", "U.S.S. Excelsior Parts", "Use Epic Officer", "Veil Hostiles (varies*)", "Warp Dive Bar (1,500)"]}, "20000": {"G1": ["Axionic Servos", "C Plutonium", "CT Tier Up Catalysts", "Emblems of Assessment", "FT Tier Up Catalysts", "Frequency Modulators", "G2 UC Crystal", "G2 UC Gas", "G2 UC Ore", "G3 UC Crystal", "G3 UC Gas", "G3 UC Ore", "Independent Archives Schematics", "Multiphasic Credits (17,000)", "North Star Blueprints", "Officer Depot Tokens", "Optical Diodes", "Premium Recruit Tokens", "Quantum Communicators", "Replicator Rations (175,000)", "Syndicate XP (3,000,000)", "Trait XP", "Ultra Recruit Tokens"], "G2": ["Artifact Gallery", "Ascension Particles", "Axionic Servos", "C Plutonium", "CT Tier Up Catalysts", "Charged Nanoprobes", "D'vor Parts", "Emblems of Assessment", "FT Tier Up Catalysts", "Frequency Modulators", "G3 UC Crystal", "G3 UC Gas", "G3 UC Ore", "Independent Archives Schematics", "Iso-Emulsion", "Multiphasic Credits (17,000)", "Nadion", "Officer Depot Tokens", "Optical Diodes", "Premium Recruit Tokens", "Quantum Communicators", "Reliant Parts", "Replicator Rations (175,000)", "Serene Squall Blueprints", "Serene Squall Parts", "Shape Memory Alloy", "Spore Drive Component", "Syndicate XP (3,000,000)", "U.S.S Reliant Blueprints", "U.S.S. Discovery Blueprints", "Ultra Recruit Tokens"], "G3": ["Amalgam Parts", "Artifact Gallery", "Ascension Particles", "CT Tier Up Catalysts", "Charged Nanoprobes", "District 56", "FT Tier Up Catalysts", "Franklin-A Parts", "G3 UC Crystal", "G3 UC Gas", "G3 UC Ore", "G4 UC Battleship Parts", "G4 UC Crystal", "G4 UC Explorer Parts", "G4 UC Gas", "G4 UC Interceptor Parts", "G4 UC Ore", "Gorn Eviscerator Parts", "Independent Archives Schematics", "Iso-Emulsion", "Multiphasic Credits (17,000)", "Nadion", "Optical Diodes", "Premium Mirror Dust", "Quantum Communicators", "Reliant Parts", "Replicator Rations (175,000)", "Serene Squall Blueprints", "Serene Squall Parts", "Shape Memory Alloy", "Syndicate XP (3,000,000)", "Temporal Disruptors", "Titan-A Parts", "U.S.S. Relativity Blueprints", "U.S.S. Voyager Blueprints", "Voyager Ship Parts"], "G4": ["Ascension Particles", "CT Tier Up Catalysts", "Charged Nanoprobes", "DTI Headquarters", "District 56", "G4 UC Battleship Parts", "G4 UC Crystal", "G4 UC Explorer Parts", "G4 UC Gas", "G4 UC Interceptor Parts", "G4 UC Ore", "Gorn Eviscerator Parts", "Independent Archives Schematics", "Multiphasic Credits (17,000)", "Premium Mirror Dust", "Replicator Rations (175,000)", "Serene Squall Parts", "Shape Memory Alloy", "Syndicate XP (3,000,000)", "U.S.S. Relativity Blueprints", "Voyager Ship Parts"], "G5": ["Borg Sphere Parts (10,000)", "Charged Nanoprobes", "DTI Headquarters", "G4 UC Battleship Parts", "G4 UC Explorer Parts", "G4 UC Interceptor Parts", "G5 UC Battleship Parts", "G5 UC Crystal", "G5 UC Explorer Parts", "G5 UC Gas", "G5 UC Interceptor Parts", "G5 UC Ore", "GS-31 Parts", "Independent Archives Schematics", "Multiphasic Credits (17,000)", "Premium Mirror Dust", "Replicator Rations (175,000)", "Serene Squall Parts", "Shape Memory Alloy", "Signal Observatory Schematics", "Syndicate XP (3,000,000)", "U.S.S Excelsior Parts", "U.S.S. Dauntless Blueprints", "Voyager Ship Parts"], "G6": ["Borg Sphere Parts (10,000)", "Class Honors (5,500)", "Exotic Spirits Shipment", "G6 UC Battleship Parts", "G6 UC Crystal", "G6 UC Explorer Parts", "G6 UC Gas", "G6 UC Interceptor Parts", "G6 UC Ore", "Independent Archives Schematics", "Maverick Credits (25,000) - F2P", "Multiphasic Credits (17,000)", "Premium Mirror Dust", "Ra'Ul Reaver Blueprints", "Ra'Ul Reaver Parts (10,000)", "Replicator Rations (175,000)", "Shape Memory Alloy", "Syndicate XP (3,000,000)", "U.S.S Athena Parts (6,605)", "U.S.S Excelsior Parts"], "G7": ["Borg Sphere Parts (10,000)", "Class Honors (5,500)", "Common U.S.S Kelcie Mae Parts (20,000)", "Consulate Quantum Cores (16,350)", "Elite Solo Outpost Strike Directives (3,000)", "Enhanced Independent Archives Schematics (20,000)", "G7 UC Battleship Parts (14,300) - F2P", "G7 UC Crystal (3,230) - F2P", "G7 UC Explorer Parts (14,300) - F2P", "G7 UC Gas (3,230) - F2P", "G7 UC Interceptor Parts (14,300) - F2P", "G7 UC Ore (3,230) - F2P", "Maverick Credits (25,000) - F2P", "Multiphasic Credits (17,000)", "Ra'Ul Reaver Parts (10,000)", "Replicator Rations (175,000)", "Syndicate XP (3,000,000)", "U.S.S Athena Parts (6,605)", "U.S.S. Kelcie Mae Blueprints"]}};
+const GRADE_ORDER = ["G1","G2","G3","G4","G5","G6","G7","G8"];
+const pools = Object.keys(DATA).sort((a,b)=>Number(a)-Number(b));
+let pool = pools[0];
+let grade = Object.keys(DATA[pool])[0];
+
+function fmtPts(p){ return Number(p).toLocaleString() + ' pts'; }
+
+function renderPools(){
+  const el = document.getElementById('pools');
+  el.innerHTML = pools.map(p => `<div class="pill${p===pool?' active':''}" data-pool="${p}">${fmtPts(p)}</div>`).join('');
+  el.querySelectorAll('[data-pool]').forEach(d => d.addEventListener('click', () => {
+    pool = d.dataset.pool;
+    if(!DATA[pool][grade]) grade = Object.keys(DATA[pool])[0];
+    render();
+  }));
+}
+
+function renderGrades(){
+  const el = document.getElementById('grades');
+  const grades = Object.keys(DATA[pool]).sort((a,b)=>GRADE_ORDER.indexOf(a)-GRADE_ORDER.indexOf(b));
+  el.innerHTML = grades.map(g => `<div class="pill${g===grade?' active':''}" data-grade="${g}">${g}</div>`).join('');
+  el.querySelectorAll('[data-grade]').forEach(d => d.addEventListener('click', () => { grade = d.dataset.grade; render(); }));
+}
+
+function renderList(){
+  const tasks = (DATA[pool][grade] || []).slice().sort((a,b)=>a.localeCompare(b));
+  document.getElementById('count').textContent = tasks.length + (tasks.length === 1 ? ' task' : ' tasks');
+  document.getElementById('poolGradeLabel').textContent = fmtPts(pool) + ' \u00b7 ' + grade;
+  document.getElementById('list').innerHTML = tasks.length
+    ? tasks.map(t => `<div class="task-row">${t}</div>`).join('')
+    : '<div class="empty">No mapped tasks for this grade in this pool.</div>';
+}
+
+function render(){ renderPools(); renderGrades(); renderList(); }
+render();
+</script>
+</body>
+</html>
