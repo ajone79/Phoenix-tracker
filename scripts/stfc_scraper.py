@@ -1,5 +1,6 @@
 import requests
 import json
+import os
 import re
 from datetime import datetime, timezone
 
@@ -12,6 +13,8 @@ HEADERS = {
 }
 
 OUT_FILE = "events-data-game.json"
+# Hand-written events (e.g. test events) merged into the output so a scrape never wipes them.
+MANUAL_FILE = "scripts/manual-events.json"
 
 
 def strip_html(text):
@@ -50,6 +53,12 @@ def main():
             "maxOpsLevel": e.get("maxOpsLevel"),
             "repeatType": e.get("repeatType", "none"),
         })
+
+    if os.path.exists(MANUAL_FILE):
+        with open(MANUAL_FILE, encoding="utf-8") as f:
+            manual = json.load(f)
+        slim.extend(manual)
+        print(f"{len(manual)} manual events merged from {MANUAL_FILE}")
 
     slim.sort(key=lambda e: e["startUTC"] or "")
 

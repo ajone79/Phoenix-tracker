@@ -1,0 +1,32 @@
+[
+  {
+    "id": "test-quillfeather-incursions",
+    "title": "🇪🇺 E.U. Quillfeather Incursions",
+    "description": "Test event for the calendar and reminder pipeline. Remove this entry when testing is finished.",
+    "imageUrl": null,
+    "startUTC": "2026-11-28T16:00:00.000Z",
+    "endUTC": "2026-11-29T16:00:00.000Z",
+    "eventType": "pvp",
+    "eventSubType": null,
+    "eventFormat": null,
+    "priority": "normal",
+    "minOpsLevel": null,
+    "maxOpsLevel": null,
+    "repeatType": "none"
+  },
+  {
+    "id": "test-zorblax-alliance-tournament",
+    "title": "Zorblax Alliance Tournament",
+    "description": "Test event for the calendar and reminder pipeline. Remove this entry when testing is finished.",
+    "imageUrl": null,
+    "startUTC": "2026-11-23T16:00:00.000Z",
+    "endUTC": "2026-11-28T16:00:00.000Z",
+    "eventType": "alliance",
+    "eventSubType": null,
+    "eventFormat": null,
+    "priority": "normal",
+    "minOpsLevel": null,
+    "maxOpsLevel": null,
+    "repeatType": "none"
+  }
+]
