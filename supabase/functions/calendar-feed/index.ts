@@ -8,7 +8,8 @@
 //               tournament / incursion = game-wide events from events-data-game.json,
 //               matched on the words "alliance tournament" / "incursion" anywhere in the title (any event type)
 //     regions : eu | us | apac  (incursions only; default: eu)
-//   Reminders: territory + incursion = 12 hours and 1 hour before; tournament = 3 days and 1 day before.
+//   Reminders: territory = 12 hours and 1 hour before; incursion = 6 days, 12 hours and 1 hour before;
+//   tournament = 6 days, 3 days and 1 day before. (Incursions and tournaments are announced ~7 days ahead.)
 //   One-off events only carry reminders that have not already passed (past reminders are dropped after a short
 //   grace period) so calendar apps such as Thunderbird do not keep re-firing missed reminders on every refresh.
 //   Calendar name: stfc-phx.
@@ -33,11 +34,14 @@ const DEFAULT_ALARMS: Alarm[] = [
   { trigger: "-PT720M", label: "12 hours", ms: 720 * 60000 },
   { trigger: "-PT60M", label: "1 hour", ms: 60 * 60000 },
 ];
+const SIX_DAYS: Alarm = { trigger: "-P6D", label: "6 days", ms: 6 * 86400000 };
 const ALARMS: Record<string, Alarm[]> = {
   tournament: [
+    SIX_DAYS,
     { trigger: "-P3D", label: "3 days", ms: 3 * 86400000 },
     { trigger: "-P1D", label: "1 day", ms: 86400000 },
   ],
+  incursion: [SIX_DAYS, ...DEFAULT_ALARMS],
 };
 // startMs given (one-off events): drop reminders that were due more than the grace period ago.
 // startMs omitted (repeating territory events): keep every reminder, it applies to each weekly occurrence.
