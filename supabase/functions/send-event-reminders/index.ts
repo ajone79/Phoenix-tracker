@@ -25,6 +25,13 @@ const fmtUtc = (iso: string) => new Date(iso).toUTCString().slice(0, 22) + " UTC
 
 type Sub = { id: string; endpoint: string; p256dh: string; auth: string; notify_territory: boolean; notify_game_events: boolean };
 
+function regionOf(title: string): string | null {
+  if (/\be\.?u\.?(\s|$)/i.test(title)) return "eu";
+  if (/\bu\.?s\.?(\s|$)/i.test(title)) return "us";
+  if (/apac/i.test(title)) return "apac";
+  return null;
+}
+
 // Pull EU incursions and alliance tournaments from the game-event data into phx_events.
 // Cache-busted: raw.githubusercontent.com serves stale content otherwise.
 async function ingestGameEvents(sb: ReturnType<typeof createClient>) {
@@ -36,8 +43,9 @@ async function ingestGameEvents(sb: ReturnType<typeof createClient>) {
   for (const e of data.events ?? []) {
     const title = String(e.title ?? "").replace(/\u26A0\uFE0F?/g, "").trim();
     let kind: string | null = null;
-    if (/alliance tournament/i.test(title)) kind = "tournament";
-    else if (/incursion/i.test(title) && e.eventType === "pvp" && /\be\.?u\.?(\s|$)/i.test(title)) kind = "incursion";
+    // Same keyword rules as the calendar-feed function: any event type, EU (or region-less) incursions.
+    if (/alliance\s+tournament/i.test(title)) kind = "tournament";
+    else if (/incursion/i.test(title) && [null, "eu"].includes(regionOf(title))) kind = "incursion";
     if (!kind) continue;
     if (new Date(e.endUTC).getTime() < now) continue; // already over
     rows.push({ name: title, starts_at: new Date(e.startUTC).toISOString(), kind });

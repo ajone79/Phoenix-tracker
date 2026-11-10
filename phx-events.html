@@ -47,7 +47,7 @@
     <button class="btn" id="shareBtn">🔗 Share</button>
   </div>
   <div class="msg" id="msg"></div>
-  <div class="note">Alerts arrive 12 hours and 1 hour before each event. Push alerts are sent to everyone who has notifications enabled under My Account. The .ics file adds the same two reminders to your own calendar app.</div>
+  <div class="note">Push alerts arrive 12 hours and 1 hour before each event, and go to everyone who has notifications enabled under My Account. Calendar reminders (the .ics files and the live subscription): territory takeovers 12 hours and 1 hour before; incursions 6 days, 12 hours and 1 hour before; alliance tournaments 6 days, 3 days and 1 day before.</div>
   <div class="ev" id="sub">
     <div class="n">🔄 Live calendar subscription</div>
     <div class="m" style="margin:4px 0 8px">Subscribe once; your calendar keeps itself up to date.</div>
@@ -79,13 +79,20 @@ function fmtUtc(d){ return d.toISOString().slice(5,16).replace('T',' ')+' UTC'; 
 function rel(d){ let ms=d-Date.now(); const past=ms<0; ms=Math.abs(ms)/60000; const h=Math.floor(ms/60), m=Math.floor(ms%60);
   return (past?'started ':'in ')+(h?h+'h ':'')+m+'m'+(past?' ago':''); }
 
+// Calendar reminders per event kind (minutes before start). Keep in step with the calendar-feed function.
+function alarmsFor(kind){
+  if (kind==='tournament') return [[8640,'6 days'],[4320,'3 days'],[1440,'1 day']];
+  if (kind==='incursion') return [[8640,'6 days'],[720,'12 hours'],[60,'1 hour']];
+  return [[720,'12 hours'],[60,'1 hour']];
+}
 function buildIcs(list){
   const L = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Phoenix EU168//Phx Events//EN','CALSCALE:GREGORIAN','X-WR-CALNAME:Phx Events'];
   const stamp = icsDate(new Date());
   for (const e of list){
     const s = new Date(e.starts_at), end = new Date(s.getTime()+3600000);
     L.push('BEGIN:VEVENT','UID:'+e.id+'@stfc.phoenixeu168.space','DTSTAMP:'+stamp,'DTSTART:'+icsDate(s),'DTEND:'+icsDate(end),'SUMMARY:Phx • '+e.name);
-    for (const [mins,lbl] of [[720,'12 hours'],[60,'1 hour']])
+    for (const [mins,lbl] of alarmsFor(e.kind))
+      if (s.getTime()-mins*60000 > Date.now()-15*60000) // skip reminders that are already past
       L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:Phx • '+e.name+' in '+lbl,'TRIGGER:-PT'+mins+'M','END:VALARM');
     L.push('END:VEVENT');
   }
@@ -114,7 +121,7 @@ async function load(){
   try{
     const since = new Date(Date.now()-6*3600000).toISOString();
     const ctl = new AbortController(); const to = setTimeout(()=>ctl.abort(), 10000);
-    const r = await fetch(SB_URL+'/rest/v1/phx_events?select=id,name,starts_at&order=starts_at.asc&starts_at=gte.'+encodeURIComponent(since),
+    const r = await fetch(SB_URL+'/rest/v1/phx_events?select=id,name,starts_at,kind&order=starts_at.asc&starts_at=gte.'+encodeURIComponent(since),
       {headers:{apikey:SB_KEY, Authorization:'Bearer '+SB_KEY}, signal:ctl.signal});
     clearTimeout(to);
     if (!r.ok) throw new Error('HTTP '+r.status);
