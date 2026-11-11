@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-11T15:53:33.273767+00:00",
+  "generatedAt": "2026-11-11T22:29:25.259912+00:00",
   "events": [
     {
       "id": 173,
@@ -17255,7 +17255,7 @@
       "id": 1478,
       "title": "Standing Watch - SMS",
       "description": "Score in this event by defeating Romulan hostiles.",
-      "imageUrl": null,
+      "imageUrl": "https://i.ibb.co/1YKc65hf/6bb85da6818c.webp",
       "startUTC": "2026-11-11T17:00:00.000Z",
       "endUTC": "2026-11-12T17:00:00.000Z",
       "eventType": "hostiles",
