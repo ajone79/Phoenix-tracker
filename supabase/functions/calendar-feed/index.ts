@@ -15,6 +15,8 @@
 //   Calendar name: stfc-phx.
 //   DTSTAMP / LAST-MODIFIED / territory DTSTART are fixed so event data only changes when the event really changes.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import { appFromUserAgent, clientHash } from "./track.ts";
 
 const DATA_URL = "https://raw.githubusercontent.com/ajone79/Phoenix-tracker/refs/heads/main/events-data-game.json";
 const SB_URL = "https://mmzizgsanwqjpiumpqay.supabase.co";
@@ -83,7 +85,24 @@ function fold(line: string): string {
   return out.join("\r\n ");
 }
 
+// Anonymous usage counter (see supabase/migrations/20261111_calendar_feed_hits.sql). Never blocks or breaks the feed.
+async function recordHit(req: Request) {
+  try {
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!key || req.method !== "GET") return;
+    const ip = req.headers.get("cf-connecting-ip") ?? req.headers.get("x-real-ip") ??
+      (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim();
+    const ua = req.headers.get("user-agent") ?? "";
+    const sb = createClient(SB_URL, key);
+    await sb.rpc("record_feed_hit", { p_client: await clientHash(ip, ua, key), p_app: appFromUserAgent(ua) });
+  } catch { /* counting is best-effort */ }
+}
+
 Deno.serve(async (req: Request) => {
+  // @ts-ignore EdgeRuntime is provided by the Supabase edge runtime
+  const er = typeof EdgeRuntime !== "undefined" ? EdgeRuntime : null;
+  const counted = recordHit(req);
+  if (er) er.waitUntil(counted);
   const url = new URL(req.url);
   const wantCats = (url.searchParams.get("cats") ?? "territory,tournament,incursion")
     .split(",").map((s) => s.trim().toLowerCase()).filter((c) => CATS[c]);

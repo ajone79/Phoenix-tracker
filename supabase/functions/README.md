@@ -111,3 +111,10 @@ pg_cron) now also ingests EU incursions + alliance tournaments from `events-data
 "New: <event>" push (`announced_at`) for incursions/tournaments, and 12h + 1h reminders for all
 kinds - each only to people who opted in to that group.
 Schema: `supabase/migrations/20261004_alert_preferences.sql`.
+
+## discord-events, discord-raid-timers, calendar-feed (Discord + usage counter)
+Source backups, deployed directly to Supabase (pushing does not deploy).
+- `discord-events` (pg_cron every 5 min): keeps one pinned Discord message (tournaments/incursions 14 days, territory 7 days), `@here` on new tournaments/incursions and 1 day / 2 hours before incursions. Secret: `DISCORD_EVENTS_WEBHOOK_URL`.
+- `discord-raid-timers` (pg_cron every 5 min): keeps the raid countdown message up to date from table `raid_timer_schedule`. Secret: `DISCORD_RAID_WEBHOOK_URL`.
+- `calendar-feed` now counts anonymous hits into `calendar_feed_hits` (see views `calendar_feed_summary`, `calendar_feed_active_7d`; kept 90 days).
+- Tables/cron: see `supabase/migrations/20261111_*.sql`. Discord posts carry "sb" so you can tell they come from Supabase.
