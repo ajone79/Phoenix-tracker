@@ -49,7 +49,10 @@ const VOYAGE_NOTES = {
   'Echoes of War': 'Defeat Armadas, complete research, or upgrade buildings, or defeat Federation, Klingon, and Romulan hostiles — scoring is the same across SMS, SLB, and ALB.'
 };
 
-/* ===== RECURRING TERRITORY CAPTURE WINDOWS (indefinite, not arc-bound) ===== */
+/* ===== RECURRING TERRITORY CAPTURE WINDOWS (indefinite, not arc-bound) =====
+   The live schedule is the Supabase table phx_territory_schedule (also feeds the iCal calendar feed, the Discord post
+   and the Android widget) and replaces this list at load time (see loadTerritorySchedule below). The entries here are
+   only a fallback if that table cannot be reached. */
 const TERRITORY_EVENTS = [
   {name:'Nujord — Territory Capture', displayType:'territory', eventSubType:null, dayOfWeek:5, h:15, m:0, durationDays:0, note:'PHX conquest window · cost 1 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
   {name:'Duportas — Territory Capture', displayType:'territory', eventSubType:null, dayOfWeek:6, h:14, m:0, durationDays:0, note:'PHX conquest window · cost 2 currency.', validFrom:'2025-01-01', validTo:'2027-12-31'},
@@ -245,8 +248,10 @@ function generateRecurringEvents(defs, winStartISO, winEndISO){
     defs.forEach(d => {
       if(dISO < d.validFrom || dISO > d.validTo) return;
       if(dowOf(dISO) !== d.dayOfWeek) return;
-      const startUTC = ukLocalToUTC(dISO, d.h, d.m);
-      const endUTC = d.durationDays > 0 ? ukLocalToUTC(addDays(dISO, d.durationDays), d.h, d.m) : null;
+      // d.utc = the time is fixed UTC (Supabase phx_territory_schedule, same as the iCal feed); otherwise UK wall-clock.
+      const at = (iso) => { const [y,mo,dd] = iso.split('-').map(Number); return new Date(Date.UTC(y, mo-1, dd, d.h, d.m)).toISOString(); };
+      const startUTC = d.utc ? at(dISO) : ukLocalToUTC(dISO, d.h, d.m);
+      const endUTC = d.durationDays > 0 ? (d.utc ? at(addDays(dISO, d.durationDays)) : ukLocalToUTC(addDays(dISO, d.durationDays), d.h, d.m)) : null;
       out.push({
         title: d.name, description: d.note, displayType: d.displayType,
         eventSubType: d.eventSubType, priority: 'normal',
@@ -272,9 +277,37 @@ function augmentCategoriesFromEvents(mergedEvents){
   });
 }
 
+/* ===== TERRITORY SCHEDULE — single source of truth = Supabase table phx_territory_schedule (weekday 0=Sunday, UTC).
+   Replaces TERRITORY_EVENTS in place so every page that reads it matches the iCal feed. Falls back to the list above. ===== */
+const TERRITORY_COSTS = {Nujord:1, Duportas:2, "Ber'Tho":2, Brellan:3, Bimasa:2}; // known capture costs; others get no cost note
+async function loadTerritorySchedule(){
+  try{
+    const SB = 'https://mmzizgsanwqjpiumpqay.supabase.co';
+    const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM';
+    const res = await fetch(SB + '/rest/v1/phx_territory_schedule?select=system,weekday,start_utc,duration_min', {
+      headers:{apikey:KEY, Authorization:'Bearer ' + KEY}, cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = await res.json();
+    if(!Array.isArray(rows) || !rows.length) throw new Error('empty schedule');
+    const defs = rows.map(r => {
+      const [h, m] = String(r.start_utc).split(':').map(Number);
+      const cost = TERRITORY_COSTS[r.system];
+      return {name: r.system + ' \u2014 Territory Capture', displayType:'territory', eventSubType:null, dayOfWeek:Number(r.weekday),
+        h, m, durationDays:0, utc:true,
+        note:'PHX conquest window' + (cost ? ' \u00B7 cost ' + cost + ' currency.' : '.'),
+        validFrom:'2025-01-01', validTo:'2027-12-31'};
+    });
+    TERRITORY_EVENTS.length = 0;
+    defs.forEach(d => TERRITORY_EVENTS.push(d));
+  } catch(e){
+    console.warn('phx_territory_schedule unavailable - using built-in territory list.', e);
+  }
+}
+
 /* ===== DATA LOADER — fetches the daily-scraped feed with cache-busting
    so a fresh scrape is visible immediately, no stale-cache waiting. ===== */
 async function loadGameEventsFeed(){
+  await loadTerritorySchedule();
   try{
     const res = await fetch('events-data-game.json?t=' + Date.now(), {cache:'no-store'});
     if(!res.ok) throw new Error('HTTP ' + res.status);
