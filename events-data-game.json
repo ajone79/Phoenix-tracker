@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-10T21:39:40.613986+00:00",
+  "generatedAt": "2026-11-11T04:55:09.938890+00:00",
   "events": [
     {
       "id": 173,
@@ -16802,10 +16802,10 @@
       "repeatType": "none"
     },
     {
-      "id": 1363,
-      "title": "Klingon: Hunt the Romulans! - SMS",
-      "description": "Prove your allegiance to the Klingons! Invade Romulan space and destroy as many enemy ships as possible! [Faction Hunt Event]",
-      "imageUrl": "https://i.ibb.co/HfsKh9TV/366658a8f3f7.webp",
+      "id": 1361,
+      "title": "Federation: Hunt the Klingons! - SMS",
+      "description": "Prove your allegiance to the Federation! Invade Klingon space and destroy as many enemy ships as possible! [Faction Hunt Event]",
+      "imageUrl": "https://i.ibb.co/BVHg83d5/88ccaf7d66f9.webp",
       "startUTC": "2026-11-08T17:00:00.000Z",
       "endUTC": "2026-11-09T17:00:00.000Z",
       "eventType": "hostiles",
@@ -16817,25 +16817,10 @@
       "repeatType": "none"
     },
     {
-      "id": 1360,
-      "title": "Alliance Faction LB! - ALb",
-      "description": "Prove your allegiance to your alliance and faction! Surge into faction space and destroy as many enemy faction ships as possible! [Faction Hunt Event]",
-      "imageUrl": "https://i.ibb.co/NdS4Bz4w/030c07b5589c.webp",
-      "startUTC": "2026-11-08T17:00:00.000Z",
-      "endUTC": "2026-11-11T17:00:00.000Z",
-      "eventType": "alliance",
-      "eventSubType": null,
-      "eventFormat": "ALB",
-      "priority": "arc",
-      "minOpsLevel": 20,
-      "maxOpsLevel": 80,
-      "repeatType": "none"
-    },
-    {
-      "id": 1361,
-      "title": "Federation: Hunt the Klingons! - SMS",
-      "description": "Prove your allegiance to the Federation! Invade Klingon space and destroy as many enemy ships as possible! [Faction Hunt Event]",
-      "imageUrl": "https://i.ibb.co/BVHg83d5/88ccaf7d66f9.webp",
+      "id": 1363,
+      "title": "Klingon: Hunt the Romulans! - SMS",
+      "description": "Prove your allegiance to the Klingons! Invade Romulan space and destroy as many enemy ships as possible! [Faction Hunt Event]",
+      "imageUrl": "https://i.ibb.co/HfsKh9TV/366658a8f3f7.webp",
       "startUTC": "2026-11-08T17:00:00.000Z",
       "endUTC": "2026-11-09T17:00:00.000Z",
       "eventType": "hostiles",
@@ -16858,6 +16843,21 @@
       "eventFormat": "SMS",
       "priority": "arc",
       "minOpsLevel": 61,
+      "maxOpsLevel": 80,
+      "repeatType": "none"
+    },
+    {
+      "id": 1360,
+      "title": "Alliance Faction LB! - ALb",
+      "description": "Prove your allegiance to your alliance and faction! Surge into faction space and destroy as many enemy faction ships as possible! [Faction Hunt Event]",
+      "imageUrl": "https://i.ibb.co/NdS4Bz4w/030c07b5589c.webp",
+      "startUTC": "2026-11-08T17:00:00.000Z",
+      "endUTC": "2026-11-11T17:00:00.000Z",
+      "eventType": "alliance",
+      "eventSubType": null,
+      "eventFormat": "ALB",
+      "priority": "arc",
+      "minOpsLevel": 20,
       "maxOpsLevel": 80,
       "repeatType": "none"
     },
@@ -16982,21 +16982,6 @@
       "repeatType": "none"
     },
     {
-      "id": 1474,
-      "title": "United Front (Meta) - AMS",
-      "description": "Score in this event by completing One Fleet SMS events.",
-      "imageUrl": "https://i.ibb.co/d06Jmpw5/ac3580bd0866.webp",
-      "startUTC": "2026-11-09T17:00:00.000Z",
-      "endUTC": "2026-11-12T17:00:00.000Z",
-      "eventType": "meta",
-      "eventSubType": null,
-      "eventFormat": "AMS",
-      "priority": "arc",
-      "minOpsLevel": 20,
-      "maxOpsLevel": 80,
-      "repeatType": "none"
-    },
-    {
       "id": 1415,
       "title": "Division 12: Classified Orders - V'ger - SMS",
       "description": "Score in this event by destroying V'ger hostiles.",
@@ -17008,6 +16993,21 @@
       "eventFormat": "SMS",
       "priority": "arc",
       "minOpsLevel": 61,
+      "maxOpsLevel": 80,
+      "repeatType": "none"
+    },
+    {
+      "id": 1474,
+      "title": "United Front (Meta) - AMS",
+      "description": "Score in this event by completing One Fleet SMS events.",
+      "imageUrl": "https://i.ibb.co/d06Jmpw5/ac3580bd0866.webp",
+      "startUTC": "2026-11-09T17:00:00.000Z",
+      "endUTC": "2026-11-12T17:00:00.000Z",
+      "eventType": "meta",
+      "eventSubType": null,
+      "eventFormat": "AMS",
+      "priority": "arc",
+      "minOpsLevel": 20,
       "maxOpsLevel": 80,
       "repeatType": "none"
     },
@@ -17027,18 +17027,18 @@
       "repeatType": "none"
     },
     {
-      "id": 1366,
-      "title": "Klingon: Hunt the Romulans! - SMS",
-      "description": "Prove your allegiance to the Klingons! Invade Romulan space and destroy as many enemy ships as possible! [Faction Hunt Event]",
-      "imageUrl": "https://i.ibb.co/HfsKh9TV/366658a8f3f7.webp",
+      "id": 1338,
+      "title": "Hostile Assault - SMS",
+      "description": "Score in this event by destroying hostiles.",
+      "imageUrl": "https://i.ibb.co/8gZ7w64X/27cde0b87290.webp",
       "startUTC": "2026-11-09T17:00:00.000Z",
-      "endUTC": "2026-11-10T17:00:00.000Z",
-      "eventType": "",
-      "eventSubType": null,
+      "endUTC": "2026-11-11T17:00:00.000Z",
+      "eventType": "hostiles",
+      "eventSubType": "heroic",
       "eventFormat": "SMS",
       "priority": "arc",
       "minOpsLevel": 20,
-      "maxOpsLevel": 80,
+      "maxOpsLevel": 25,
       "repeatType": "none"
     },
     {
@@ -17162,18 +17162,18 @@
       "repeatType": "none"
     },
     {
-      "id": 1338,
-      "title": "Hostile Assault - SMS",
-      "description": "Score in this event by destroying hostiles.",
-      "imageUrl": "https://i.ibb.co/8gZ7w64X/27cde0b87290.webp",
+      "id": 1366,
+      "title": "Klingon: Hunt the Romulans! - SMS",
+      "description": "Prove your allegiance to the Klingons! Invade Romulan space and destroy as many enemy ships as possible! [Faction Hunt Event]",
+      "imageUrl": "https://i.ibb.co/HfsKh9TV/366658a8f3f7.webp",
       "startUTC": "2026-11-09T17:00:00.000Z",
-      "endUTC": "2026-11-11T17:00:00.000Z",
-      "eventType": "hostiles",
-      "eventSubType": "heroic",
+      "endUTC": "2026-11-10T17:00:00.000Z",
+      "eventType": "",
+      "eventSubType": null,
       "eventFormat": "SMS",
       "priority": "arc",
       "minOpsLevel": 20,
-      "maxOpsLevel": 25,
+      "maxOpsLevel": 80,
       "repeatType": "none"
     },
     {
@@ -17210,7 +17210,7 @@
       "id": 1477,
       "title": "Fleet Salute - SMS",
       "description": "Score in this event by defeating Klingon hostiles.",
-      "imageUrl": null,
+      "imageUrl": "https://i.ibb.co/wZnVm4t8/3100adcfe891.webp",
       "startUTC": "2026-11-10T17:00:00.000Z",
       "endUTC": "2026-11-11T17:00:00.000Z",
       "eventType": "hostiles",
