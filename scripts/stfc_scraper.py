@@ -29,10 +29,19 @@ _NOISE = {"outbreak", "battlelines"}
 
 
 def _event_key(title):
-    """Comparable name for an event: no brackets, season prefix or format suffix ("(Heroic)", "- SMS")."""
+    """Comparable name for an event: no brackets, season prefix, "Part N" or format suffix."""
     t = re.sub(r"\(.*?\)", " ", title or "").lower()
+    t = re.sub(r"\bpart\s*\d+\b", " ", t)
     words = [w for w in re.sub(r"[^a-z0-9]+", " ", t).split() if w not in _NOISE and w not in _FORMATS]
     return " ".join(words)
+
+
+def _event_format(e):
+    """eventFormat, or the "- SMS" style suffix of the title when the feed leaves it empty."""
+    if e.get("eventFormat"):
+        return e["eventFormat"]
+    m = re.search(r"-\s*(sms|slb|xslb|ams|alb|xalb|ims|xlb|rlb)\b", e.get("title") or "", re.I)
+    return m.group(1).upper() if m else None
 
 
 def merge_manual(slim, manual):
@@ -40,12 +49,12 @@ def merge_manual(slim, manual):
     has an event with the same name and format whose dates overlap it. Returns (merged, dropped)."""
     live = {}
     for e in slim:
-        live.setdefault((_event_key(e["title"]), e.get("eventFormat")), []).append(e)
+        live.setdefault((_event_key(e["title"]), _event_format(e)), []).append(e)
     kept, dropped = [], 0
     for m in manual:
         clash = any(
             (e["startUTC"] or "") < (m["endUTC"] or "") and (m["startUTC"] or "") < (e["endUTC"] or "")
-            for e in live.get((_event_key(m["title"]), m.get("eventFormat")), [])
+            for e in live.get((_event_key(m["title"]), _event_format(m)), [])
         )
         if clash:
             dropped += 1
