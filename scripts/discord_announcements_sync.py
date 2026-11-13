@@ -29,6 +29,8 @@ GUILD_ID = "1051080483167019098"
 CHANNELS = [
     {"id": "1145220724471115848", "label": "STFC Official Announcements"},
     {"id": "1059056234206089216", "label": "Phoenix Announcements"},
+    # Follows the official #event-information post; scripts/discord_events.py turns it into backup events.
+    {"id": "1570880489420488704", "label": "STFC Event Information"},
 ]
 
 MESSAGES_PER_CHANNEL = 20
@@ -57,7 +59,16 @@ def upsert_rows(rows):
         print(f"  Supabase upsert error: {resp.status_code} {resp.text}", file=sys.stderr)
         resp.raise_for_status()
 
+def print_bot_identity():
+    """Log which bot account this token is, so it can be found in Discord's permission pickers."""
+    r = requests.get("https://discord.com/api/v10/users/@me", headers={"Authorization": f"Bot {DISCORD_BOT_TOKEN}"}, timeout=20)
+    if r.ok:
+        me = r.json()
+        print(f"Bot account: {me.get('username')}#{me.get('discriminator')} (id {me.get('id')})")
+
+
 def main():
+    print_bot_identity()
     total = 0
     for ch in CHANNELS:
         messages = fetch_messages(ch["id"])
