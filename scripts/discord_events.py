@@ -1,6 +1,6 @@
 """Backup source for game events: read the official STFC #event-information post from Discord.
 
-The post is followed into a channel on the Phoenix server; scripts/discord_announcements_sync.py copies it
+The post is followed into a channel on the Phoenix server (next to the other official feeds); scripts/discord_announcements_sync.py copies it
 into the Supabase table discord_announcements. When stfc.cfd stops updating, the scraper uses the events
 parsed here instead (stfc.cfd still wins whenever it lists the same event - see merge_manual).
 
@@ -27,7 +27,7 @@ ANON_KEY = (
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24i"
     "LCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM"
 )
-CHANNEL_ID = "1570880489420488704"  # Phoenix server channel that follows the official #event-information
+CHANNEL_ID = "1145220724471115848"  # Phoenix channel that follows the official STFC feeds (the sync bot can read it)
 
 LA = ZoneInfo("America/Los_Angeles")
 MONTHS = {m: i for i, m in enumerate(
@@ -144,7 +144,13 @@ def fetch_events(limit=60):
     """Events from the most recent posts in the synced channel (newest post wins on duplicates)."""
     resp = requests.get(
         f"{SUPABASE_URL}/rest/v1/discord_announcements",
-        params={"select": "content,posted_at", "channel_id": f"eq.{CHANNEL_ID}", "order": "posted_at.desc", "limit": str(limit)},
+        params={
+            "select": "content,posted_at",
+            "channel_id": f"eq.{CHANNEL_ID}",
+            "author_name": "ilike.*event-information*",  # only the followed #event-information feed
+            "order": "posted_at.desc",
+            "limit": str(limit),
+        },
         headers={"apikey": ANON_KEY, "Authorization": f"Bearer {ANON_KEY}"},
         timeout=20,
     )
