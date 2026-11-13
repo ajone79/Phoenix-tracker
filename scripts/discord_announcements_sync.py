@@ -75,20 +75,7 @@ def print_bot_identity():
             print(f"Channel {ch['label']} is #{c.json().get('name')} in server id {c.json().get('guild_id')}")
 
 
-def grant_self_access(channel_id):
-    """One-off: give this bot View Channel + Read Message History on one channel (needs Manage Roles)."""
-    me = requests.get("https://discord.com/api/v10/users/@me", headers={"Authorization": f"Bot {DISCORD_BOT_TOKEN}"}, timeout=20).json()
-    r = requests.put(
-        f"https://discord.com/api/v10/channels/{channel_id}/permissions/{me['id']}",
-        headers={"Authorization": f"Bot {DISCORD_BOT_TOKEN}"},
-        json={"type": 1, "allow": str(1024 + 65536), "deny": "0"},
-        timeout=20,
-    )
-    print(f"Grant access to {channel_id}: HTTP {r.status_code} {r.text[:200]}")
-
-
 def main():
-    grant_self_access("1570880489420488704")
     print_bot_identity()
     total = 0
     for ch in CHANNELS:
