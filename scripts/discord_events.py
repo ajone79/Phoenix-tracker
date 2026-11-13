@@ -27,7 +27,7 @@ ANON_KEY = (
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24i"
     "LCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM"
 )
-CHANNEL_ID = "1570880489420488704"  # quiet private Phoenix channel that follows the official #event-information
+CHANNEL_ID = "1570875299451768934"  # channel in the bot's own server that follows the official #event-information
 
 LA = ZoneInfo("America/Los_Angeles")
 MONTHS = {m: i for i, m in enumerate(
