@@ -13,7 +13,8 @@ HEADERS = {
 }
 
 OUT_FILE = "events-data-game.json"
-# Hand-written events (e.g. test events) merged into the output so a scrape never wipes them.
+# Hand-written events (e.g. test events, or events copied from the official Discord while stfc.cfd is behind)
+# merged into the output so a scrape never wipes them. Anything stfc.cfd also lists wins over these.
 MANUAL_FILE = "scripts/manual-events.json"
 
 
@@ -21,6 +22,36 @@ def strip_html(text):
     if not text:
         return ""
     return re.sub(r"<[^>]+>", "", text).strip()
+
+
+_FORMATS = {"sms", "slb", "xslb", "ams", "alb", "xalb", "ims", "xlb", "rlb"}
+_NOISE = {"outbreak", "battlelines"}
+
+
+def _event_key(title):
+    """Comparable name for an event: no brackets, season prefix or format suffix ("(Heroic)", "- SMS")."""
+    t = re.sub(r"\(.*?\)", " ", title or "").lower()
+    words = [w for w in re.sub(r"[^a-z0-9]+", " ", t).split() if w not in _NOISE and w not in _FORMATS]
+    return " ".join(words)
+
+
+def merge_manual(slim, manual):
+    """Add hand-written events, but let stfc.cfd win: a manual event is dropped as soon as the feed
+    has an event with the same name and format whose dates overlap it. Returns (merged, dropped)."""
+    live = {}
+    for e in slim:
+        live.setdefault((_event_key(e["title"]), e.get("eventFormat")), []).append(e)
+    kept, dropped = [], 0
+    for m in manual:
+        clash = any(
+            (e["startUTC"] or "") < (m["endUTC"] or "") and (m["startUTC"] or "") < (e["endUTC"] or "")
+            for e in live.get((_event_key(m["title"]), m.get("eventFormat")), [])
+        )
+        if clash:
+            dropped += 1
+        else:
+            kept.append(m)
+    return slim + kept, dropped
 
 
 def main():
@@ -57,8 +88,8 @@ def main():
     if os.path.exists(MANUAL_FILE):
         with open(MANUAL_FILE, encoding="utf-8") as f:
             manual = json.load(f)
-        slim.extend(manual)
-        print(f"{len(manual)} manual events merged from {MANUAL_FILE}")
+        slim, dropped = merge_manual(slim, manual)
+        print(f"{len(manual) - dropped} manual events merged from {MANUAL_FILE} ({dropped} superseded by stfc.cfd)")
 
     slim.sort(key=lambda e: e["startUTC"] or "")
 
