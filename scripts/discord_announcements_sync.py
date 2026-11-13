@@ -29,6 +29,8 @@ GUILD_ID = "1051080483167019098"
 CHANNELS = [
     {"id": "1145220724471115848", "label": "STFC Official Announcements"},
     {"id": "1059056234206089216", "label": "Phoenix Announcements"},
+    # Follows the official #event-information post; scripts/discord_events.py turns it into backup events.
+    {"id": "1570880489420488704", "label": "STFC Event Information"},
 ]
 
 MESSAGES_PER_CHANNEL = 20

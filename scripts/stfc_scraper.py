@@ -100,6 +100,15 @@ def main():
         slim, dropped = merge_manual(slim, manual)
         print(f"{len(manual) - dropped} manual events merged from {MANUAL_FILE} ({dropped} superseded by stfc.cfd)")
 
+    # Backup source: the official #event-information post, copied into Supabase via Discord. Never fatal.
+    try:
+        import discord_events
+        backup = discord_events.fetch_events()
+        slim, dropped = merge_manual(slim, backup)
+        print(f"{len(backup) - dropped} events added from the official Discord post ({dropped} already known)")
+    except Exception as exc:  # noqa: BLE001 - a Discord/Supabase hiccup must not stop the scrape
+        print(f"Discord backup skipped: {exc}")
+
     slim.sort(key=lambda e: e["startUTC"] or "")
 
     payload = {
