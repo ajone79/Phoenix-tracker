@@ -65,6 +65,14 @@ def print_bot_identity():
     if r.ok:
         me = r.json()
         print(f"Bot account: {me.get('username')}#{me.get('discriminator')} (id {me.get('id')})")
+    g = requests.get("https://discord.com/api/v10/users/@me/guilds", headers={"Authorization": f"Bot {DISCORD_BOT_TOKEN}"}, timeout=20)
+    if g.ok:
+        for guild in g.json():
+            print(f"Bot is in server: {guild.get('name')} (id {guild.get('id')})")
+    for ch in CHANNELS:
+        c = requests.get(f"https://discord.com/api/v10/channels/{ch['id']}", headers={"Authorization": f"Bot {DISCORD_BOT_TOKEN}"}, timeout=20)
+        if c.ok:
+            print(f"Channel {ch['label']} is #{c.json().get('name')} in server id {c.json().get('guild_id')}")
 
 
 def main():
