@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-13T19:05:47.449899+00:00",
+  "generatedAt": "2026-11-13T19:06:44.124142+00:00",
   "events": [
     {
       "id": 140,
@@ -17582,22 +17582,6 @@
       "repeatType": "none"
     },
     {
-      "id": 900031,
-      "title": "Outbreak: Battlelines Faction Ascent - SMS",
-      "description": "Score in this event by defeating FKR Hostiles.",
-      "imageUrl": null,
-      "startUTC": "2026-11-12T17:00:00.000Z",
-      "endUTC": "2026-11-19T17:00:00.000Z",
-      "eventType": "hostiles",
-      "eventSubType": "heroic",
-      "eventFormat": "SMS",
-      "priority": "arc",
-      "minOpsLevel": 20,
-      "maxOpsLevel": 50,
-      "repeatType": "none",
-      "manual": true
-    },
-    {
       "id": 1544,
       "title": "Outbreak: Battlelines Infusion Race - SLB",
       "description": "Score in this event by dealing Infusion Damage to Polaron FKR hostiles .",
@@ -18018,22 +18002,6 @@
       "repeatType": "none"
     },
     {
-      "id": 900019,
-      "title": "Outbreak: Battlelines Polaron Vanquisher - XSLB",
-      "description": "Score in this event by destroying FKR Polaron hostiles, in challenging Anomaly Systems, while using the Infusion Modulator.",
-      "imageUrl": null,
-      "startUTC": "2026-11-17T17:00:00.000Z",
-      "endUTC": "2026-11-19T17:00:00.000Z",
-      "eventType": "hostiles",
-      "eventSubType": "heroic",
-      "eventFormat": "XSLB",
-      "priority": "arc",
-      "minOpsLevel": 51,
-      "maxOpsLevel": 80,
-      "repeatType": "none",
-      "manual": true
-    },
-    {
       "id": 1486,
       "title": "Outbreak: Battlelines Escalation Meta Part 2 - SMS",
       "description": "Score in this event by completing daily Outbreak: Battlelines Events.",
@@ -18227,22 +18195,6 @@
       "minOpsLevel": 20,
       "maxOpsLevel": 50,
       "repeatType": "none"
-    },
-    {
-      "id": 900032,
-      "title": "Outbreak: Battlelines Faction Ascent - SMS",
-      "description": "Score in this event by defeating FKR Hostiles.",
-      "imageUrl": null,
-      "startUTC": "2026-11-19T17:00:00.000Z",
-      "endUTC": "2026-11-26T17:00:00.000Z",
-      "eventType": "hostiles",
-      "eventSubType": "heroic",
-      "eventFormat": "SMS",
-      "priority": "arc",
-      "minOpsLevel": 20,
-      "maxOpsLevel": 50,
-      "repeatType": "none",
-      "manual": true
     },
     {
       "id": 1545,
@@ -18665,22 +18617,6 @@
       "repeatType": "none"
     },
     {
-      "id": 900020,
-      "title": "Outbreak: Battlelines Polaron Vanquisher - XSLB",
-      "description": "Score in this event by destroying FKR Polaron hostiles, in challenging Anomaly Systems, while using the Infusion Modulator.",
-      "imageUrl": null,
-      "startUTC": "2026-11-24T17:00:00.000Z",
-      "endUTC": "2026-11-26T17:00:00.000Z",
-      "eventType": "hostiles",
-      "eventSubType": "heroic",
-      "eventFormat": "XSLB",
-      "priority": "arc",
-      "minOpsLevel": 51,
-      "maxOpsLevel": 80,
-      "repeatType": "none",
-      "manual": true
-    },
-    {
       "id": 1554,
       "title": "Outbreak: Battlelines Polaron Anomaly Bounty - SLB",
       "description": "Score in this event by destroying Polaron FKR hostiles in FKR Space that are being affected by Galactic Anomalies.",
@@ -18874,22 +18810,6 @@
       "minOpsLevel": 35,
       "maxOpsLevel": 50,
       "repeatType": "none"
-    },
-    {
-      "id": 900033,
-      "title": "Outbreak: Battlelines Faction Ascent - SMS",
-      "description": "Score in this event by defeating FKR Hostiles.",
-      "imageUrl": null,
-      "startUTC": "2026-11-26T17:00:00.000Z",
-      "endUTC": "2026-12-03T17:00:00.000Z",
-      "eventType": "hostiles",
-      "eventSubType": "heroic",
-      "eventFormat": "SMS",
-      "priority": "arc",
-      "minOpsLevel": 20,
-      "maxOpsLevel": 50,
-      "repeatType": "none",
-      "manual": true
     },
     {
       "id": 1499,
@@ -19295,22 +19215,6 @@
       "minOpsLevel": 26,
       "maxOpsLevel": 50,
       "repeatType": "none"
-    },
-    {
-      "id": 900021,
-      "title": "Outbreak: Battlelines Polaron Vanquisher - XSLB",
-      "description": "Score in this event by destroying FKR Polaron hostiles, in challenging Anomaly Systems, while using the Infusion Modulator.",
-      "imageUrl": null,
-      "startUTC": "2026-12-01T17:00:00.000Z",
-      "endUTC": "2026-12-03T17:00:00.000Z",
-      "eventType": "hostiles",
-      "eventSubType": "heroic",
-      "eventFormat": "XSLB",
-      "priority": "arc",
-      "minOpsLevel": 51,
-      "maxOpsLevel": 80,
-      "repeatType": "none",
-      "manual": true
     },
     {
       "id": 1530,
@@ -19761,22 +19665,6 @@
       "minOpsLevel": 51,
       "maxOpsLevel": 80,
       "repeatType": "none"
-    },
-    {
-      "id": 900022,
-      "title": "Outbreak: Battlelines Polaron Vanquisher - XSLB",
-      "description": "Score in this event by destroying FKR Polaron hostiles, in challenging Anomaly Systems, while using the Infusion Modulator.",
-      "imageUrl": null,
-      "startUTC": "2026-12-06T17:00:00.000Z",
-      "endUTC": "2026-12-09T17:00:00.000Z",
-      "eventType": "hostiles",
-      "eventSubType": "heroic",
-      "eventFormat": "XSLB",
-      "priority": "arc",
-      "minOpsLevel": 51,
-      "maxOpsLevel": 80,
-      "repeatType": "none",
-      "manual": true
     },
     {
       "id": 1591,
