@@ -86,15 +86,18 @@ const TUESDAY_EVENTS = [
    INTERSTELLAR DOMINANCE — recurring weekly event series, not in the
    stfc.cfd feed. Every day has a different named sub-event (unlike
    Voyage/Sector Strike which repeat one name). 5pm UK start, 24h window.
-   Only Mon-Thu confirmed so far (2026-09) — Fri/Sat/Sun to be appended
-   once their scoring screenshots come in. No ops gating observed on
-   any of the 4 known days, so left open to all ops like Voyage.
+   Mon-Fri (Grand Exchange added 2026-11). No daily events seen for Sat/Sun.
+   The stfc.cfd feed lists ops 20-80 for every event in the series, so that
+   range is applied here. The feed only carries events about a week ahead
+   (and none right now), so these fill the gaps — see generateInterstellarEvents()
+   below, which drops a recurring entry on any day the feed already has one.
    ========================================================= */
 const INTERSTELLAR_DOMINANCE_EVENTS = [
-  {name:'Interstellar Dominance — Advanced Command Protocol', displayType:'interstellar_dominance', eventSubType:'interstellar_dominance', dayOfWeek:1, h:17, m:0, durationDays:1, note:'Leaderboard — spend Sigma Commander Credits, Officer Laurels, Maverick/FKR Faction Credits, or Chaos/Forbidden Tech materials & Sphere Tech.', validFrom:'2025-01-01', validTo:'2027-12-31'},
-  {name:'Interstellar Dominance — Scientific Exchange (Heroic)', displayType:'interstellar_dominance', eventSubType:'interstellar_dominance', dayOfWeek:2, h:17, m:0, durationDays:1, note:'Spend G3+ materials while upgrading research/station, and spend or acquire Research currencies (Syndicate XP, Vanguard Prism, Refined Isogenite, Athena/Excelsior/Dauntless Research, etc).', validFrom:'2025-01-01', validTo:'2027-12-31'},
-  {name:'Interstellar Dominance — Station Advancement', displayType:'interstellar_dominance', eventSubType:'interstellar_dominance', dayOfWeek:3, h:17, m:0, durationDays:1, note:'Leaderboard — spend G3+ materials upgrading research/buildings, and spend Warp Dive Bar, Signal Observatory, Outpost Control Center, Recon Locus, Starfleet Academy, Facade, Continuum Consolate, or Transogen Forge materials.', validFrom:'2025-01-01', validTo:'2027-12-31'},
-  {name:'Interstellar Dominance — Starship Armament', displayType:'interstellar_dominance', eventSubType:'interstellar_dominance', dayOfWeek:4, h:17, m:0, durationDays:1, note:"Leaderboard — spend G3+ materials on ships, and spend Reliant, Ra'Ul Reaver, Athena, Borg Sphere, Excelsior, Dauntless, or Serene Squall ship parts.", validFrom:'2025-01-01', validTo:'2027-12-31'}
+  {name:'Interstellar Dominance — Advanced Command Protocol', displayType:'interstellar_dominance', eventSubType:'interstellar_dominance', dayOfWeek:1, h:17, m:0, durationDays:1, note:'Leaderboard — spend Sigma Commander Credits, Officer Laurels, Maverick/FKR Faction Credits, or Chaos/Forbidden Tech materials & Sphere Tech.', minOpsLevel:20, maxOpsLevel:80, validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Interstellar Dominance — Scientific Exchange (Heroic)', displayType:'interstellar_dominance', eventSubType:'interstellar_dominance', dayOfWeek:2, h:17, m:0, durationDays:1, note:'Spend G3+ materials while upgrading research/station, and spend or acquire Research currencies (Syndicate XP, Vanguard Prism, Refined Isogenite, Athena/Excelsior/Dauntless Research, etc).', minOpsLevel:20, maxOpsLevel:80, validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Interstellar Dominance — Station Advancement', displayType:'interstellar_dominance', eventSubType:'interstellar_dominance', dayOfWeek:3, h:17, m:0, durationDays:1, note:'Leaderboard — spend G3+ materials upgrading research/buildings, and spend Warp Dive Bar, Signal Observatory, Outpost Control Center, Recon Locus, Starfleet Academy, Facade, Continuum Consolate, or Transogen Forge materials.', minOpsLevel:20, maxOpsLevel:80, validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Interstellar Dominance — Starship Armament', displayType:'interstellar_dominance', eventSubType:'interstellar_dominance', dayOfWeek:4, h:17, m:0, durationDays:1, note:"Leaderboard — spend G3+ materials on ships, and spend Reliant, Ra'Ul Reaver, Athena, Borg Sphere, Excelsior, Dauntless, or Serene Squall ship parts.", minOpsLevel:20, maxOpsLevel:80, validFrom:'2025-01-01', validTo:'2027-12-31'},
+  {name:'Interstellar Dominance — The Grand Exchange', displayType:'interstellar_dominance', eventSubType:'interstellar_dominance', dayOfWeek:5, h:17, m:0, durationDays:1, note:'Leaderboard and solo milestone — spend Latinum and Sigma FKR Credits.', minOpsLevel:20, maxOpsLevel:80, validFrom:'2025-01-01', validTo:'2027-12-31'}
 ];
 
 /* =========================================================
@@ -214,7 +217,9 @@ function stripFormatSuffix(title){
   return title.replace(/\s*-\s*(SMS|ALB|SLB|AMS|RLB|XALB)\s*$/i, '').trim();
 }
 function getDisplayType(ev){
-  return ev.eventSubType === 'voyage_across_the_void' ? 'voyage' : (ev.eventType || '');
+  if(ev.eventSubType === 'voyage_across_the_void') return 'voyage';
+  if(ev.eventSubType === 'interstellar_dominance') return 'interstellar_dominance';
+  return ev.eventType || '';
 }
 function buildMergedEvents(raw){
   const map = new Map();
@@ -262,6 +267,18 @@ function generateRecurringEvents(defs, winStartISO, winEndISO){
     });
   });
   return out;
+}
+
+/* Recurring Interstellar Dominance entries, minus any day the stfc.cfd feed already covers
+   (feed entries are richer: SMS/SLB formats, exact times). feedEvents = buildMergedEvents(...) output.
+   The weekly "Meta" leaderboard is ignored when deciding what counts as covered. */
+function generateInterstellarEvents(winStartISO, winEndISO, feedEvents){
+  const covered = new Set();
+  (feedEvents||[]).forEach(e => {
+    if(e.eventSubType === 'interstellar_dominance' && !/meta/i.test(e.title || '') && e.startUTC) covered.add(e.startUTC.slice(0,10));
+  });
+  return generateRecurringEvents(INTERSTELLAR_DOMINANCE_EVENTS, winStartISO, winEndISO)
+    .filter(e => !covered.has(e.startUTC.slice(0,10)));
 }
 
 /* ===== CATEGORY DISCOVERY — auto-adds a fallback color/label for any

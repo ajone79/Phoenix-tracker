@@ -471,11 +471,13 @@ function render(){
   // recurring Voyage Across the Void. All three go through the exact same
   // filter pass so behavior (grade bands, type selection, etc.) never
   // silently diverges between sources.
+  const mergedFeed = buildMergedEvents(GAME_EVENTS);
   const candidateEvents = [
-    ...buildMergedEvents(GAME_EVENTS).filter(e => e.eventSubType !== 'voyage_across_the_void'),
+    ...mergedFeed.filter(e => e.eventSubType !== 'voyage_across_the_void'),
     ...generateRecurringEvents(TERRITORY_EVENTS, winStart, winEnd),
     ...generateRecurringEvents(VOYAGE_EVENTS, winStart, winEnd),
     ...generateRecurringEvents(TUESDAY_EVENTS, winStart, winEnd),
+    ...generateInterstellarEvents(winStart, winEnd, mergedFeed),
     ...generateMaverickEvents(winStart, winEnd)
   ];
 

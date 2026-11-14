@@ -400,11 +400,13 @@ function render(){
   // before the block still appear (clipped) at the block's start.
   const genStart = addDays(blockStartISO, -7);
   const genEnd = addDays(blockEndISO, 7);
+  const mergedFeed = buildMergedEvents(GAME_EVENTS);
   const candidateEvents = [
-    ...buildMergedEvents(GAME_EVENTS).filter(e => e.eventSubType !== 'voyage_across_the_void'),
+    ...mergedFeed.filter(e => e.eventSubType !== 'voyage_across_the_void'),
     ...generateRecurringEvents(TERRITORY_EVENTS, genStart, genEnd),
     ...generateRecurringEvents(VOYAGE_EVENTS, genStart, genEnd),
     ...generateRecurringEvents(TUESDAY_EVENTS, genStart, genEnd),
+    ...generateInterstellarEvents(genStart, genEnd, mergedFeed),
     ...generateMaverickEvents(genStart, genEnd)
   ];
 
