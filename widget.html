@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Phoenix EU168 Widget</title>
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="widget-manifest.json">
+<link rel="icon" href="icon-eu168.png">
+<style>
+:root{--or:#FF9900;--sun:#FFCC66;--pea:#FFCC99;--lil:#CC99CC;--ice:#99CCFF;--mars:#CC6666;--tx:#FFEEDD;--mu:#AA88AA;--bg:#000}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:13px/1.25 "Segoe UI",system-ui,sans-serif}
+body{min-width:240px;padding:6px}
+.bar{display:flex;gap:4px;align-items:stretch;margin-bottom:6px}
+.bar .cap{background:var(--or);width:18px;border-radius:14px 0 0 14px}
+.bar .t{background:var(--lil);color:#000;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 10px;flex:1;display:flex;justify-content:space-between;align-items:center}
+.bar button{background:var(--sun);color:#000;border:0;font-weight:700;padding:3px 10px;border-radius:0 14px 14px 0;cursor:pointer}
+.pill{display:inline-block;background:var(--or);color:#000;font-weight:700;border-radius:10px;padding:0 8px;margin-right:6px;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.sec{margin:8px 0 3px;display:flex;align-items:center;gap:6px;color:var(--sun);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:11px}
+.sec::after{content:"";flex:1;height:3px;background:var(--sun);border-radius:2px;opacity:.6}
+.row{display:flex;gap:6px;padding:3px 0 3px 6px;border-left:4px solid var(--c,var(--or));margin:2px 0;background:#0c0a10}
+.row .m{flex:1;min-width:0}
+.row .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .k{color:var(--mu);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .r{text-align:right;padding-right:6px;white-space:nowrap;color:var(--ice);font-size:12px}
+.row .r b{color:var(--sun)}
+.row.today .r b{color:var(--mars)}
+.spot{display:flex;gap:6px;align-items:center;margin:3px 0}
+.spot .l{color:var(--mu)}
+.spot.maint{background:var(--mars);color:#000;padding:2px 6px;border-radius:8px;font-weight:600}
+.more{color:var(--mu);font-size:11px;padding-left:10px}
+.foot{color:var(--mu);font-size:10px;margin-top:8px;display:flex;justify-content:space-between}
+#set{display:none;background:#14101a;border:1px solid var(--lil);border-radius:8px;padding:8px;margin-bottom:6px}
+#set label{display:flex;justify-content:space-between;align-items:center;margin:4px 0;gap:8px}
+#set input[type=number]{width:70px;background:#000;color:var(--tx);border:1px solid var(--lil);border-radius:6px;padding:2px 4px}
+#set .cats{display:flex;flex-wrap:wrap;gap:6px 12px;margin:4px 0}
+#set h4{margin:8px 0 2px;color:var(--sun);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+</style>
+</head>
+<body>
+<div class="bar"><div class="cap"></div><div class="t"><span>Phoenix EU168</span><span id="clock"></span></div><button id="gear" title="Settings">&#9881;</button></div>
+<div id="set"></div>
+<div id="main">Loading…</div>
+<div class="foot"><span id="upd"></span><span id="err"></span></div>
+<script>
+"use strict";
+const EVENTS_URLS=["events-data-game.json","https://raw.githubusercontent.com/ajone79/Phoenix-tracker/refs/heads/main/events-data-game.json"];
+const SB="https://mmzizgsanwqjpiumpqay.supabase.co";
+const ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teml6Z3NhbndxanBpdW1wcWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjk5MzksImV4cCI6MjEwMTYwNTkzOX0.KqvY2Ib33J8h8ztEi8qxtfutSdVIPAaJRtj7cSUSKFM";
+const DAY=864e5, LONG=7*DAY;
+const CATS=["Hostiles","Armadas","Waves","Spend & upgrade","Mining","Alliance & meta","Other"];
+const DEF={ops:40,maxNow:6,maxNext:4,includeLong:false,hideMinor:true,regions:["eu"],showRaids:true,showTerritory:true,hiddenCats:[]};
+let P=Object.assign({},DEF);
+try{Object.assign(P,JSON.parse(localStorage.getItem("phxw")||"{}"))}catch(e){}
+const save=()=>{try{localStorage.setItem("phxw",JSON.stringify(P))}catch(e){}};
+let EV=[],TERR=[],RAID=[],lastFetch=0,lastErr="";
+try{EV=JSON.parse(localStorage.getItem("phxw_ev")||"[]");TERR=JSON.parse(localStorage.getItem("phxw_t")||"[]");RAID=JSON.parse(localStorage.getItem("phxw_r")||"[]")}catch(e){}
+
+/* ---------- game clock (reset 09:00 Pacific) ---------- */
+const PF=new Intl.DateTimeFormat("en-US",{timeZone:"America/Los_Angeles",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",hourCycle:"h23"});
+function pac(ms){const o={};for(const p of PF.formatToParts(new Date(ms)))o[p.type]=+p.value;return o}
+function resetOn(y,m,d){for(const h of [16,17]){const t=Date.UTC(y,m-1,d,h);if(pac(t).hour===9&&pac(t).day===d)return t}return Date.UTC(y,m-1,d,17)}
+function lastReset(ms){const p=pac(ms);const t=resetOn(p.year,p.month,p.day);if(t<=ms)return t;const q=pac(ms-DAY);return resetOn(q.year,q.month,q.day)}
+function nextReset(ms){const l=lastReset(ms);const p=pac(l+DAY*1.2);return resetOn(p.year,p.month,p.day)}
+function snap(ms){const d=new Date(ms);if(d.getUTCMinutes()||d.getUTCSeconds()||d.getUTCMilliseconds())return ms;const h=d.getUTCHours();if(h!==16&&h!==17)return ms;const p=pac(ms);const r=resetOn(p.year,p.month,p.day);return Math.abs(r-ms)<=36e5?r:ms}
+
+/* ---------- task text ---------- */
+const clean=t=>t.replace(/[\p{So}\p{Cs}\p{Mn}]/gu,"").replace(/\s+/g," ").trim();
+const FSUF=/\s*[-–]\s*(SMS|SLB|AMS|ALB|RLB|XALB|XLB)\s*$/i;
+const baseTitle=t=>clean(t).replace(FSUF,"").trim();
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+function sentence(desc){let s=(desc||"").replace(/\n/g," ").trim().replace(/U\.S\.S\./g,"USS").replace(/U\.S\./g,"US").replace(/E\.U\./g,"EU").replace(/’/g,"'");const c=s.search(/[.!]/);const one=c>=0?s.slice(0,c):s;return one.replace(/^score (in this event )?by\s+/i,"").trim()}
+const HT=[[/elite assassin/,"FKR elite assassins"],[/academy drone|venari ral/,"Academy drones"],[/borg probe/,"Borg probes"],[/dominion|jem'?hadar/,"Dominion"],[/v'?ger/,"V'ger"],[/swarm/,"Swarm"],[/suliban/,"Suliban"],[/xindi/,"Xindi"],[/hirogen/,"Hirogen"],[/aggregation/,"Aggregation"],[/augment/,"Augment"],[/mirror/,"Mirror universe"],[/quantum/,"Quantum"],[/breen/,"Breen"],[/el-aurian/,"El-Aurian"],[/federation,? klingon,? (and )?romulan|\bfkr\b/,"FKR"]];
+function trim(s){const one=s.replace(/\s+/g," ").trim();if(one.length<=38)return one;let c=one.lastIndexOf(" ",37);if(c<12)c=37;return one.slice(0,c).replace(/[, &]+$/,"")+"…"}
+function short(title,desc,type){
+ const o=sentence(desc),t=o.toLowerCase(),ti=title.toLowerCase();let m;
+ if(!t)return({mining:"Mine",hostiles:"Kill hostiles",armadas:"Armadas",waves:"Wave defense"})[type]||"";
+ if(m=/invade (\w+) space/.exec((desc||"").toLowerCase()))return"Kill "+cap(m[1])+" ships in their space";
+ if(ti.includes("faction lb"))return"Kill enemy faction ships";
+ if(m=/\bmining (.+)/i.exec(o))return trim("Mine "+m[1]);
+ if(t.includes("wave"))return"Complete wave defense waves";
+ if(t.includes("armada")&&!t.includes("research")){
+  if(t.includes("directive")&&t.includes("krenim"))return"Spend Krenim armada directives";
+  if(t.includes("directive"))return"Use armada directives";
+  if(t.includes("group armada"))return"Start group armadas";
+  if(t.includes("fkr"))return"Kill FKR armadas";
+  if(t.includes("borg sphere"))return"Kill Borg Sphere solo armadas";
+  if(t.includes("conqueror"))return"Kill Conqueror Borg solo armadas";
+  if(t.includes("open armada"))return"Kill open armadas";
+  if(t.includes("borg"))return"Kill Borg solo armadas";
+  return"Kill solo armadas"}
+ if(t.includes("outpost retaliation"))return"Defeat outpost attackers";
+ if(t.includes("stronghold")){const f=["federation","klingon","romulan"].find(x=>t.includes(x));return f?"Defeat "+cap(f)+" strongholds":"Defeat FKR strongholds"}
+ if(/(destroying|defeating|destroy|defeat|dealing)/.test(t)&&!t.includes("complet")){
+  const an=t.includes("anomal")?" in anomaly systems":"";
+  if(t.includes("powerful hostiles"))return"Kill powerful hostiles";
+  const h=HT.find(x=>x[0].test(t));if(h)return trim("Kill "+h[1]+an);
+  const f=["federation","klingon","romulan"].find(x=>new RegExp(x+" hostiles").test(t));
+  if(f)return trim("Kill "+cap(f)+" hostiles"+an);
+  return trim("Kill any hostiles"+an)}
+ if(/g\d u(ncommon)? or higher/.test(t))return"Spend G3 U+ mats";
+ if(t.includes("spending like"))return"Spend ship parts & upgrade ships";
+ if(t.includes("upgrading research"))return"Spend mats on research & station";
+ if(t.includes("gaining power"))return"Gain power: research, buildings, drydocks";
+ if(m=/spending (.+?) to upgrade/i.exec(o))return trim("Spend "+m[1]);
+ if(m=/upgrading the ([\w.' ]+?)( or |$)/i.exec(o))return trim("Upgrade "+m[1]);
+ if(t.includes("sub-event")||t.includes("sub event")||t.includes("sub events")||/completing (daily|regular|this weekend)/.test(t)||type==="meta")return"Complete the daily events";
+ if(t.includes("mission key"))return"Gain Mission Key tokens";
+ if(t.includes("multiphasic"))return"Gain Multiphasic credits";
+ if(t.includes("away team"))return"Complete away team missions";
+ if(ti.includes("trivia"))return"Answer the daily trivia";
+ const V={spending:"Spend",completing:"Complete",gaining:"Gain",earning:"Earn",upgrading:"Upgrade",using:"Use",starting:"Start",collecting:"Collect",claiming:"Claim",defeating:"Defeat",destroying:"Kill",mining:"Mine"};
+ m=/^(\w+)\s+(.*)$/.exec(o);if(m&&V[m[1].toLowerCase()])return trim(V[m[1].toLowerCase()]+" "+m[2]);
+ return""}
+function category(task,type){const l=task.toLowerCase();
+ if(l.includes("armada"))return"Armadas";if(l.includes("wave"))return"Waves";
+ if(l.startsWith("kill")||l.startsWith("defeat"))return"Hostiles";if(l.startsWith("mine"))return"Mining";
+ if(l.startsWith("spend")||l.startsWith("upgrade")||l.startsWith("gain power"))return"Spend & upgrade";
+ if(l.startsWith("complete the daily")||l.startsWith("gain mission"))return"Alliance & meta";
+ return({hostiles:"Hostiles",armadas:"Armadas",waves:"Waves",mining:"Mining",ship_upgrade:"Spend & upgrade",building:"Spend & upgrade",research:"Spend & upgrade",recruit:"Spend & upgrade",domination:"Spend & upgrade",vengeance:"Spend & upgrade",meta:"Alliance & meta",alliance:"Alliance & meta"})[type]||"Other"}
+const TYPECOL={hostiles:"#CC6666",armadas:"#99CCFF",waves:"#CC99CC",mining:"#FFCC66"};
+const TOURN=/alliance\s+tournament/i,INCUR=/incursion/i,MINORT=/\b(pass|banner)\b/i,META=/\bmeta\b/i,MINORS=["battlepass","arc_banner","recruit","ticket"];
+function regionOf(t){if(/\be\.?u\.?(\s|$)/i.test(t))return"eu";if(/\bu\.?s\.?(\s|$)/i.test(t))return"us";if(/apac/i.test(t))return"apac";return null}
+
+/* ---------- engine ---------- */
+function build(now){
+ const lr=lastReset(now),nr=nextReset(now);
+ const ev=EV.filter(e=>e.endMs>now-3*DAY);
+ const spot=l=>{const x=l.filter(e=>e.endMs>now).sort((a,b)=>a.startMs-b.startMs)[0];return x&&{title:clean(x.title),s:x.startMs,e:x.endMs,live:x.startMs<=now}};
+ const tourn=ev.filter(e=>TOURN.test(e.title));
+ const incur=ev.filter(e=>INCUR.test(e.title)&&!TOURN.test(e.title)&&(regionOf(e.title)?P.regions.includes(regionOf(e.title)):true));
+ const maint=ev.filter(e=>e.type==="maintenance"&&e.endMs>now&&e.startMs<now+3*DAY);
+ const normal=[];
+ for(const e of ev){
+  if(TOURN.test(e.title)||INCUR.test(e.title)||e.type==="maintenance"||e.type==="meta"||META.test(e.title))continue;
+  if(!((e.minOps==null||P.ops>=e.minOps)&&(e.maxOps==null||P.ops<=e.maxOps)))continue;
+  if(P.hideMinor&&(MINORS.includes(e.type)||MINORT.test(e.title)))continue;
+  const s=snap(e.startMs),en=snap(e.endMs);
+  const task=short(baseTitle(e.title),e.description,e.type),cat=category(task,e.type);
+  if(P.hiddenCats.includes(cat))continue;
+  if(!P.includeLong&&en-s>LONG)continue;
+  if(en<=now)continue;
+  normal.push({e,s,en,task,cat});
+ }
+ const group=l=>{const m=new Map();for(const x of l){const k=baseTitle(x.e.title)+"|"+x.s+"|"+x.en;if(!m.has(k))m.set(k,{title:baseTitle(x.e.title),fm:new Set(),type:x.e.type,s:x.s,e:x.en,task:x.task,cat:x.cat,today:x.en<=nr,isNew:x.s>=lr});
+  const f=(x.e.eventFormat||((FSUF.exec(clean(x.e.title))||[])[1]||"")).toUpperCase();if(f)m.get(k).fm.add(f)}
+  return[...m.values()].sort((a,b)=>a.e-b.e||a.title.localeCompare(b.title))};
+ const cur=group(normal.filter(x=>x.s<=now&&x.en>now));
+ const nxt=group(normal.filter(x=>x.s>now&&x.s<=nr)).sort((a,b)=>a.s-b.s||a.e-b.e||a.title.localeCompare(b.title));
+ return{now,lr,nr,cur,nxt,terr:P.showTerritory?nextSlots(TERR,now,2):[],raid:P.showRaids?nextSlots(RAID,now,2):[],inc:spot(incur),tour:spot(tourn),mnt:spot(maint)};
+}
+function nextSlots(rows,now,n){const out=[];const d0=new Date(now);const base=Date.UTC(d0.getUTCFullYear(),d0.getUTCMonth(),d0.getUTCDate());
+ for(const r of rows){const m=/^(\d\d):(\d\d)/.exec(r.start_utc||"");if(!m)continue;const dur=(r.duration_min||0)*6e4;
+  for(let b=-1;b<=8;b++){const day=base+b*DAY;if(new Date(day).getUTCDay()!==r.weekday)continue;const s=day+(+m[1])*36e5+(+m[2])*6e4;if(s+dur>now){out.push({sys:r.system,s,e:s+dur});break}}}
+ return out.sort((a,b)=>a.s-b.s).slice(0,n)}
+
+/* ---------- format ---------- */
+function dur(ms){const m=Math.floor((ms+59999)/6e4);if(m<=0)return"now";if(m<60)return m+"m";const h=Math.floor(m/60);if(h<24)return h+"h "+(m%60)+"m";return Math.floor(h/24)+"d "+(h%24)+"h"}
+const tf=new Intl.DateTimeFormat("en-GB",{hour:"2-digit",minute:"2-digit"}),df=new Intl.DateTimeFormat("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit"});
+const clock=ms=>tf.format(ms),dayClock=ms=>df.format(ms);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- render ---------- */
+function row(x,now,isNext){
+ const col=TYPECOL[x.type]||"#FF9900";const fm=x.fm.size?" · "+[...x.fm].sort().join("·"):"";
+ const right=isNext?`<b>${clock(x.s)}</b><br>${dur(x.e-x.s)}`:`<b>${x.today?"ends "+clock(x.e):"ends "+dayClock(x.e)}</b><br>${dur(x.e-now)} left`;
+ return`<div class="row${x.today&&!isNext?" today":""}" style="--c:${col}"><div class="m"><div class="n">${esc(x.title)}${esc(fm)}</div><div class="k">${esc(x.task||x.cat)}</div></div><div class="r">${right}</div></div>`}
+function slot(s,now,lab){const live=s.s<=now;return`<div class="spot"><span class="pill">${lab}</span><b>${esc(s.sys)}</b><span class="l">${live?"live, ends "+clock(s.e):dayClock(s.s)+" · in "+dur(s.s-now)}</span></div>`}
+function render(){
+ const now=Date.now(),S=build(now);
+ document.getElementById("clock").textContent="reset in "+dur(S.nr-now);
+ let h="";
+ const sp=(x,l)=>x?`<div class="spot"><span class="pill">${l}</span><b>${esc(x.title)}</b><span class="l">${x.live?"live, ends "+dayClock(x.e):dayClock(x.s)+" · in "+dur(x.s-now)}</span></div>`:"";
+ if(S.mnt)h+=`<div class="spot maint">Maintenance ${S.mnt.live?"now, ends "+clock(S.mnt.e):dayClock(S.mnt.s)+" · in "+dur(S.mnt.s-now)}</div>`;
+ h+=sp(S.inc,"Incursion")+sp(S.tour,"Tournament");
+ for(const s of S.terr)h+=slot(s,now,"Terr");
+ for(const s of S.raid)h+=slot(s,now,"Raid");
+ h+=`<div class="sec">Now</div>`;
+ h+=S.cur.slice(0,P.maxNow).map(x=>row(x,now,false)).join("")||`<div class="more">Nothing running</div>`;
+ if(S.cur.length>P.maxNow)h+=`<div class="more">+${S.cur.length-P.maxNow} more</div>`;
+ h+=`<div class="sec">Next · starts at reset (${clock(S.nr)})</div>`;
+ h+=S.nxt.slice(0,P.maxNext).map(x=>row(x,now,true)).join("")||`<div class="more">Nothing scheduled for the next reset</div>`;
+ if(S.nxt.length>P.maxNext)h+=`<div class="more">+${S.nxt.length-P.maxNext} more</div>`;
+ document.getElementById("main").innerHTML=h;
+ document.getElementById("upd").textContent=lastFetch?"updated "+clock(lastFetch):"no data yet";
+ document.getElementById("err").textContent=lastErr;
+}
+
+/* ---------- data ---------- */
+function parseEvents(j){return(j.events||[]).map(o=>({id:o.id,title:o.title||"",type:o.eventType||"",format:o.eventFormat,eventFormat:o.eventFormat,minOps:o.minOpsLevel,maxOps:o.maxOpsLevel,description:o.description||"",startMs:Date.parse(o.startUTC),endMs:Date.parse(o.endUTC)})).filter(e=>!isNaN(e.startMs)&&!isNaN(e.endMs)&&e.endMs>Date.now()-3*DAY)}
+async function sb(path){const r=await fetch(SB+"/rest/v1/"+path,{headers:{apikey:ANON,Authorization:"Bearer "+ANON}});if(!r.ok)throw new Error(path.split("?")[0]+" "+r.status);return r.json()}
+async function refresh(){
+ const errs=[];
+ let ok=false;
+ for(const u of EVENTS_URLS){try{const r=await fetch(u,{cache:"no-cache"});if(!r.ok)throw 0;const ev=parseEvents(await r.json());if(ev.length){EV=ev;ok=true;try{localStorage.setItem("phxw_ev",JSON.stringify(EV))}catch(e){}break}}catch(e){}}
+ if(!ok)errs.push("events");
+ try{TERR=await sb("phx_territory_schedule?select=system,weekday,start_utc,duration_min");try{localStorage.setItem("phxw_t",JSON.stringify(TERR))}catch(e){}}catch(e){errs.push("territory")}
+ try{RAID=await sb("raid_timer_schedule?select=system,weekday,start_utc");try{localStorage.setItem("phxw_r",JSON.stringify(RAID))}catch(e){}}catch(e){errs.push("raids")}
+ lastErr=errs.length?"offline: "+errs.join(", "):"";if(!errs.length||ok)lastFetch=Date.now();
+ render();
+}
+
+/* ---------- settings ---------- */
+const setEl=document.getElementById("set");
+function drawSettings(){
+ setEl.innerHTML=`<h4>Show</h4>
+ <label>Ops level <input type="number" id="s_ops" min="1" max="80" value="${P.ops}"></label>
+ <label>Rows Now <input type="number" id="s_mn" min="1" max="30" value="${P.maxNow}"></label>
+ <label>Rows Next <input type="number" id="s_mx" min="1" max="30" value="${P.maxNext}"></label>
+ <label><span>Territory timers</span><input type="checkbox" id="s_t" ${P.showTerritory?"checked":""}></label>
+ <label><span>Raid timers</span><input type="checkbox" id="s_r" ${P.showRaids?"checked":""}></label>
+ <label><span>Long (7d+) events</span><input type="checkbox" id="s_l" ${P.includeLong?"checked":""}></label>
+ <label><span>Hide passes, banners, recruit</span><input type="checkbox" id="s_m" ${P.hideMinor?"checked":""}></label>
+ <h4>Incursion regions</h4><div class="cats">${["eu","us","apac"].map(r=>`<label><input type="checkbox" data-r="${r}" ${P.regions.includes(r)?"checked":""}> ${r.toUpperCase()}</label>`).join("")}</div>
+ <h4>Categories</h4><div class="cats">${CATS.map(c=>`<label><input type="checkbox" data-c="${esc(c)}" ${P.hiddenCats.includes(c)?"":"checked"}> ${esc(c)}</label>`).join("")}</div>`;
+ const num=(id,k,lo,hi)=>document.getElementById(id).onchange=e=>{P[k]=Math.min(hi,Math.max(lo,+e.target.value||lo));save();render()};
+ num("s_ops","ops",1,80);num("s_mn","maxNow",1,30);num("s_mx","maxNext",1,30);
+ const chk=(id,k)=>document.getElementById(id).onchange=e=>{P[k]=e.target.checked;save();render()};
+ chk("s_t","showTerritory");chk("s_r","showRaids");chk("s_l","includeLong");chk("s_m","hideMinor");
+ setEl.querySelectorAll("[data-r]").forEach(i=>i.onchange=()=>{P.regions=[...setEl.querySelectorAll("[data-r]")].filter(x=>x.checked).map(x=>x.dataset.r);save();render()});
+ setEl.querySelectorAll("[data-c]").forEach(i=>i.onchange=()=>{P.hiddenCats=[...setEl.querySelectorAll("[data-c]")].filter(x=>!x.checked).map(x=>x.dataset.c);save();render()});
+}
+document.getElementById("gear").onclick=()=>{const v=setEl.style.display==="block";setEl.style.display=v?"none":"block";if(!v)drawSettings()};
+
+render();refresh();
+setInterval(render,30000);
+setInterval(refresh,10*60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){render();if(Date.now()-lastFetch>5*60000)refresh()}});
+</script>
+</body>
+</html>
